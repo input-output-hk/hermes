@@ -20,7 +20,7 @@ impl From<hermes_ipfs::IpfsPath> for FileAddResult {
             cid: value
                 .root()
                 .cid()
-                .map_or_else(|| "(NO_CID)".to_string(), |c| c.to_string()),
+                .map_or_else(|| "(NO_CID)".to_string(), ToString::to_string),
         }
     }
 }

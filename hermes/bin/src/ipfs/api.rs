@@ -3,8 +3,7 @@ use super::{HERMES_IPFS, is_valid_dht_content, is_valid_pubsub_content};
 use crate::{
     app::ApplicationName,
     runtime_extensions::bindings::hermes::ipfs::api::{
-        DhtKey, DhtValue, Errno,  IpfsContent, IpfsFile, IpfsPath, MessageData,
-        PeerId, PubsubTopic,
+        DhtKey, DhtValue, Errno, IpfsContent, IpfsFile, IpfsPath, MessageData, PeerId, PubsubTopic,
     },
 };
 

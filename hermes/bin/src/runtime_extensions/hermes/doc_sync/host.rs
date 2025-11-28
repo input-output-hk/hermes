@@ -13,7 +13,7 @@ use crate::{
                 ChannelName, DocData, DocLoc, DocProof, Errno, Host, HostSyncChannel, ProverId,
                 SyncChannel,
             },
-            ipfs::api::Host as IpfsHost,
+            ipfs::api::{FileAddResult, Host as IpfsHost},
         },
         hermes::doc_sync::DOC_SYNC_STATE,
     },
@@ -188,7 +188,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         // Step 2: Pin the document
         match self.file_pin(ipfs_path.clone())? {
             Ok(result) => {
-                tracing::info!("✓ Step 2/4: Pinned with result {} → {}", result, ipfs_path)
+                tracing::info!("✓ Step 2/4: Pinned with result {} → {}", result, ipfs_path);
             },
             Err(e) => {
                 tracing::error!("✗ Step 2/4 failed: file_pin error: {:?}", e);
