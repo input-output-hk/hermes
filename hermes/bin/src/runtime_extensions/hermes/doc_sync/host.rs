@@ -198,7 +198,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         tracing::info!("⏭ Step 2/3: Pre-publish");
         match self.dht_provide(cid.clone().into()) {
             Ok(_) => {
-                tracing::info!("✓ Step 2/3: DHT provide successful (CID: {})", cid,);
+                tracing::info!("✓ Step 2/3: DHT provide successful (CID: {})", cid);
             },
             Err(e) => {
                 tracing::error!("✗ Step 2/3 failed: dht_provide error: {:?}", e);
@@ -206,9 +206,17 @@ impl HostSyncChannel for HermesRuntimeContext {
             },
         }
 
-        // loop {
-        // let providers = self.dht_get_providers(cid.clone().into());
-        // }
+        #[allow(unreachable_code)]
+        loop {
+            let providers = self.dht_get_providers(cid.clone().into());
+            if is_pre_publish_completed(todo!(), &providers) {
+                tracing::info!("✓ Step 2/3: Other DHT providers found");
+                break;
+            }
+            tracing::info!("✓ Step 2/3: Other DHT providers not found, sleeping...");
+            // TODO[rafal-ch]: Backoff
+            std::thread::sleep(std::time::Duration::from_secs(1));
+        }
 
         // Step 3: Publish to PubSub
         //
