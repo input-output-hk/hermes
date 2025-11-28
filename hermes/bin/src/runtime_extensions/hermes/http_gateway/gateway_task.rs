@@ -14,8 +14,8 @@ use tracing::{debug, error, info};
 
 use super::routing::router;
 
-/// HTTP Gateway port
-const GATEWAY_PORT: u16 = 5000;
+/// HTTP Gateway default port
+const DEFAULT_GATEWAY_PORT: u16 = 5000;
 
 /// hostname (node name)
 #[cfg_attr(debug_assertions, derive(Debug))]
@@ -43,13 +43,18 @@ impl Default for Config {
             .and_then(|v| v.parse::<bool>().ok())
             .unwrap_or(true); // fallback default
 
+        let gateway_port = std::env::var("HERMES_HTTP_PORT")
+            .ok()
+            .and_then(|v| v.parse::<u16>().ok())
+            .unwrap_or(DEFAULT_GATEWAY_PORT);
+
         Self {
             valid_hosts: [
                 Hostname("hermes.local".to_owned()),
                 Hostname("localhost".to_owned()),
             ]
             .to_vec(),
-            local_addr: SocketAddr::new([127, 0, 0, 1].into(), GATEWAY_PORT),
+            local_addr: SocketAddr::new([127, 0, 0, 1].into(), gateway_port),
             is_auth_activate,
         }
     }
