@@ -176,7 +176,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         // Step 1: Add document to IPFS (automatically pins)
         // Note: file_add pins the document under the hood via the hermes_ipfs library,
         // so no explicit file_pin call is needed.
-        let (ipfs_path, cid) = match self.file_add(doc.clone())? {
+        let (_ipfs_path, cid) = match self.file_add(doc.clone())? {
             Ok(FileAddResult { file_path, cid }) => {
                 tracing::info!(
                     "✓ Step 1/3: Added and pinned to IPFS (CID: {}) → {}",
