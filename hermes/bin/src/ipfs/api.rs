@@ -107,7 +107,7 @@ pub(crate) fn hermes_ipfs_put_dht_value(
     Ok(status)
 }
 
-/// Provide DHT Value
+/// Marks a node as a provider for the content under the given key.
 pub(crate) fn hermes_ipfs_dht_provide(
     app_name: &ApplicationName,
     key: DhtKey,
@@ -120,7 +120,7 @@ pub(crate) fn hermes_ipfs_dht_provide(
     Ok(())
 }
 
-/// Get providers for a given DHT value
+/// Gets providers of the content under the given key.
 pub(crate) fn hermes_ipfs_dht_get_providers(
     app_name: &ApplicationName,
     key: DhtKey,
@@ -133,6 +133,18 @@ pub(crate) fn hermes_ipfs_dht_get_providers(
 
     let providers = providers.iter().map(ToString::to_string).collect();
     Ok(providers)
+}
+
+/// Returns the peer id of the mode.
+pub(crate) fn hermes_ipfs_get_peer_identity(
+    app_name: &ApplicationName
+) -> Result<hermes_ipfs::PeerInfo, Errno> {
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
+    tracing::debug!(app_name = %app_name, "Get peer identity");
+    let identity = ipfs.get_peer_identity()?;
+    tracing::debug!(app_name = %app_name, "Got peer identity");
+
+    Ok(identity)
 }
 
 /// Subscribe to a topic

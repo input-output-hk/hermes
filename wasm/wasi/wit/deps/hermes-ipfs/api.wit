@@ -73,17 +73,21 @@ interface api {
         /// DHT provide call failed.
         dht-provide-error,
         /// DHT get providers call failed.
-        dht-get-providers-error
+        dht-get-providers-error,
+        /// Unable to read peer id.
+        get-peer-id-error
     }
 
     /// Puts a DHT key-value into IPFS.
     dht-put: func(key: dht-key, value: dht-value) -> result<bool, errno>;
     /// Gets a DHT key-value from IPFS.
     dht-get: func(key: dht-key) -> result<dht-value, errno>;
-    /// TODO
+    /// Marks a node as a provider for the content under the given key.
     dht-provide: func(key: dht-key) -> result<_, errno>;
-    /// TODO
+    /// Gets providers of the content under the given key.
     dht-get-providers: func(key: dht-key) -> result<list<peer-id>, errno>;
+    /// Returns the peer id of the mode.
+    get-peer-id: func() -> result<peer-id, errno>;
     /// Validates IPFS content from DHT or PubSub.
     ipfs-content-validate: func(content: ipfs-content) -> result<bool, errno>;
     /// Uploads a file to IPFS.

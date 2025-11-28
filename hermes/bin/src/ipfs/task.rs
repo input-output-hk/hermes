@@ -45,6 +45,11 @@ pub(crate) enum IpfsCommand {
     Subscribe(PubsubTopic, oneshot::Sender<Result<JoinHandle<()>, Errno>>),
     /// Evict Peer from node
     EvictPeer(PeerId, oneshot::Sender<Result<bool, Errno>>),
+    /// Gets the peer identity
+    Identity(
+        Option<PeerId>,
+        oneshot::Sender<Result<hermes_ipfs::PeerInfo, Errno>>,
+    ),
 }
 
 /// Handle IPFS commands in asynchronous task.
@@ -153,6 +158,24 @@ pub(crate) async fn ipfs_command_handler(
                         tracing::error!(dht_key = ?key, "DHT get providers failed: {}", err);
                         Errno::DhtProvideError
                     });
+                send_response(response, tx);
+            },
+            IpfsCommand::Identity(peer_id, tx) => {
+                let peer_id = match peer_id {
+                    Some(peer_id) => {
+                        Some(
+                            hermes_ipfs::PeerId::from_str(&peer_id)
+                                .map_err(|_| Errno::InvalidPeerId)?,
+                        )
+                    },
+                    None => None,
+                };
+
+                let response = hermes_node.identity(peer_id).await.map_err(|err| {
+                    tracing::error!(peer_id = ?peer_id, "Identity failed: {}", err);
+                    Errno::GetPeerIdError
+                });
+
                 send_response(response, tx);
             },
         }

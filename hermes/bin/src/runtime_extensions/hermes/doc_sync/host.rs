@@ -202,9 +202,20 @@ impl HostSyncChannel for HermesRuntimeContext {
             },
         }
 
+        let peer_id = match self.get_peer_id()? {
+            Ok(peer_id) => {
+                tracing::info!("✓ Step 2/3: get_peer_id successful (CID: {})", cid);
+                peer_id
+            },
+            Err(e) => {
+                tracing::error!("✗ Step 2/3 failed: get_peer_id error: {:?}", e);
+                return Ok(Err(Errno::DocErrorPlaceholder));
+            },
+        };
+
         loop {
             let providers = self.dht_get_providers(cid.clone().into())??;
-            if is_pre_publish_completed("OUR_PEER_ID_STRING", &providers) {
+            if is_pre_publish_completed(&peer_id, &providers) {
                 tracing::info!("✓ Step 2/3: Other DHT providers found");
                 break;
             }

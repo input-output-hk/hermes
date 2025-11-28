@@ -4,8 +4,9 @@ use crate::{
     ipfs::{
         hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_dht_get_providers,
         hermes_ipfs_dht_provide, hermes_ipfs_evict_peer, hermes_ipfs_get_dht_value,
-        hermes_ipfs_get_file, hermes_ipfs_pin_file, hermes_ipfs_publish, hermes_ipfs_put_dht_value,
-        hermes_ipfs_subscribe, hermes_ipfs_unpin_file,
+        hermes_ipfs_get_file, hermes_ipfs_get_peer_identity, hermes_ipfs_pin_file,
+        hermes_ipfs_publish, hermes_ipfs_put_dht_value, hermes_ipfs_subscribe,
+        hermes_ipfs_unpin_file,
     },
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::ipfs::api::{
@@ -84,6 +85,12 @@ impl Host for HermesRuntimeContext {
         key: DhtKey,
     ) -> wasmtime::Result<Result<Vec<PeerId>, Errno>> {
         Ok(hermes_ipfs_dht_get_providers(self.app_name(), key))
+    }
+
+    fn get_peer_id(&mut self) -> wasmtime::Result<Result<PeerId, Errno>> {
+        let identity = hermes_ipfs_get_peer_identity(self.app_name())?;
+        let peer_id = identity.peer_id;
+        Ok(Ok(peer_id.to_string()))
     }
 
     fn pubsub_publish(
