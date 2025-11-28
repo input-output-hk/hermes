@@ -1,6 +1,9 @@
 //! Doc Sync host module.
 
+use std::collections::HashSet;
+
 use cardano_chain_follower::pallas_codec::minicbor::{self, Encode, Encoder, data::Tag};
+use hermes_ipfs::PeerId;
 use stringzilla::stringzilla::Sha256;
 use wasmtime::component::Resource;
 
@@ -203,6 +206,10 @@ impl HostSyncChannel for HermesRuntimeContext {
             },
         }
 
+        // loop {
+        // let providers = self.dht_get_providers(cid.clone().into());
+        // }
+
         // Step 3: Publish to PubSub
         //
         // IMPORTANT: Gossipsub is a peer-to-peer protocol that requires at least one
@@ -328,4 +335,61 @@ fn inner_close(
     // TODO(anyone): Here we should clean up the state, since we would have a map that
     // associates app_name with app's subscriptions.
     Ok(Ok(true))
+}
+
+#[allow(unused)]
+fn is_pre_publish_completed(
+    our_peer_id: &PeerId,
+    current_providers: &HashSet<PeerId>,
+) -> bool {
+    if current_providers.contains(our_peer_id) {
+        current_providers.len() > 1
+    } else {
+        !current_providers.is_empty()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use hermes_ipfs::PeerId;
+
+    use crate::runtime_extensions::hermes::doc_sync::host::is_pre_publish_completed;
+
+    #[test]
+    fn pre_publish_completed_our_peer_missing() {
+        let our_id = PeerId::random();
+        let other_id_1 = PeerId::random();
+        let other_id_2 = PeerId::random();
+
+        let current_providers = HashSet::from_iter([other_id_1, other_id_2]);
+        assert!(is_pre_publish_completed(&our_id, &current_providers));
+    }
+
+    #[test]
+    fn pre_publish_completed_our_peer_present() {
+        let our_id = PeerId::random();
+        let other_id_1 = PeerId::random();
+        let other_id_2 = PeerId::random();
+
+        let current_providers = HashSet::from_iter([our_id, other_id_1, other_id_2]);
+        assert!(is_pre_publish_completed(&our_id, &current_providers));
+    }
+
+    #[test]
+    fn pre_publish_not_completed_our_peer_missing() {
+        let our_id = PeerId::random();
+
+        let current_providers = HashSet::from_iter([]);
+        assert!(!is_pre_publish_completed(&our_id, &current_providers));
+    }
+
+    #[test]
+    fn pre_publish_not_completed_our_peer_present() {
+        let our_id = PeerId::random();
+
+        let current_providers = HashSet::from_iter([our_id]);
+        assert!(!is_pre_publish_completed(&our_id, &current_providers));
+    }
 }
