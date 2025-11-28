@@ -8,18 +8,30 @@ use crate::{
     },
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::ipfs::api::{
-        DhtKey, DhtValue, Errno, Host, IpfsContent, IpfsFile, IpfsPath, MessageData, PeerId,
-        PubsubTopic,
+        DhtKey, DhtValue, Errno, FileAddResult, Host, IpfsContent, IpfsFile, IpfsPath, MessageData,
+        PeerId, PubsubTopic,
     },
 };
+
+impl From<hermes_ipfs::IpfsPath> for FileAddResult {
+    fn from(value: hermes_ipfs::IpfsPath) -> Self {
+        FileAddResult {
+            file_path: value.to_string(),
+            cid: value
+                .root()
+                .cid()
+                .map_or_else(|| "(NO_CID)".to_string(), |c| c.to_string()),
+        }
+    }
+}
 
 impl Host for HermesRuntimeContext {
     fn file_add(
         &mut self,
         contents: IpfsFile,
-    ) -> wasmtime::Result<Result<IpfsPath, Errno>> {
-        let path: IpfsPath = hermes_ipfs_add_file(self.app_name(), contents)?.to_string();
-        Ok(Ok(path))
+    ) -> wasmtime::Result<Result<FileAddResult, Errno>> {
+        let ipfs_path = hermes_ipfs_add_file(self.app_name(), contents)?;
+        Ok(Ok(ipfs_path.into()))
     }
 
     fn file_get(

@@ -3,7 +3,8 @@ use super::{HERMES_IPFS, is_valid_dht_content, is_valid_pubsub_content};
 use crate::{
     app::ApplicationName,
     runtime_extensions::bindings::hermes::ipfs::api::{
-        DhtKey, DhtValue, Errno, IpfsContent, IpfsFile, IpfsPath, MessageData, PeerId, PubsubTopic,
+        DhtKey, DhtValue, Errno,  IpfsContent, IpfsFile, IpfsPath, MessageData,
+        PeerId, PubsubTopic,
     },
 };
 
@@ -11,12 +12,13 @@ use crate::{
 pub(crate) fn hermes_ipfs_add_file(
     app_name: &ApplicationName,
     contents: IpfsFile,
-) -> Result<IpfsPath, Errno> {
+) -> Result<hermes_ipfs::IpfsPath, Errno> {
     tracing::debug!(app_name = %app_name, "adding IPFS file");
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
-    let ipfs_path = ipfs.file_add(contents)?.to_string();
-    tracing::debug!(app_name = %app_name, path = %ipfs_path, "added IPFS file");
-    ipfs.apps.pinned_file(app_name.clone(), &ipfs_path)?;
+    let ipfs_path = ipfs.file_add(contents)?;
+    let ipfs_path_str = ipfs_path.to_string();
+    tracing::debug!(app_name = %app_name, path = %ipfs_path_str, "added IPFS file");
+    ipfs.apps.pinned_file(app_name.clone(), &ipfs_path_str)?;
     Ok(ipfs_path)
 }
 

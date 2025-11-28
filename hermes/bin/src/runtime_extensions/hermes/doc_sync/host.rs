@@ -9,7 +9,7 @@ use crate::{
             ChannelName, DocData, DocLoc, DocProof, Errno, Host, HostSyncChannel, ProverId,
             SyncChannel,
         },
-        ipfs::api::Host as IpfsHost,
+        ipfs::api::{FileAddResult, Host as IpfsHost},
     },
 };
 
@@ -83,10 +83,10 @@ impl HostSyncChannel for HermesRuntimeContext {
         tracing::info!("📤 Posting {} bytes to doc-sync channel", doc.len());
 
         // Step 1: Add document to IPFS
-        let ipfs_path = match self.file_add(doc.clone())? {
-            Ok(path) => {
-                tracing::info!("✓ Step 1/4: Added to IPFS → {}", path);
-                path
+        let (ipfs_path, cid) = match self.file_add(doc.clone())? {
+            Ok(FileAddResult { file_path, cid }) => {
+                tracing::info!("✓ Step 1/4: Added to IPFS (CID: {}) → {}", cid, file_path);
+                (file_path, cid)
             },
             Err(e) => {
                 tracing::error!("✗ Step 1/4 failed: file_add error: {:?}", e);
@@ -147,9 +147,7 @@ impl HostSyncChannel for HermesRuntimeContext {
             tracing::info!("   Document is successfully stored in IPFS from Steps 1-2");
         }
 
-        // Extract CID from path and return it
-        let cid_str = ipfs_path.strip_prefix("/ipfs/").unwrap_or(&ipfs_path);
-        Ok(Ok(cid_str.as_bytes().to_vec()))
+        Ok(Ok(cid.as_bytes().to_vec()))
     }
 
     /// Prove a document is stored in the provers
