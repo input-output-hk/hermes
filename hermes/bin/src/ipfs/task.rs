@@ -1,5 +1,5 @@
 //! IPFS Task
-use std::str::FromStr;
+use std::{collections::HashSet, str::FromStr};
 
 use hermes_ipfs::{AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId};
 use tokio::{
@@ -32,8 +32,13 @@ pub(crate) enum IpfsCommand {
     GetDhtValue(DhtKey, oneshot::Sender<Result<DhtValue, Errno>>),
     /// Put DHT value
     PutDhtValue(DhtKey, DhtValue, oneshot::Sender<Result<bool, Errno>>),
-    /// Put DHT value
+    /// Provide a DHT value
     DhtProvide(DhtKey, oneshot::Sender<Result<(), Errno>>),
+    /// Get providers of a DHT value
+    DhtGetProviders(
+        DhtKey,
+        oneshot::Sender<Result<HashSet<hermes_ipfs::PeerId>, Errno>>,
+    ),
     /// Publish to a topic
     Publish(PubsubTopic, MessageData, oneshot::Sender<Result<(), Errno>>),
     /// Subscribe to a topic
@@ -43,6 +48,7 @@ pub(crate) enum IpfsCommand {
 }
 
 /// Handle IPFS commands in asynchronous task.
+#[allow(clippy::too_many_lines)]
 pub(crate) async fn ipfs_command_handler(
     hermes_node: HermesIpfs,
     mut queue_rx: mpsc::Receiver<IpfsCommand>,
@@ -137,6 +143,16 @@ pub(crate) async fn ipfs_command_handler(
                     tracing::error!(dht_key = ?key, "DHT provide failed: {}", err);
                     Errno::DhtProvideError
                 });
+                send_response(response, tx);
+            },
+            IpfsCommand::DhtGetProviders(key, tx) => {
+                let response = hermes_node
+                    .dht_get_providers(key.clone())
+                    .await
+                    .map_err(|err| {
+                        tracing::error!(dht_key = ?key, "DHT get providers failed: {}", err);
+                        Errno::DhtProvideError
+                    });
                 send_response(response, tx);
             },
         }

@@ -1,9 +1,5 @@
 //! Doc Sync host module.
-
-use std::collections::HashSet;
-
 use cardano_chain_follower::pallas_codec::minicbor::{self, Encode, Encoder, data::Tag};
-use hermes_ipfs::PeerId;
 use stringzilla::stringzilla::Sha256;
 use wasmtime::component::Resource;
 
@@ -206,10 +202,9 @@ impl HostSyncChannel for HermesRuntimeContext {
             },
         }
 
-        #[allow(unreachable_code)]
         loop {
-            let providers = self.dht_get_providers(cid.clone().into());
-            if is_pre_publish_completed(todo!(), &providers) {
+            let providers = self.dht_get_providers(cid.clone().into())??;
+            if is_pre_publish_completed("OUR_PEER_ID_STRING", &providers) {
                 tracing::info!("✓ Step 2/3: Other DHT providers found");
                 break;
             }
@@ -345,12 +340,13 @@ fn inner_close(
     Ok(Ok(true))
 }
 
-#[allow(unused)]
+/// Checks if the pre-publish is completed based on "our peer id" and
+/// available providers.
 fn is_pre_publish_completed(
-    our_peer_id: &PeerId,
-    current_providers: &HashSet<PeerId>,
+    our_peer_id: &str,
+    current_providers: &[String],
 ) -> bool {
-    if current_providers.contains(our_peer_id) {
+    if current_providers.contains(&our_peer_id.to_string()) {
         current_providers.len() > 1
     } else {
         !current_providers.is_empty()
@@ -359,45 +355,19 @@ fn is_pre_publish_completed(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
-
-    use hermes_ipfs::PeerId;
+    use test_case::test_case;
 
     use crate::runtime_extensions::hermes::doc_sync::host::is_pre_publish_completed;
 
-    #[test]
-    fn pre_publish_completed_our_peer_missing() {
-        let our_id = PeerId::random();
-        let other_id_1 = PeerId::random();
-        let other_id_2 = PeerId::random();
-
-        let current_providers = HashSet::from_iter([other_id_1, other_id_2]);
-        assert!(is_pre_publish_completed(&our_id, &current_providers));
-    }
-
-    #[test]
-    fn pre_publish_completed_our_peer_present() {
-        let our_id = PeerId::random();
-        let other_id_1 = PeerId::random();
-        let other_id_2 = PeerId::random();
-
-        let current_providers = HashSet::from_iter([our_id, other_id_1, other_id_2]);
-        assert!(is_pre_publish_completed(&our_id, &current_providers));
-    }
-
-    #[test]
-    fn pre_publish_not_completed_our_peer_missing() {
-        let our_id = PeerId::random();
-
-        let current_providers = HashSet::from_iter([]);
-        assert!(!is_pre_publish_completed(&our_id, &current_providers));
-    }
-
-    #[test]
-    fn pre_publish_not_completed_our_peer_present() {
-        let our_id = PeerId::random();
-
-        let current_providers = HashSet::from_iter([our_id]);
-        assert!(!is_pre_publish_completed(&our_id, &current_providers));
+    #[test_case("OUR", &["OTHER_1", "OTHER_2"] => true)]
+    #[test_case("OUR", &["OUR", "OTHER_1", "OTHER_2"] => true)]
+    #[test_case("OUR", &[] => false)]
+    #[test_case("OUR", &["OUR"] => false)]
+    fn pre_publish_completed(
+        our_peer_id: &str,
+        current_providers: &[&str],
+    ) -> bool {
+        let current_providers: Vec<_> = current_providers.iter().map(ToString::to_string).collect();
+        is_pre_publish_completed(our_peer_id, &current_providers)
     }
 }

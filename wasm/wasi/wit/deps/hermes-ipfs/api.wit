@@ -71,15 +71,19 @@ interface api {
         /// IPFS service is unavailable.
         service-unavailable,
         /// DHT provide call failed.
-        dht-provide-error
+        dht-provide-error,
+        /// DHT get providers call failed.
+        dht-get-providers-error
     }
 
     /// Puts a DHT key-value into IPFS.
     dht-put: func(key: dht-key, value: dht-value) -> result<bool, errno>;
-    /// TODO
-    dht-provide: func(key: dht-key) -> result<_, errno>;
     /// Gets a DHT key-value from IPFS.
     dht-get: func(key: dht-key) -> result<dht-value, errno>;
+    /// TODO
+    dht-provide: func(key: dht-key) -> result<_, errno>;
+    /// TODO
+    dht-get-providers: func(key: dht-key) -> result<list<peer-id>, errno>;
     /// Validates IPFS content from DHT or PubSub.
     ipfs-content-validate: func(content: ipfs-content) -> result<bool, errno>;
     /// Uploads a file to IPFS.
