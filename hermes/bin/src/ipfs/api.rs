@@ -120,7 +120,7 @@ pub(crate) fn hermes_ipfs_subscribe(
     } else {
         let handle = ipfs.pubsub_subscribe(&topic)?;
         ipfs.apps.added_topic_stream(topic.clone(), handle);
-        tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "added subscription topic stream");
+        tracing::info!(app_name = %app_name, pubsub_topic = %topic, "added subscription topic stream");
     }
     ipfs.apps
         .added_app_topic_subscription(app_name.clone(), topic);

@@ -101,7 +101,12 @@ impl exports::hermes::http_gateway::event::Guest for Component {
                     },
                 }
             },
-            _ => Some(json_response(404, &serde_json::json!({"error": "Not found"}))),
+            _ => {
+                Some(json_response(
+                    404,
+                    &serde_json::json!({"error": "Not found"}),
+                ))
+            },
         }
     }
 }
@@ -125,7 +130,7 @@ const DOC_SYNC_CHANNEL: &str = "documents";
 
 /// API for posting documents to IPFS `PubSub` channels.
 pub mod channel {
-    use super::{hermes, DocData, SyncChannel, DOC_SYNC_CHANNEL};
+    use super::{DOC_SYNC_CHANNEL, DocData, SyncChannel, hermes};
 
     /// Post a document to the "documents" channel. Returns the document's CID.
     ///
