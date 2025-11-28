@@ -230,7 +230,7 @@ impl HostSyncChannel for HermesRuntimeContext {
                 "   Note: Gossipsub requires other nodes subscribing to '{}' to work",
                 topic
             );
-            tracing::info!(" Document is successfully stored in IPFS from Step 1");
+            tracing::info!("   Document is successfully stored in IPFS from Step 1");
         }
 
         Ok(Ok(cid.as_bytes().to_vec()))
