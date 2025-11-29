@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 # Start multi-node Hermes P2P test environment using Docker
+#
+# IMPORTANT: This script uses Earthly (containerized builds) to ensure
+# cross-platform compatibility. Binaries are built in a controlled environment
+# with GLIBC versions matching the Docker container (Debian Bookworm).
+#
+# Never use locally-built binaries (cargo build) as they may have GLIBC
+# incompatibilities with Docker and fail to run across different host systems.
 
 set -euo pipefail
 
@@ -37,25 +44,27 @@ fi
 
 cd "$PROJECT_ROOT"
 
-# Use justfile recipes (leverages Earthly + parallel packaging)
-echo "🔨 Building with justfile (Earthly + parallel packaging)..."
+# Use justfile recipes with Earthly for cross-platform compatibility
+echo "🔨 Building with Earthly (containerized build for cross-platform compatibility)..."
 echo ""
 
 if [ -f "hermes/target/release/hermes" ] && [ -f "hermes/apps/athena/athena.happ" ]; then
     echo "📦 Found existing build artifacts"
-    read -p "   Rebuild? (y/N): " -n 1 -r
+    read -p "   Rebuild with Earthly? (y/N): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo "   🔄 Rebuilding..."
-        just get-local-hermes    # Earthly build
+        echo "   🔄 Rebuilding with Earthly (ensures Docker compatibility)..."
+        just get-local-hermes    # Earthly containerized build - GLIBC compatible
         just get-local-athena    # Earthly build + parallel packaging
         echo "✅ Build complete!"
     else
         echo "   ⏭️  Using existing artifacts"
+        echo "   ⚠️  Note: If Docker fails with GLIBC errors, rebuild with Earthly (y above)"
     fi
 else
-    echo "🏗️  Building from scratch..."
-    just get-local-hermes    # Earthly build
+    echo "🏗️  Building from scratch with Earthly..."
+    echo "   This ensures the binary works in Docker regardless of your host OS"
+    just get-local-hermes    # Earthly containerized build - GLIBC compatible
     just get-local-athena    # Earthly build + parallel packaging
     echo "✅ Build complete!"
 fi
@@ -69,7 +78,55 @@ $DOCKER_COMPOSE build
 
 echo ""
 echo "🌐 Starting 3 Hermes nodes in Docker..."
-$DOCKER_COMPOSE up -d
+
+# Try to start the nodes
+if ! $DOCKER_COMPOSE up -d 2>&1 | tee /tmp/docker-compose-output.log; then
+    # Check if the error is due to network overlap
+    if grep -q "Pool overlaps with other one" /tmp/docker-compose-output.log; then
+        echo ""
+        echo "❌ Error: Docker network conflict detected!"
+        echo ""
+        echo "The p2p-testing environment uses subnet 172.20.0.0/16, but another"
+        echo "network is already using this address space."
+        echo ""
+        echo "To fix this, find and remove the conflicting network:"
+        echo ""
+        echo "  1. List networks using this subnet:"
+        echo "     docker network ls --format '{{.Name}}' | xargs -I {} sh -c 'docker network inspect {} --format \"{{.Name}}: {{range .IPAM.Config}}{{.Subnet}}{{end}}\" 2>/dev/null | grep 172.20'"
+        echo ""
+        echo "  2. Remove the conflicting network (if not in use):"
+        echo "     docker network rm <network-name>"
+        echo ""
+        echo "  3. Re-run this script"
+        echo ""
+        rm -f /tmp/docker-compose-output.log
+        exit 1
+    # Check if the error is due to container name conflict
+    elif grep -q "is already in use by container" /tmp/docker-compose-output.log; then
+        echo ""
+        echo "❌ Error: Container name conflict detected!"
+        echo ""
+        echo "Old containers with the same names are still present from a previous run."
+        echo ""
+        echo "To fix this, remove the old containers:"
+        echo ""
+        echo "  docker rm hermes-node1 hermes-node2 hermes-node3"
+        echo ""
+        echo "Or use the stop script with clean flag:"
+        echo ""
+        echo "  ./stop-nodes.sh --clean"
+        echo ""
+        rm -f /tmp/docker-compose-output.log
+        exit 1
+    else
+        # Different error - show the output
+        cat /tmp/docker-compose-output.log
+        rm -f /tmp/docker-compose-output.log
+        exit 1
+    fi
+fi
+
+rm -f /tmp/docker-compose-output.log
 
 echo ""
 echo "⏳ Waiting for nodes to initialize..."

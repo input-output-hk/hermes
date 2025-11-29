@@ -1,5 +1,11 @@
 # Docker Compose for Hermes P2P Testing
 # Simulates multiple computers running Hermes with isolated networks
+#
+# IMPORTANT: Before running, build artifacts with Earthly for cross-platform compatibility:
+#   just get-local-hermes    # Containerized build (GLIBC-compatible)
+#   just get-local-athena    # WASM build + packaging
+#
+# Or simply run: ./start-nodes.sh (handles builds automatically)
 
 services:
   hermes-node1:

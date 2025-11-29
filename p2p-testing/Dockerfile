@@ -1,5 +1,14 @@
 # Dockerfile for Hermes P2P Testing
-# Uses Earthly-built artifacts for cross-platform compatibility
+#
+# CRITICAL: This Dockerfile expects pre-built artifacts from Earthly (containerized builds).
+# Do NOT use locally-built binaries (cargo build) as they may have GLIBC incompatibilities.
+#
+# Build artifacts with:
+#   just get-local-hermes    # Earthly containerized build (GLIBC-compatible)
+#   just get-local-athena    # Earthly WASM build + packaging
+#
+# Why Earthly? Ensures binaries built in a controlled environment match the GLIBC
+# version in this Debian Bookworm container, regardless of host OS (Fedora, Ubuntu, etc.)
 
 FROM debian:bookworm-slim
 
@@ -13,8 +22,8 @@ RUN apt-get update && apt-get install -y \
 # Create hermes user
 RUN useradd -m -u 1000 hermes
 
-# Copy Earthly-built artifacts
-# These should be built with: earthly ./hermes+build && earthly ./hermes+build-athena
+# Copy Earthly-built artifacts (GLIBC-compatible with Debian Bookworm)
+# IMPORTANT: These MUST be built with Earthly, not local cargo builds
 COPY hermes/target/release/hermes /usr/local/bin/hermes
 COPY hermes/apps/athena/athena.happ /app/athena.happ
 

@@ -9,7 +9,19 @@ Hermes will be downloaded and run by people on their own computers across the in
 - **Network Isolation** - Each container = separate computer with its own IP
 - **Separate IPFS Repos** - Each node has isolated `/root/.hermes/` directory
 - **Realistic P2P** - Nodes communicate over virtual network, not localhost
-- **Cross-Platform** - Earthly builds work on Mac, Linux, Windows
+- **Cross-Platform** - Works consistently across Mac, Linux, Windows
+
+## Why Earthly? (Critical for Docker Compatibility)
+
+**IMPORTANT:** The build process MUST use Earthly (containerized builds) to ensure Docker compatibility:
+
+- **GLIBC Compatibility** - Binaries built on your host (e.g., Fedora, Ubuntu) may have different GLIBC versions than the Docker container (Debian Bookworm)
+- **Consistent Builds** - Earthly builds in a container with controlled dependencies, ensuring binaries work in Docker regardless of your host OS
+- **Cross-Platform** - Earthly-built binaries work on any host system (Mac, Linux, Windows)
+
+**Never use locally-built binaries** (e.g., `cargo build`) for Docker - they may have GLIBC incompatibilities and fail to run in containers.
+
+The scripts automatically use Earthly via `just get-local-hermes` and `just get-local-athena`.
 
 ## Prerequisites
 
@@ -41,12 +53,14 @@ docker compose -f p2p-testing/docker-compose.yml logs -f
 ### Build Process
 
 1. **Justfile orchestrates** the build (leverages existing parallel logic):
-   - `just get-local-hermes` → Earthly builds binary
-   - `just get-local-athena` → Earthly builds WASM + parallel packaging
-2. **Docker copies** artifacts into lightweight runtime images
+   - `just get-local-hermes` → **Earthly containerized build** (GLIBC-compatible)
+   - `just get-local-athena` → **Earthly builds WASM** + parallel packaging
+2. **Docker copies** pre-built artifacts into lightweight runtime images
 3. **Docker Compose** orchestrates 3 nodes on isolated network
 
-**Why justfile?** Reuses proven parallel packaging logic (see `justfile:232-230`) instead of duplicating it.
+**Why justfile?** Reuses proven parallel packaging logic instead of duplicating it.
+
+**Why containerized builds?** Ensures the binary's GLIBC version matches the Docker runtime environment, preventing "GLIBC not found" errors across different host systems.
 
 ### Network Architecture
 
@@ -238,6 +252,24 @@ Check logs:
 cd p2p-testing
 docker compose logs
 ```
+
+### GLIBC errors ("GLIBC_X.XX not found")
+
+This means the binary was built locally instead of with Earthly. **Solution:**
+
+```bash
+# Stop nodes
+./p2p-testing/stop-nodes.sh --clean
+
+# Rebuild with Earthly (containerized build)
+just get-local-hermes
+just get-local-athena
+
+# Restart nodes
+./p2p-testing/start-nodes.sh
+```
+
+The start script will prompt you to rebuild with Earthly if existing artifacts are found.
 
 ### Port conflicts
 
