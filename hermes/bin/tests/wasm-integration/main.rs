@@ -19,6 +19,7 @@ const DEFAULT_ENV_N_BENCH: &str = "32";
 use std::{env, error::Error, ffi::OsStr, fs, path::Path, sync::Arc, time::Instant};
 
 use hermes::{
+    ipfs,
     app::ApplicationName,
     runtime_extensions::hermes::integration_test::event::{EventType, execute_event},
     wasm::module::Module,
@@ -47,7 +48,7 @@ fn init_logger() -> Result<(), SetGlobalDefaultError> {
 /// Initialize the IPFS node
 fn init_ipfs() -> anyhow::Result<()> {
     let base_dir = temp_dir::TempDir::new()?;
-    hermes::ipfs::bootstrap(ipfs::Config {
+    ipfs::bootstrap(ipfs::Config {
         base_dir: base_dir.path(),
         // disable bootstrapping the IPFS node to default addresses for testing
         default_bootstrap: false,
