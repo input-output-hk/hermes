@@ -261,10 +261,10 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()
-            .ok_or(Errno::DhtPutError)?
+            .ok_or(Errno::DhtProvideError)?
             .blocking_send(IpfsCommand::DhtProvide(key, cmd_tx))
-            .map_err(|_| Errno::DhtPutError)?;
-        cmd_rx.blocking_recv().map_err(|_| Errno::DhtPutError)?
+            .map_err(|_| Errno::DhtProvideError)?;
+        cmd_rx.blocking_recv().map_err(|_| Errno::DhtProvideError)?
     }
 
     /// Get providers of a DHT value
