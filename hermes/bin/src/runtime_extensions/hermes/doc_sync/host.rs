@@ -131,7 +131,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         if let Err(err) = hermes_ipfs_subscribe(
             ipfs::SubscriptionKind::DocSync,
             self.app_name(),
-            super::map_channel_name_to_ipfs_topic(&name)?.into_owned(),
+            format!("{name}.new"),
         ) {
             DOC_SYNC_STATE.remove(&resource);
             return Err(wasmtime::Error::msg(format!("Subscription failed: {err}",)));

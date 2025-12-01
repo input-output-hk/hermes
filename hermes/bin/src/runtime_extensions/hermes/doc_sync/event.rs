@@ -27,16 +27,14 @@ pub(crate) struct OnNewDocEvent {
 
 impl OnNewDocEvent {
     /// Create the event from IPFS topic and message.
-    pub fn from_ipfs(
-        topic: &str,
+    pub fn new(
+        channel: &str,
         message: &[u8],
-    ) -> anyhow::Result<Self> {
-        super::map_ipfs_topic_to_channel_name(topic).map(|channel| {
-            Self {
-                channel: channel.into_owned(),
-                doc: message.to_vec(),
-            }
-        })
+    ) -> Self {
+        Self {
+            channel: format!("{channel}.new"),
+            doc: message.to_vec(),
+        }
     }
 }
 

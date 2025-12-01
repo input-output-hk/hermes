@@ -271,7 +271,7 @@ fn doc_sync_topic_message_handler(
 
     let app_names = ipfs.apps.subscribed_apps(SubscriptionKind::DocSync, &topic);
 
-    // How do I get the CID from doc content?
+    // TODO: decode CID from .new payload
     let dummy_cid = String::new();
 
     let path = match Cid::try_from(dummy_cid) {
@@ -287,17 +287,14 @@ fn doc_sync_topic_message_handler(
         tracing::error!(%topic, %err, "Failed to pin a document");
     }
 
-    if let Err(err) = OnNewDocEvent::from_ipfs(&topic, &message.data)
-        .map(|payload| {
-            HermesEvent::new(
-                payload,
-                crate::event::TargetApp::List(app_names),
-                crate::event::TargetModule::All,
-            )
-        })
-        // Dispatch Hermes Event
-        .and_then(send)
-    {
+    let event = HermesEvent::new(
+        OnNewDocEvent::new(&topic, &message.data),
+        crate::event::TargetApp::List(app_names),
+        crate::event::TargetModule::All,
+    );
+
+    // Dispatch Hermes Event
+    if let Err(err) = send(event) {
         tracing::error!(%topic, %err, "Failed to send on_new_doc event");
     }
 }
