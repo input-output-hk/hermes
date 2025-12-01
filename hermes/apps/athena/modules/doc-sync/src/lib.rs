@@ -35,11 +35,16 @@ use shared::{
 /// Doc Sync component - thin wrapper calling host-side implementation.
 struct Component;
 
+/// Default channel name for doc-sync operations
+const DOC_SYNC_CHANNEL: &str = "documents";
+
 impl exports::hermes::init::event::Guest for Component {
     /// Initialize the module.
     fn init() -> bool {
         log::init(log::LevelFilter::Trace);
         info!(target: "doc_sync::init", "Doc sync module initialized");
+        // Create the channel during initialization
+        SyncChannel::new(DOC_SYNC_CHANNEL);
         true
     }
 }
@@ -124,9 +129,6 @@ fn json_response(
         body: Bstr::from(body.to_string()),
     })
 }
-
-/// Default channel name for doc-sync operations
-const DOC_SYNC_CHANNEL: &str = "documents";
 
 /// API for posting documents to IPFS `PubSub` channels.
 pub mod channel {

@@ -27,7 +27,7 @@ fn ipfs_subscribe() {
 
     assert!(utils::assert::app_logs_contain(
         &temp_dir,
-        "\"pubsub_topic\":\"ipfs_channel\""
+        "\"pubsub_topic\":\"ipfs_channel.new\""
     ));
 
     // Uncomment the line below if you want to inspect the details
