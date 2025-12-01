@@ -156,7 +156,7 @@ pub(crate) async fn ipfs_command_handler(
                     .await
                     .map_err(|err| {
                         tracing::error!(dht_key = ?key, "DHT get providers failed: {}", err);
-                        Errno::DhtProvideError
+                        Errno::DhtGetProvidersError
                     });
                 send_response(response, tx);
             },
