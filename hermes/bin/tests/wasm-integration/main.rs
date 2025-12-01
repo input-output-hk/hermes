@@ -19,8 +19,8 @@ const DEFAULT_ENV_N_BENCH: &str = "32";
 use std::{env, error::Error, ffi::OsStr, fs, path::Path, sync::Arc, time::Instant};
 
 use hermes::{
-    ipfs,
     app::ApplicationName,
+    ipfs,
     runtime_extensions::hermes::integration_test::event::{EventType, execute_event},
     wasm::module::Module,
 };
