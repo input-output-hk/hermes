@@ -86,7 +86,7 @@ interface api {
     dht-provide: func(key: dht-key) -> result<_, errno>;
     /// Gets providers of the content under the given key.
     dht-get-providers: func(key: dht-key) -> result<list<peer-id>, errno>;
-    /// Returns the peer id of the mode.
+    /// Returns the peer id of the node.
     get-peer-id: func() -> result<peer-id, errno>;
     /// Validates IPFS content from DHT or PubSub.
     ipfs-content-validate: func(content: ipfs-content) -> result<bool, errno>;
