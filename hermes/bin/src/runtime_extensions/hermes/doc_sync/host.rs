@@ -18,7 +18,7 @@ use crate::{
     },
 };
 
-/// No docs yet.
+/// The number of steps in the "post document" workflow
 const POST_STEP_COUNT: u8 = 5;
 
 /// CBOR multicodec identifier.
