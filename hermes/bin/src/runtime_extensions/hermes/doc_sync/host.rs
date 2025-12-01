@@ -32,9 +32,6 @@ const SHA2_256_CODE: u64 = 0x12;
 /// See: <https://github.com/ipld/cid-cbor/>
 const CID_CBOR_TAG: u64 = 42;
 
-/// Default `PubSub` topic for doc-sync channel
-const DOC_SYNC_TOPIC: &str = "doc-sync/documents";
-
 /// Wrapper for `hermes_ipfs::Cid` to implement `minicbor::Encode` for it.
 struct Cid(hermes_ipfs::Cid);
 
@@ -90,11 +87,6 @@ impl HostSyncChannel for HermesRuntimeContext {
     ///
     /// - `name`: The Name of the channel to Open.  Creates if it doesn't exist, otherwise
     ///   joins it.
-    ///
-    /// **Returns**
-    ///
-    /// - `ok(network)`: A resource network, if successfully create network resource.
-    /// - `error(create-network-error)`: If creating network resource failed.
     fn new(
         &mut self,
         name: ChannelName,
@@ -128,14 +120,19 @@ impl HostSyncChannel for HermesRuntimeContext {
             }
         }
 
+        // When the channel is created, subscribe to .new <base>.<topic>
         if let Err(err) = hermes_ipfs_subscribe(
             ipfs::SubscriptionKind::DocSync,
             self.app_name(),
             format!("{name}.new"),
         ) {
             DOC_SYNC_STATE.remove(&resource);
-            return Err(wasmtime::Error::msg(format!("Subscription failed: {err}",)));
+            return Err(wasmtime::Error::msg(format!(
+                "Subscription to {name}.new failed: {err}",
+            )));
         }
+
+        tracing::info!("Created Doc Sync Channel: {name}");
 
         Ok(wasmtime::component::Resource::new_own(resource))
     }
@@ -172,7 +169,7 @@ impl HostSyncChannel for HermesRuntimeContext {
     /// 3. Publish to `PubSub` (`pubsub_publish`)
     fn post(
         &mut self,
-        _self_: Resource<SyncChannel>,
+        self_: Resource<SyncChannel>,
         doc: DocData,
     ) -> wasmtime::Result<Result<DocLoc, Errno>> {
         tracing::info!("📤 Posting {} bytes to doc-sync channel", doc.len());
@@ -206,18 +203,27 @@ impl HostSyncChannel for HermesRuntimeContext {
         //
         // Since Step 1 (add + pin) already succeeded, the document is safely stored
         // in IPFS. We treat "no peers" as a warning rather than a fatal error.
-        let topic = DOC_SYNC_TOPIC.to_string();
 
-        // Subscribe to the topic first (required for Gossipsub - you must be subscribed
-        // to a topic before you can publish to it)
-        match self.pubsub_subscribe(topic.clone())? {
-            Ok(_) => tracing::info!("✓ Subscribed to topic: {}", topic),
+        let channel_name = DOC_SYNC_STATE
+            .get(&self_.rep())
+            .ok_or_else(|| wasmtime::Error::msg("Channel not found"))?
+            .value()
+            .clone();
+
+        let topic_new = format!("{channel_name}.new");
+
+        // The channel should already be subscribed to the `.new` topic (subscription
+        // is performed in `new()`). Invoking the subscription again to ensure
+        // the topic is active, because Gossipsub enforces that peers must subscribe
+        // to a topic before they are permitted to publish on it.
+        match self.pubsub_subscribe(topic_new.clone())? {
+            Ok(_) => tracing::info!("✓ Subscribed to topic: {topic_new}"),
             Err(e) => tracing::warn!("⚠ Subscribe warning: {:?}", e),
         }
 
         // Attempt to publish to PubSub
-        if let Ok(()) = self.pubsub_publish(topic.clone(), doc)? {
-            tracing::info!("✓ Step 3/3: Published to PubSub → {}", topic);
+        if let Ok(()) = self.pubsub_publish(topic_new.clone(), doc)? {
+            tracing::info!("✓ Step 3/3: Published to PubSub → {topic_new}",);
         } else {
             // Non-fatal: PubSub requires peer nodes to be subscribed to the topic.
             // In a single-node environment, this is expected to fail with
@@ -227,8 +233,7 @@ impl HostSyncChannel for HermesRuntimeContext {
                 "⚠ Step 3/3: PubSub publish skipped (no peer nodes subscribed to topic)"
             );
             tracing::warn!(
-                "   Note: Gossipsub requires other nodes subscribing to '{}' to work",
-                topic
+                "   Note: Gossipsub requires other nodes subscribing to '{topic_new}' to work",
             );
             tracing::info!("   Document is successfully stored in IPFS from Step 1");
         }
