@@ -35,11 +35,16 @@ use shared::{
 /// Doc Sync component - thin wrapper calling host-side implementation.
 struct Component;
 
+/// Doc sync channel name
+const CHANNEL_NAME: &str = "documents";
+
 impl exports::hermes::init::event::Guest for Component {
     /// Initialize the module.
     fn init() -> bool {
         log::init(log::LevelFilter::Trace);
         info!(target: "doc_sync::init", "Doc sync module initialized");
+        // Create the channel during initialization
+        SyncChannel::new(CHANNEL_NAME);
         true
     }
 }
