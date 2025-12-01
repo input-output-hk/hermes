@@ -127,9 +127,9 @@ pub(crate) fn hermes_ipfs_dht_get_providers(
 ) -> Result<Vec<PeerId>, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     let key_str = format!("{key:x?}");
-    tracing::debug!(app_name = %app_name, dht_key = %key_str, "DHT get providers");
+    tracing::debug!(app_name = %app_name, dht_key = %key_str, "get DHT providers");
     let providers = ipfs.dht_get_providers(key)?;
-    tracing::debug!(app_name = %app_name, dht_key = %key_str, "DHT get providers succeeded");
+    tracing::debug!(app_name = %app_name, dht_key = %key_str, "got DHT providers");
 
     let providers = providers.iter().map(ToString::to_string).collect();
     Ok(providers)

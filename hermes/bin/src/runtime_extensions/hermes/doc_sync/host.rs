@@ -170,6 +170,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         _self_: Resource<SyncChannel>,
         doc: DocData,
     ) -> wasmtime::Result<Result<DocLoc, Errno>> {
+        const STEP_COUNT: u8 = 4;
         tracing::info!("📤 Posting {} bytes to doc-sync channel", doc.len());
 
         // Step 1: Add document to IPFS (automatically pins)
@@ -178,37 +179,43 @@ impl HostSyncChannel for HermesRuntimeContext {
         let (_ipfs_path, cid) = match self.file_add(doc.clone())? {
             Ok(FileAddResult { file_path, cid }) => {
                 tracing::info!(
-                    "✓ Step 1/3: Added and pinned to IPFS (CID: {}) → {}",
+                    "✓ Step 1/{STEP_COUNT}: Added and pinned to IPFS (CID: {}) → {}",
                     cid,
                     file_path
                 );
                 (file_path, cid)
             },
             Err(e) => {
-                tracing::error!("✗ Step 1/3 failed: file_add error: {:?}", e);
+                tracing::error!("✗ Step 1/{STEP_COUNT} failed: file_add error: {:?}", e);
                 return Ok(Err(Errno::DocErrorPlaceholder));
             },
         };
 
         // Step 2: Pre-publish validation (TODO #630)
-        tracing::info!("⏭ Step 2/3: Pre-publish");
+        tracing::info!("⏭ Step 2/{STEP_COUNT}: Pre-publish");
         match self.dht_provide(cid.clone().into()) {
             Ok(_) => {
-                tracing::info!("✓ Step 2/3: DHT provide successful (CID: {})", cid);
+                tracing::info!(
+                    "✓ Step 2/{STEP_COUNT}: DHT provide successful (CID: {})",
+                    cid
+                );
             },
             Err(e) => {
-                tracing::error!("✗ Step 2/3 failed: dht_provide error: {:?}", e);
+                tracing::error!("✗ Step 2/{STEP_COUNT} failed: dht_provide error: {:?}", e);
                 return Ok(Err(Errno::DocErrorPlaceholder));
             },
         }
 
         let peer_id = match self.get_peer_id()? {
             Ok(peer_id) => {
-                tracing::info!("✓ Step 2/3: get_peer_id successful (CID: {})", cid);
+                tracing::info!(
+                    "✓ Step 2/{STEP_COUNT}: get_peer_id successful (CID: {})",
+                    cid
+                );
                 peer_id
             },
             Err(e) => {
-                tracing::error!("✗ Step 2/3 failed: get_peer_id error: {:?}", e);
+                tracing::error!("✗ Step 2/{STEP_COUNT} failed: get_peer_id error: {:?}", e);
                 return Ok(Err(Errno::DocErrorPlaceholder));
             },
         };
@@ -216,10 +223,10 @@ impl HostSyncChannel for HermesRuntimeContext {
         loop {
             let providers = self.dht_get_providers(cid.clone().into())??;
             if is_pre_publish_completed(&peer_id, &providers) {
-                tracing::info!("✓ Step 2/3: Other DHT providers found");
+                tracing::info!("✓ Step 2/{STEP_COUNT}: Other DHT providers found");
                 break;
             }
-            tracing::info!("✓ Step 2/3: Other DHT providers not found, sleeping...");
+            tracing::info!("✓ Step 2/{STEP_COUNT}: Other DHT providers not found, sleeping...");
             // TODO[rafal-ch]: Backoff
             std::thread::sleep(std::time::Duration::from_secs(1));
         }
@@ -247,14 +254,14 @@ impl HostSyncChannel for HermesRuntimeContext {
 
         // Attempt to publish to PubSub
         if let Ok(()) = self.pubsub_publish(topic.clone(), doc)? {
-            tracing::info!("✓ Step 3/3: Published to PubSub → {}", topic);
+            tracing::info!("✓ Step 3/{STEP_COUNT}: Published to PubSub → {}", topic);
         } else {
             // Non-fatal: PubSub requires peer nodes to be subscribed to the topic.
             // In a single-node environment, this is expected to fail with
             // "NoPeersSubscribedToTopic". We treat this as a warning rather
             // than a fatal error since Step 1 already succeeded.
             tracing::warn!(
-                "⚠ Step 3/3: PubSub publish skipped (no peer nodes subscribed to topic)"
+                "⚠ Step 3/{STEP_COUNT}: PubSub publish skipped (no peer nodes subscribed to topic)"
             );
             tracing::warn!(
                 "   Note: Gossipsub requires other nodes subscribing to '{}' to work",
