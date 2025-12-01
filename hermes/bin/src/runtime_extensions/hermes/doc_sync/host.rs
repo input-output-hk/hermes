@@ -119,17 +119,15 @@ impl HostSyncChannel for HermesRuntimeContext {
             }
         }
 
-        // When the channel is created, subscribe to .new and .syn <base>.<topic>
+        // When the channel is created, subscribe to .new <base>.<topic>
         if let Err(err) = self.pubsub_subscribe(format!("{name}.new")) {
+            // FIXME - Do we want to remove the entry from the map here?
+            DOC_SYNC_STATE.remove(&resource);
             return Err(wasmtime::Error::msg(format!(
-                "Subscription to .new failed: {err}",
+                "Subscription to {name}.new failed: {err}",
             )));
         }
-        if let Err(err) = self.pubsub_subscribe(format!("{name}.syn")) {
-            return Err(wasmtime::Error::msg(format!(
-                "Subscription to .syn failed: {err}",
-            )));
-        }
+
         tracing::info!("Created Doc Sync Channel: {name}");
 
         Ok(wasmtime::component::Resource::new_own(resource))
