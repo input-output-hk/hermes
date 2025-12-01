@@ -129,7 +129,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
 
     /// Add file
     ///
-    /// Returns the IPFS path and CID of the added file
+    /// Returns the IPFS path of the added file
     ///
     /// ## Parameters
     /// - `contents`: The content to add
