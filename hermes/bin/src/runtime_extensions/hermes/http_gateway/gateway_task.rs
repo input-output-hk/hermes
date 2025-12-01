@@ -54,7 +54,7 @@ impl Default for Config {
                 Hostname("localhost".to_owned()),
             ]
             .to_vec(),
-            local_addr: SocketAddr::new([127, 0, 0, 1].into(), gateway_port),
+            local_addr: SocketAddr::new([0, 0, 0, 0].into(), gateway_port),
             is_auth_activate,
         }
     }

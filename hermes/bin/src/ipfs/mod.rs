@@ -59,6 +59,9 @@ pub fn bootstrap(
     }
     let ipfs_node = HermesIpfsNode::init(
         HermesIpfsBuilder::new()
+            .enable_tcp()
+            .enable_quic()
+            .enable_dns()
             .with_default()
             .set_disk_storage(ipfs_data_path.clone()),
         default_bootstrap,
