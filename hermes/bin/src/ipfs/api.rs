@@ -135,7 +135,7 @@ pub(crate) fn hermes_ipfs_dht_get_providers(
     Ok(providers)
 }
 
-/// Returns the peer id of the mode.
+/// Returns the peer id of the node.
 pub(crate) fn hermes_ipfs_get_peer_identity(
     app_name: &ApplicationName
 ) -> Result<hermes_ipfs::PeerInfo, Errno> {
