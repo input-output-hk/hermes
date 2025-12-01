@@ -67,7 +67,6 @@ pub fn bootstrap(config: Config) -> anyhow::Result<()> {
     let ipfs_node = HermesIpfsNode::init(
         HermesIpfsBuilder::new()
             .with_default()
-            .set_default_listener()
             .set_disk_storage(ipfs_data_path.clone()),
         config.default_bootstrap,
     )?;
@@ -116,6 +115,11 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
                     );
                 }
                 let hermes_node: HermesIpfs = node.into();
+                // Enable DHT server mode for PubSub support
+                hermes_node
+                    .dht_mode(hermes_ipfs::rust_ipfs::DhtMode::Server)
+                    .await?;
+                tracing::debug!("IPFS node set to DHT server mode");
                 let h = tokio::spawn(ipfs_command_handler(hermes_node, receiver));
                 let (..) = tokio::join!(h);
                 Ok::<(), anyhow::Error>(())
