@@ -1,39 +1,5 @@
 //! Doc Sync message payloads
 
-/*
-; Payload body fits within the Common Message Envelope
-payload-body = doc-dissemination-body
-
-; numeric keys (shared by .new and .dif)
-root = 1
-count = 2
-docs = 3
-manifest = 4
-ttl = 5
-in_reply_to = 6
-
-common-fields = (
-    root => root-hash,     ; Root of the senders SMT with these docs added.
-    count => uint,         ; Count of the number of docs in the senders Merkle Tree.
-    ? in_reply_to => uuid, ; Included if this is a reply to a `.syn` topic message.
-)
-
-doc-dissemination-body = ({
-    common-fields,        ; All fields common to doc lists or doc manifests
-    docs => [* cidv1]     ; List of CIDv1 Documents
-} / {
-    common-fields,        ; All fields common to doc lists or doc manifests
-    manifest => cidv1,    ; CIDv1 of a Manifest of Documents
-    ttl => uint           ; How long the Manifest can be expected to be pinned by the sender.
-})
-
-; self-contained types
-blake3-256 = bytes .size 32 ; BLAKE3-256 output
-root-hash = blake3-256      ; Root hash of the Sparse Merkle Tree
-cidv1 = bytes .size (36..40)  ; CIDv1 (binary); multihash MUST be sha2-256 (32-byte digest)
-uuid = #6.37(bytes .size 16) ; UUIDv7
-*/
-
 use bytemuck::{TransparentWrapper, TransparentWrapperAlloc as _};
 use catalyst_types::uuid::{self, UuidV7};
 use derive_more::{Deref, From, Into, TryFrom};
@@ -72,6 +38,7 @@ impl<C> Decode<'_, C> for CborCid {
     }
 }
 
+/// Numeric keys of the payload map.
 #[derive(Copy, Clone, TryFrom, PartialEq)]
 #[try_from(repr)]
 #[repr(u8)]
@@ -105,8 +72,10 @@ impl<C> Decode<'_, C> for NumericKeys {
     }
 }
 
+/// [`CommonFields::root`] value alias.
 pub type RootHash = [u8; 32];
 
+/// Common fields of `.diff` and `.new` message payload maps.
 #[derive(Copy, Clone, Default)]
 pub struct CommonFields {
     pub root: RootHash,
@@ -115,13 +84,16 @@ pub struct CommonFields {
 }
 
 impl CommonFields {
+    /// Inclusive upper bound on encoded field count.
     const MAX_NUM_FIELDS: u64 = 3;
 
+    /// Counts fields excluding ones that won't be encoded (e.g. being empty).
     fn num_fields(&self) -> u64 {
         if self.in_reply_to.is_none() { 2 } else { 3 }
     }
 }
 
+/// Encodes [`CommonFields::root`] key-value pair.
 fn encode_root<W: Write>(
     root: &RootHash,
     e: &mut Encoder<W>,
@@ -129,6 +101,7 @@ fn encode_root<W: Write>(
     e.encode(NumericKeys::Root)?.bytes(root)?.ok()
 }
 
+/// Encodes [`CommonFields::count`] key-value pair.
 fn encode_count<W: Write>(
     count: u64,
     e: &mut Encoder<W>,
@@ -136,6 +109,7 @@ fn encode_count<W: Write>(
     e.encode(NumericKeys::Count)?.u64(count)?.ok()
 }
 
+/// Encodes [`CommonFields::in_reply_to`] key-value pair.
 fn encode_in_reply_to<W: Write>(
     in_reply_to: Option<&UuidV7>,
     e: &mut Encoder<W>,
@@ -149,6 +123,7 @@ fn encode_in_reply_to<W: Write>(
     }
 }
 
+/// Decodes [`CommonFields::root`] key-value pair.
 fn decode_root(d: &mut Decoder<'_>) -> Result<RootHash, decode::Error> {
     if d.decode::<NumericKeys>()
         .is_ok_and(|key| matches!(key, NumericKeys::Root))
@@ -159,6 +134,7 @@ fn decode_root(d: &mut Decoder<'_>) -> Result<RootHash, decode::Error> {
     }
 }
 
+/// Decodes [`CommonFields::count`] key-value pair.
 fn decode_count(d: &mut Decoder<'_>) -> Result<u64, decode::Error> {
     if d.decode::<NumericKeys>()
         .is_ok_and(|key| matches!(key, NumericKeys::Count))
@@ -169,6 +145,7 @@ fn decode_count(d: &mut Decoder<'_>) -> Result<u64, decode::Error> {
     }
 }
 
+/// Decodes [`CommonFields::in_reply_to`] key-value pair.
 fn decode_in_reply_to(d: &mut Decoder<'_>) -> Result<Option<UuidV7>, decode::Error> {
     if d.decode::<NumericKeys>()
         .is_ok_and(|key| matches!(key, NumericKeys::InReplyTo))
@@ -179,6 +156,9 @@ fn decode_in_reply_to(d: &mut Decoder<'_>) -> Result<Option<UuidV7>, decode::Err
     }
 }
 
+/// Document dissemination body defined by CDDL spec.
+///
+/// Enum variants represent possible field combinations of the encoded map.
 pub enum DocumentDisseminationBody {
     Docs {
         common_fields: CommonFields,
@@ -192,8 +172,10 @@ pub enum DocumentDisseminationBody {
 }
 
 impl DocumentDisseminationBody {
+    /// Inclusive upper bound on encoded field count.
     const MAX_NUM_FIELDS: u64 = CommonFields::MAX_NUM_FIELDS.saturating_add(2);
 
+    /// Counts fields excluding ones that won't be encoded (e.g. being empty).
     fn num_fields(&self) -> u64 {
         match self {
             DocumentDisseminationBody::Docs { common_fields, .. } => {
@@ -205,6 +187,7 @@ impl DocumentDisseminationBody {
         }
     }
 
+    /// Returns `true` if `in_reply_to` field is present.
     fn contains_in_reply_to(&self) -> bool {
         !matches!(
             self,
@@ -225,6 +208,7 @@ impl DocumentDisseminationBody {
     }
 }
 
+/// Encodes `docs` field of [`DocumentDisseminationBody::Docs`].
 fn encode_docs<W: Write>(
     docs: &[Cid],
     e: &mut Encoder<W>,
@@ -234,6 +218,7 @@ fn encode_docs<W: Write>(
         .ok()
 }
 
+/// Encodes `manifest` field of [`DocumentDisseminationBody::Manifest`].
 fn encode_manifest<W: Write>(
     manifest: &Cid,
     e: &mut Encoder<W>,
@@ -243,6 +228,7 @@ fn encode_manifest<W: Write>(
         .ok()
 }
 
+/// Encodes `ttl` field of [`DocumentDisseminationBody::Manifest`].
 fn encode_ttl<W: Write>(
     ttl: u64,
     e: &mut Encoder<W>,
@@ -250,24 +236,34 @@ fn encode_ttl<W: Write>(
     e.encode(NumericKeys::Ttl)?.u64(ttl)?.ok()
 }
 
+/// Helper struct representing [`DocumentDisseminationBody`] variants.
 enum DocumentDisseminationBodyKind {
+    /// Corresponds to [`DocumentDisseminationBody::Docs`].
     Docs,
+    /// Corresponds to [`DocumentDisseminationBody::Manifest`].
     Manifest,
 }
 
 impl DocumentDisseminationBodyKind {
+    /// Returns which variant of [`DocumentDisseminationBody`]
+    /// does the remainder of the encoded fields correspond to.
     fn probe(d: &mut Decoder<'_>) -> Result<Self, decode::Error> {
-        d.probe().decode::<NumericKeys>().and_then(|key| match key {
-            NumericKeys::Docs => Ok(Self::Docs),
-            NumericKeys::Manifest => Ok(Self::Manifest),
-            _ => Err(minicbor::decode::Error::message(
-                "Expected either `docs` or `manifest` field",
-            )
-            .at(d.position())),
+        d.probe().decode::<NumericKeys>().and_then(|key| {
+            match key {
+                NumericKeys::Docs => Ok(Self::Docs),
+                NumericKeys::Manifest => Ok(Self::Manifest),
+                _ => {
+                    Err(minicbor::decode::Error::message(
+                        "Expected either `docs` or `manifest` field",
+                    )
+                    .at(d.position()))
+                },
+            }
         })
     }
 }
 
+/// Decodes `docs` field of [`DocumentDisseminationBody::Docs`].
 fn decode_docs(d: &mut Decoder<'_>) -> Result<Vec<Cid>, decode::Error> {
     if d.decode::<NumericKeys>()
         .is_ok_and(|key| matches!(key, NumericKeys::Docs))
@@ -278,6 +274,7 @@ fn decode_docs(d: &mut Decoder<'_>) -> Result<Vec<Cid>, decode::Error> {
     }
 }
 
+/// Decodes `manifest` field of [`DocumentDisseminationBody::Manifest`].
 fn decode_manifest(d: &mut Decoder<'_>) -> Result<Cid, decode::Error> {
     if d.decode::<NumericKeys>()
         .is_ok_and(|key| matches!(key, NumericKeys::Manifest))
@@ -288,6 +285,7 @@ fn decode_manifest(d: &mut Decoder<'_>) -> Result<Cid, decode::Error> {
     }
 }
 
+/// Encodes `ttl` field of [`DocumentDisseminationBody::Manifest`].
 fn decode_ttl(d: &mut Decoder<'_>) -> Result<u64, decode::Error> {
     if d.decode::<NumericKeys>()
         .is_ok_and(|key| matches!(key, NumericKeys::Ttl))
@@ -382,6 +380,7 @@ impl<C> Decode<'_, C> for DocumentDisseminationBody {
     }
 }
 
+/// `.new` message payload.
 #[derive(Deref, Encode, Into)]
 #[cbor(transparent)]
 pub struct New(#[n(0)] DocumentDisseminationBody);
@@ -415,6 +414,7 @@ impl TryFrom<DocumentDisseminationBody> for New {
     }
 }
 
+/// `.diff` message payload.
 #[derive(Deref, Decode, Encode, From, Into)]
 #[cbor(transparent)]
 pub struct Diff(#[n(0)] DocumentDisseminationBody);
