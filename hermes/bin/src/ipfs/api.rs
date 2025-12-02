@@ -11,12 +11,13 @@ use crate::{
 pub(crate) fn hermes_ipfs_add_file(
     app_name: &ApplicationName,
     contents: IpfsFile,
-) -> Result<IpfsPath, Errno> {
+) -> Result<hermes_ipfs::IpfsPath, Errno> {
     tracing::debug!(app_name = %app_name, "adding IPFS file");
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
-    let ipfs_path = ipfs.file_add(contents)?.to_string();
-    tracing::debug!(app_name = %app_name, path = %ipfs_path, "added IPFS file");
-    ipfs.apps.pinned_file(app_name.clone(), &ipfs_path)?;
+    let ipfs_path = ipfs.file_add(contents)?;
+    let ipfs_path_str = ipfs_path.to_string();
+    tracing::debug!(app_name = %app_name, path = %ipfs_path_str, "added IPFS file");
+    ipfs.apps.pinned_file(app_name.clone(), &ipfs_path_str)?;
     Ok(ipfs_path)
 }
 
@@ -104,6 +105,46 @@ pub(crate) fn hermes_ipfs_put_dht_value(
     tracing::debug!(app_name = %app_name, dht_key = %key_str, "have put DHT value");
     ipfs.apps.added_dht_key(app_name.clone(), key);
     Ok(status)
+}
+
+/// Marks a node as a provider for the content under the given key.
+pub(crate) fn hermes_ipfs_dht_provide(
+    app_name: &ApplicationName,
+    key: DhtKey,
+) -> Result<(), Errno> {
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
+    let key_str = format!("{key:x?}");
+    tracing::debug!(app_name = %app_name, dht_key = %key_str, "DHT provide");
+    ipfs.dht_provide(key)?;
+    tracing::debug!(app_name = %app_name, dht_key = %key_str, "DHT provided");
+    Ok(())
+}
+
+/// Gets providers of the content under the given key.
+pub(crate) fn hermes_ipfs_dht_get_providers(
+    app_name: &ApplicationName,
+    key: DhtKey,
+) -> Result<Vec<PeerId>, Errno> {
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
+    let key_str = format!("{key:x?}");
+    tracing::debug!(app_name = %app_name, dht_key = %key_str, "get DHT providers");
+    let providers = ipfs.dht_get_providers(key)?;
+    tracing::debug!(app_name = %app_name, dht_key = %key_str, "got DHT providers");
+
+    let providers = providers.iter().map(ToString::to_string).collect();
+    Ok(providers)
+}
+
+/// Returns the peer id of the node.
+pub(crate) fn hermes_ipfs_get_peer_identity(
+    app_name: &ApplicationName
+) -> Result<hermes_ipfs::PeerInfo, Errno> {
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
+    tracing::debug!(app_name = %app_name, "Get peer identity");
+    let identity = ipfs.get_peer_identity()?;
+    tracing::debug!(app_name = %app_name, "Got peer identity");
+
+    Ok(identity)
 }
 
 /// Subscribe to a topic
