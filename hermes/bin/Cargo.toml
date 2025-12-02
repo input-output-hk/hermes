@@ -100,7 +100,7 @@ paste = { package = "pastey", version = "0.1.1" }
 traitreg = "0.4.0"
 orx-concurrent-vec = "3.10.0"
 keyed-lock = "0.2.3"
-wasmprinter = "0.240.0"
+wasmprinter = "0.242.0"
 wat = "1.239.0"
 multihash = { version = "0.19.3", features = ["serde-codec"] }
 
