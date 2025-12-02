@@ -1703,7 +1703,7 @@ checksum = "790eea4361631c5e7d22598ecd5723ff611904e3344ce8720784c93e3d83d40b"
 name = "cron_callback"
 version = "0.1.0"
 dependencies = [
- "wit-bindgen 0.46.0",
+ "wit-bindgen 0.48.1",
 ]
 
 [[package]]
@@ -1970,7 +1970,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d162beedaa69905488a8da94f5ac3edb4dd4788b732fadb7bd120b2625c1976"
 dependencies = [
  "data-encoding",
- "syn 2.0.111",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -2382,7 +2382,7 @@ dependencies = [
 name = "failed_init"
 version = "0.1.0"
 dependencies = [
- "wit-bindgen 0.46.0",
+ "wit-bindgen 0.48.1",
 ]
 
 [[package]]
@@ -3359,7 +3359,7 @@ version = "0.1.0"
 dependencies = [
  "serde_json",
  "url",
- "wit-bindgen 0.46.0",
+ "wit-bindgen 0.48.1",
 ]
 
 [[package]]
@@ -7704,7 +7704,7 @@ version = "0.1.0"
 dependencies = [
  "serde_json",
  "url",
- "wit-bindgen 0.46.0",
+ "wit-bindgen 0.48.1",
 ]
 
 [[package]]
