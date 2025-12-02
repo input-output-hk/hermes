@@ -1,5 +1,4 @@
 //! Doc Sync host module.
-
 use cardano_chain_follower::pallas_codec::minicbor::{self, Encode, Encoder, data::Tag};
 use stringzilla::stringzilla::Sha256;
 use wasmtime::component::Resource;
@@ -13,11 +12,14 @@ use crate::{
                 ChannelName, DocData, DocLoc, DocProof, Errno, Host, HostSyncChannel, ProverId,
                 SyncChannel,
             },
-            ipfs::api::Host as IpfsHost,
+            ipfs::api::{FileAddResult, Host as IpfsHost},
         },
         hermes::doc_sync::DOC_SYNC_STATE,
     },
 };
+
+/// The number of steps in the "post document" workflow
+const POST_STEP_COUNT: u8 = 5;
 
 /// CBOR multicodec identifier.
 ///
@@ -160,87 +162,20 @@ impl HostSyncChannel for HermesRuntimeContext {
     }
 
     /// Post the document to a channel
-    ///
-    /// **Parameters**
-    ///
-    /// Executes the 3-step workflow:
-    /// 1. Add to IPFS (`file_add` - automatically pins)
-    /// 2. Pre-publish (TODO #630)
-    /// 3. Publish to `PubSub` (`pubsub_publish`)
     fn post(
         &mut self,
-        self_: Resource<SyncChannel>,
+        sync_channel: Resource<SyncChannel>,
         doc: DocData,
     ) -> wasmtime::Result<Result<DocLoc, Errno>> {
         tracing::info!("📤 Posting {} bytes to doc-sync channel", doc.len());
 
-        // Step 1: Add document to IPFS (automatically pins)
-        // Note: file_add pins the document under the hood via the hermes_ipfs library,
-        // so no explicit file_pin call is needed.
-        let ipfs_path = match self.file_add(doc.clone())? {
-            Ok(path) => {
-                tracing::info!("✓ Step 1/3: Added to IPFS (pinned) → {}", path);
-                path
-            },
-            Err(e) => {
-                tracing::error!("✗ Step 1/3 failed: file_add error: {:?}", e);
-                return Ok(Err(Errno::DocErrorPlaceholder));
-            },
-        };
+        let cid = add_file(self, &doc)??;
+        dht_provide(self, &cid)?;
+        let peer_id = get_peer_id(self)??;
+        ensure_provided(self, &cid, &peer_id)??;
+        publish(self, doc, sync_channel.rep())??;
 
-        // Step 2: Pre-publish validation (TODO #630)
-        tracing::info!("⏭ Step 2/3: Pre-publish (skipped - TODO #630)");
-
-        // Step 3: Publish to PubSub
-        //
-        // IMPORTANT: Gossipsub is a peer-to-peer protocol that requires at least one
-        // OTHER peer node to be subscribed to the topic before messages can be published.
-        // A single isolated node cannot publish to itself.
-        //
-        // In production with multiple Hermes nodes or external IPFS nodes subscribing
-        // to the topic, this will work. In a single-node demo/test environment, publish
-        // will fail with "NoPeersSubscribedToTopic" which is expected behavior.
-        //
-        // Since Step 1 (add + pin) already succeeded, the document is safely stored
-        // in IPFS. We treat "no peers" as a warning rather than a fatal error.
-
-        let channel_name = DOC_SYNC_STATE
-            .get(&self_.rep())
-            .ok_or_else(|| wasmtime::Error::msg("Channel not found"))?
-            .value()
-            .clone();
-
-        let topic_new = format!("{channel_name}.new");
-
-        // The channel should already be subscribed to the `.new` topic (subscription
-        // is performed in `new()`). Invoking the subscription again to ensure
-        // the topic is active, because Gossipsub enforces that peers must subscribe
-        // to a topic before they are permitted to publish on it.
-        match self.pubsub_subscribe(topic_new.clone())? {
-            Ok(_) => tracing::info!("✓ Subscribed to topic: {topic_new}"),
-            Err(e) => tracing::warn!("⚠ Subscribe warning: {:?}", e),
-        }
-
-        // Attempt to publish to PubSub
-        if let Ok(()) = self.pubsub_publish(topic_new.clone(), doc)? {
-            tracing::info!("✓ Step 3/3: Published to PubSub → {topic_new}",);
-        } else {
-            // Non-fatal: PubSub requires peer nodes to be subscribed to the topic.
-            // In a single-node environment, this is expected to fail with
-            // "NoPeersSubscribedToTopic". We treat this as a warning rather
-            // than a fatal error since Step 1 already succeeded.
-            tracing::warn!(
-                "⚠ Step 3/3: PubSub publish skipped (no peer nodes subscribed to topic)"
-            );
-            tracing::warn!(
-                "   Note: Gossipsub requires other nodes subscribing to '{topic_new}' to work",
-            );
-            tracing::info!("   Document is successfully stored in IPFS from Step 1");
-        }
-
-        // Extract CID from path and return it
-        let cid_str = ipfs_path.strip_prefix("/ipfs/").unwrap_or(&ipfs_path);
-        Ok(Ok(cid_str.as_bytes().to_vec()))
+        Ok(Ok(cid.as_bytes().to_vec()))
     }
 
     /// Prove a document is stored in the provers
@@ -316,6 +251,153 @@ impl HostSyncChannel for HermesRuntimeContext {
     }
 }
 
+/// Add document to IPFS (automatically pins)
+/// Note: `file_add` pins the document under the hood via the `hermes_ipfs` library,
+/// so no explicit `file_pin` call is needed.
+fn add_file(
+    ctx: &mut HermesRuntimeContext,
+    doc: &DocData,
+) -> wasmtime::Result<Result<String, Errno>> {
+    const STEP: u8 = 1;
+    match ctx.file_add(doc.clone())? {
+        Ok(FileAddResult { file_path, cid }) => {
+            tracing::info!(
+                "✓ Step {STEP}/{POST_STEP_COUNT}: Added and pinned to IPFS (CID: {}) → {}",
+                cid,
+                file_path
+            );
+            Ok(Ok(cid))
+        },
+        Err(e) => {
+            tracing::error!(
+                "✗ Step {STEP}/{POST_STEP_COUNT} failed: file_add error: {:?}",
+                e
+            );
+            Ok(Err(Errno::DocErrorPlaceholder))
+        },
+    }
+}
+
+/// Announce being a provider of the given CID to the DHT.
+fn dht_provide(
+    ctx: &mut HermesRuntimeContext,
+    cid: &str,
+) -> Result<(), Errno> {
+    const STEP: u8 = 2;
+    tracing::info!("⏭ Step {STEP}/{POST_STEP_COUNT}: Pre-publish");
+    match ctx.dht_provide(cid.into()) {
+        Ok(_) => {
+            tracing::info!(
+                "✓ Step {STEP}/{POST_STEP_COUNT}: DHT provide successful (CID: {})",
+                cid
+            );
+            Ok(())
+        },
+        Err(e) => {
+            tracing::error!(
+                "✗ Step {STEP}/{POST_STEP_COUNT} failed: dht_provide error: {:?}",
+                e
+            );
+            Err(Errno::DocErrorPlaceholder)
+        },
+    }
+}
+
+/// Get out peer ID
+fn get_peer_id(ctx: &mut HermesRuntimeContext) -> wasmtime::Result<Result<String, Errno>> {
+    const STEP: u8 = 3;
+    match ctx.get_peer_id()? {
+        Ok(peer_id) => {
+            tracing::info!("✓ Step {STEP}/{POST_STEP_COUNT}: get get_peer_id",);
+            Ok(Ok(peer_id))
+        },
+        Err(e) => {
+            tracing::error!(
+                "✗ Step {STEP}/{POST_STEP_COUNT} failed: get_peer_id error: {:?}",
+                e
+            );
+            Ok(Err(Errno::DocErrorPlaceholder))
+        },
+    }
+}
+
+/// Wait until the given CID is provided by at least one other peer than the provided
+/// `peer_id`
+fn ensure_provided(
+    ctx: &mut HermesRuntimeContext,
+    cid: &str,
+    peer_id: &str,
+) -> wasmtime::Result<Result<(), Errno>> {
+    const STEP: u8 = 4;
+    loop {
+        let providers = ctx.dht_get_providers(cid.into())??;
+        if is_pre_publish_completed(peer_id, &providers) {
+            tracing::info!("✓ Step {STEP}/{POST_STEP_COUNT}: Other DHT providers found");
+            return Ok(Ok(()));
+        }
+        tracing::info!(
+            "✓ Step {STEP}/{POST_STEP_COUNT}: Other DHT providers not found, sleeping..."
+        );
+        // TODO[rafal-ch]: Exponential backoff
+        std::thread::sleep(std::time::Duration::from_secs(1));
+    }
+}
+
+/// Publish to `PubSub`
+///
+/// IMPORTANT: Gossipsub is a peer-to-peer protocol that requires at least one
+/// OTHER peer node to be subscribed to the topic before messages can be published.
+/// A single isolated node cannot publish to itself.
+///
+/// In production with multiple Hermes nodes or external IPFS nodes subscribing
+/// to the topic, this will work. In a single-node demo/test environment, publish
+/// will fail with `NoPeersSubscribedToTopic` which is expected behavior.
+///
+/// Since Step 1 (add + pin) already succeeded, the document is safely stored
+/// in IPFS. We treat "no peers" as a warning rather than a fatal error.
+fn publish(
+    ctx: &mut HermesRuntimeContext,
+    doc: DocData,
+    rep: u32,
+) -> wasmtime::Result<Result<(), Errno>> {
+    const STEP: u8 = 5;
+    let channel_name = DOC_SYNC_STATE
+        .get(&rep)
+        .ok_or_else(|| wasmtime::Error::msg("Channel not found"))?
+        .value()
+        .clone();
+
+    let topic_new = format!("{channel_name}.new");
+
+    // The channel should already be subscribed to the `.new` topic (subscription
+    // is performed in `new()`). Invoking the subscription again to ensure
+    // the topic is active, because Gossipsub enforces that peers must subscribe
+    // to a topic before they are permitted to publish on it.
+    match ctx.pubsub_subscribe(topic_new.clone())? {
+        Ok(_) => tracing::info!("✓ Subscribed to topic: {topic_new}"),
+        Err(e) => tracing::warn!("⚠ Subscribe warning: {:?}", e),
+    }
+
+    // Attempt to publish to PubSub
+    if let Ok(()) = ctx.pubsub_publish(topic_new.clone(), doc)? {
+        tracing::info!("✓ Step {STEP}/{POST_STEP_COUNT}: Published to PubSub → {topic_new}",);
+    } else {
+        // Non-fatal: PubSub requires peer nodes to be subscribed to the topic.
+        // In a single-node environment, this is expected to fail with
+        // "NoPeersSubscribedToTopic". We treat this as a warning rather
+        // than a fatal error since Step 1 already succeeded.
+        tracing::warn!(
+            "⚠ Step {STEP}/{POST_STEP_COUNT}: PubSub publish skipped (no peer nodes subscribed to topic)"
+        );
+        tracing::warn!(
+            "   Note: Gossipsub requires other nodes subscribing to '{topic_new}' to work",
+        );
+        tracing::info!("   Document is successfully stored in IPFS");
+    }
+
+    Ok(Ok(()))
+}
+
 /// This function is required cause reusage of `self.close`
 /// inside drop causes invalid behavior during codegen.
 #[allow(clippy::unnecessary_wraps)]
@@ -326,4 +408,36 @@ fn inner_close(
     // TODO(anyone): Here we should clean up the state, since we would have a map that
     // associates app_name with app's subscriptions.
     Ok(Ok(true))
+}
+
+/// Checks if the pre-publish is completed based on "our peer id" and
+/// available providers.
+fn is_pre_publish_completed(
+    our_peer_id: &str,
+    current_providers: &[String],
+) -> bool {
+    if current_providers.contains(&our_peer_id.to_string()) {
+        current_providers.len() > 1
+    } else {
+        !current_providers.is_empty()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use test_case::test_case;
+
+    use crate::runtime_extensions::hermes::doc_sync::host::is_pre_publish_completed;
+
+    #[test_case("OUR", &["OTHER_1", "OTHER_2"] => true)]
+    #[test_case("OUR", &["OUR", "OTHER_1", "OTHER_2"] => true)]
+    #[test_case("OUR", &[] => false)]
+    #[test_case("OUR", &["OUR"] => false)]
+    fn pre_publish_completed(
+        our_peer_id: &str,
+        current_providers: &[&str],
+    ) -> bool {
+        let current_providers: Vec<_> = current_providers.iter().map(ToString::to_string).collect();
+        is_pre_publish_completed(our_peer_id, &current_providers)
+    }
 }

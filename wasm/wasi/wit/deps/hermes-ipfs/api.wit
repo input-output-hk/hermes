@@ -1,5 +1,10 @@
 /// Interface to local `IPFS` instance.
 interface api {
+    record file-add-result {
+        file-path: ipfs-path,
+        cid: ipfs-cid
+    }
+
     /// A DHT key.
     type dht-key = list<u8>;
     /// A DHT value.
@@ -14,6 +19,8 @@ interface api {
     type ipfs-file = list<u8>;
     /// A path to an IPFS file.
     type ipfs-path = string;
+    /// A CID.
+    type ipfs-cid = string;
     /// PubSub Message Data
     type message-data = list<u8>;
     /// PubSub Message ID
@@ -63,16 +70,28 @@ interface api {
         pubsub-subscribe-error,
         /// IPFS service is unavailable.
         service-unavailable,
+        /// DHT provide call failed.
+        dht-provide-error,
+        /// DHT get providers call failed.
+        dht-get-providers-error,
+        /// Unable to read peer id.
+        get-peer-id-error
     }
 
     /// Puts a DHT key-value into IPFS.
     dht-put: func(key: dht-key, value: dht-value) -> result<bool, errno>;
     /// Gets a DHT key-value from IPFS.
     dht-get: func(key: dht-key) -> result<dht-value, errno>;
+    /// Marks a node as a provider for the content under the given key.
+    dht-provide: func(key: dht-key) -> result<_, errno>;
+    /// Gets providers of the content under the given key.
+    dht-get-providers: func(key: dht-key) -> result<list<peer-id>, errno>;
+    /// Returns the peer id of the node.
+    get-peer-id: func() -> result<peer-id, errno>;
     /// Validates IPFS content from DHT or PubSub.
     ipfs-content-validate: func(content: ipfs-content) -> result<bool, errno>;
     /// Uploads a file to IPFS.
-    file-add: func(contents: ipfs-file) -> result<ipfs-path, errno>;
+    file-add: func(contents: ipfs-file) -> result<file-add-result, errno>;
     /// Retrieves a file from IPFS.
     file-get: func(path: ipfs-path) -> result<ipfs-file, errno>;
     /// Pins an IPFS file by path.
