@@ -112,7 +112,7 @@ serial_test = { version = "3.2.0", features = ["file_locks"] }
 # An override with the "wat" and "addr2line" features added (debug purposes).
 wasmtime = { version = "38.0.3", default-features = false, features = ["runtime", "cranelift", "component-model", "wat", "addr2line"] }
 httpmock = "0.8.2"
-wasmtime-wasi = "38.0.3"
+wasmtime-wasi = "39.0.1"
 test-case = "3.3.1"
 
 [package.metadata.cargo-machete]
