@@ -427,3 +427,108 @@ impl TryFrom<DocumentDisseminationBody> for New {
 #[derive(Decode, Encode, derive_more::Deref, derive_more::From, derive_more::Into)]
 #[cbor(transparent)]
 pub struct Diff(#[n(0)] DocumentDisseminationBody);
+
+#[cfg(test)]
+#[allow(missing_docs)]
+mod tests {
+    use anyhow::anyhow;
+
+    use super::{Diff, New};
+
+    /// Bodies used as test data.
+    mod body {
+        use minicbor::data::{Tag, Token};
+
+        pub const fn root_hash() -> &'static [Token<'static>] {
+            &[Token::U8(1), Token::Bytes(&[39; 39])]
+        }
+
+        pub const fn count() -> &'static [Token<'static>] {
+            &[Token::U8(2), Token::U8(3)]
+        }
+
+        pub const fn docs() -> &'static [Token<'static>] {
+            &[
+                Token::U8(3),
+                Token::Array(3),
+                Token::Bytes(&[37; 37]),
+                Token::Bytes(&[38; 38]),
+                Token::Bytes(&[39; 39]),
+            ]
+        }
+
+        pub const fn manifest() -> &'static [Token<'static>] {
+            &[Token::U8(4), Token::Bytes(&[37; 37])]
+        }
+
+        pub const fn ttl() -> &'static [Token<'static>] {
+            &[Token::U8(5), Token::U64(u64::MAX)]
+        }
+
+        pub const fn in_reply_to() -> &'static [Token<'static>] {
+            &[
+                Token::U8(6),
+                Token::Tag(const { Tag::new(37) }),
+                Token::Bytes(&[39; 39]),
+            ]
+        }
+
+        /// Constructs body from its parts.
+        pub fn to_cbor(parts: &[fn() -> &'static [Token<'static>]]) -> anyhow::Result<Vec<u8>> {
+            let mut buf = vec![];
+            parts
+                .iter()
+                .flat_map(|f| f())
+                .try_for_each(|token| minicbor::encode(token, &mut buf))?;
+            Ok(buf)
+        }
+    }
+
+    #[test]
+    fn check() -> anyhow::Result<()> {
+        let docs = body::to_cbor(&[body::root_hash, body::count, body::docs])?;
+        let docs_in_reply_to =
+            body::to_cbor(&[body::root_hash, body::count, body::docs, body::in_reply_to])?;
+        let manifest = body::to_cbor(&[
+            body::root_hash,
+            body::count,
+            body::manifest,
+            body::manifest,
+            body::in_reply_to,
+        ])?;
+        let manifest_in_reply_to =
+            body::to_cbor(&[body::root_hash, body::count, body::manifest, body::manifest])?;
+
+        let new_docs_decoded = minicbor::decode::<New>(&docs)?;
+        let new_manifest_decoded = minicbor::decode::<New>(&manifest)?;
+
+        minicbor::decode::<New>(&docs_in_reply_to)
+            .err()
+            .ok_or_else(|| anyhow!(".new should not decode with in_reply_to"))?;
+        minicbor::decode::<New>(&manifest_in_reply_to)
+            .err()
+            .ok_or_else(|| anyhow!(".new should not decode with in_reply_to"))?;
+
+        let diff_docs_decoded = minicbor::decode::<Diff>(&docs)?;
+        let diff_manifest_decoded = minicbor::decode::<Diff>(&manifest)?;
+        let diff_docs_in_reply_to_decoded = minicbor::decode::<Diff>(&docs_in_reply_to)?;
+        let diff_manifest_in_reply_to_decoded = minicbor::decode::<Diff>(&manifest_in_reply_to)?;
+
+        let new_docs_encoded = minicbor::to_vec(new_docs_decoded)?;
+        let new_manifest_encoded = minicbor::to_vec(new_manifest_decoded)?;
+        let diff_docs_encoded = minicbor::to_vec(diff_docs_decoded)?;
+        let diff_manifest_encoded = minicbor::to_vec(diff_manifest_decoded)?;
+        let diff_docs_in_reply_to_encoded = minicbor::to_vec(diff_docs_in_reply_to_decoded)?;
+        let diff_manifest_in_reply_to_encoded =
+            minicbor::to_vec(diff_manifest_in_reply_to_decoded)?;
+
+        anyhow::ensure!(new_docs_encoded == docs);
+        anyhow::ensure!(new_manifest_encoded == manifest);
+        anyhow::ensure!(diff_docs_encoded == docs);
+        anyhow::ensure!(diff_manifest_encoded == manifest);
+        anyhow::ensure!(diff_docs_in_reply_to_encoded == docs_in_reply_to);
+        anyhow::ensure!(diff_manifest_in_reply_to_encoded == manifest_in_reply_to);
+
+        Ok(())
+    }
+}
