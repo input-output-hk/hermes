@@ -34,11 +34,6 @@ interface api {
         /// **Parameters**
         ///
         /// - `name`: The Name of the channel to Open.  Creates if it doesn't exist, otherwise joins it.
-        ///
-        /// **Returns**
-        ///
-        /// - `ok(network)`: A resource network, if successfully create network resource.
-        /// - `error(create-network-error)`: If creating network resource failed.
         constructor(name: channel-name);
 
         /// Close Doc Sync Channel

@@ -7,8 +7,9 @@ use std::{
 };
 
 pub(crate) use api::{
-    hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_evict_peer,
-    hermes_ipfs_get_dht_value, hermes_ipfs_get_file, hermes_ipfs_pin_file, hermes_ipfs_publish,
+    hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_dht_get_providers,
+    hermes_ipfs_dht_provide, hermes_ipfs_evict_peer, hermes_ipfs_get_dht_value,
+    hermes_ipfs_get_file, hermes_ipfs_get_peer_identity, hermes_ipfs_pin_file, hermes_ipfs_publish,
     hermes_ipfs_put_dht_value, hermes_ipfs_subscribe, hermes_ipfs_unpin_file,
 };
 use dashmap::DashMap;
@@ -255,6 +256,48 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
             .blocking_send(IpfsCommand::GetDhtValue(key, cmd_tx))
             .map_err(|_| Errno::DhtGetError)?;
         cmd_rx.blocking_recv().map_err(|_| Errno::DhtGetError)?
+    }
+
+    /// Provide a DHT value
+    fn dht_provide(
+        &self,
+        key: DhtKey,
+    ) -> Result<(), Errno> {
+        let (cmd_tx, cmd_rx) = oneshot::channel();
+        self.sender
+            .as_ref()
+            .ok_or(Errno::DhtProvideError)?
+            .blocking_send(IpfsCommand::DhtProvide(key, cmd_tx))
+            .map_err(|_| Errno::DhtProvideError)?;
+        cmd_rx.blocking_recv().map_err(|_| Errno::DhtProvideError)?
+    }
+
+    /// Get providers of a DHT value
+    fn dht_get_providers(
+        &self,
+        key: DhtKey,
+    ) -> Result<HashSet<hermes_ipfs::PeerId>, Errno> {
+        let (cmd_tx, cmd_rx) = oneshot::channel();
+        self.sender
+            .as_ref()
+            .ok_or(Errno::DhtGetProvidersError)?
+            .blocking_send(IpfsCommand::DhtGetProviders(key, cmd_tx))
+            .map_err(|_| Errno::DhtGetProvidersError)?;
+        cmd_rx
+            .blocking_recv()
+            .map_err(|_| Errno::DhtGetProvidersError)?
+    }
+
+    /// Get the peer identity
+    // TODO[rafal-ch]: We should not be using API errors here.
+    fn get_peer_identity(&self) -> Result<hermes_ipfs::PeerInfo, Errno> {
+        let (cmd_tx, cmd_rx) = oneshot::channel();
+        self.sender
+            .as_ref()
+            .ok_or(Errno::GetPeerIdError)?
+            .blocking_send(IpfsCommand::Identity(None, cmd_tx))
+            .map_err(|_| Errno::GetPeerIdError)?;
+        cmd_rx.blocking_recv().map_err(|_| Errno::GetPeerIdError)?
     }
 
     /// Publish message to a `PubSub` topic
