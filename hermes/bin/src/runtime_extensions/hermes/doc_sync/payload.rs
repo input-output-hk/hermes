@@ -2,7 +2,6 @@
 
 use bytemuck::{TransparentWrapper, TransparentWrapperAlloc as _};
 use catalyst_types::uuid::{self, UuidV7};
-use derive_more::{Deref, From, Into, TryFrom};
 use hermes_ipfs::Cid;
 use minicbor::{
     Decode, Decoder, Encode, Encoder, decode,
@@ -39,7 +38,7 @@ impl<C> Decode<'_, C> for CborCid {
 }
 
 /// Numeric keys of the payload map.
-#[derive(Copy, Clone, TryFrom, PartialEq)]
+#[derive(Copy, Clone, PartialEq, derive_more::TryFrom)]
 #[try_from(repr)]
 #[repr(u8)]
 enum NumericKeys {
@@ -78,8 +77,11 @@ pub type RootHash = [u8; 32];
 /// Common fields of `.diff` and `.new` message payload maps.
 #[derive(Copy, Clone, Default)]
 pub struct CommonFields {
+    /// Root of the senders SMT with these docs added.
     pub root: RootHash,
+    /// Count of the number of docs in the senders.
     pub count: u64,
+    /// Included if this is a reply to a `.syn` topic.
     pub in_reply_to: Option<UuidV7>,
 }
 
@@ -160,13 +162,20 @@ fn decode_in_reply_to(d: &mut Decoder<'_>) -> Result<Option<UuidV7>, decode::Err
 ///
 /// Enum variants represent possible field combinations of the encoded map.
 pub enum DocumentDisseminationBody {
+    /// Encoding variant with `docs` field.
     Docs {
+        /// Common fields among encoding variants.
         common_fields: CommonFields,
+        /// List of `CIDv1` Documents.
         docs: Vec<Cid>,
     },
+    /// Encoding variant with `manifest` and `ttl` fields.
     Manifest {
+        /// Common fields among encoding variants.
         common_fields: CommonFields,
+        /// `CIDv1` of a Manifest of Documents.
         manifest: Cid,
+        /// How long the Manifest can be expected to be.
         ttl: u64,
     },
 }
@@ -214,7 +223,7 @@ fn encode_docs<W: Write>(
     e: &mut Encoder<W>,
 ) -> Result<(), encode::Error<W::Error>> {
     e.encode(NumericKeys::Docs)?
-        .encode(&CborCid::wrap_slice(docs))?
+        .encode(CborCid::wrap_slice(docs))?
         .ok()
 }
 
@@ -224,7 +233,7 @@ fn encode_manifest<W: Write>(
     e: &mut Encoder<W>,
 ) -> Result<(), encode::Error<W::Error>> {
     e.encode(NumericKeys::Manifest)?
-        .encode(&CborCid::wrap_ref(manifest))?
+        .encode(CborCid::wrap_ref(manifest))?
         .ok()
 }
 
@@ -310,7 +319,7 @@ impl<C> Encode<C> for DocumentDisseminationBody {
             } => {
                 encode_root(&common_fields.root, e)?;
                 encode_count(common_fields.count, e)?;
-                encode_docs(&docs, e)?;
+                encode_docs(docs, e)?;
                 // Encoding last to maintain deterministic cbor key ordering.
                 encode_in_reply_to(common_fields.in_reply_to.as_ref(), e)?;
             },
@@ -321,7 +330,7 @@ impl<C> Encode<C> for DocumentDisseminationBody {
             } => {
                 encode_root(&common_fields.root, e)?;
                 encode_count(common_fields.count, e)?;
-                encode_manifest(&manifest, e)?;
+                encode_manifest(manifest, e)?;
                 encode_ttl(*ttl, e)?;
                 // Encoding last to maintain deterministic cbor key ordering.
                 encode_in_reply_to(common_fields.in_reply_to.as_ref(), e)?;
@@ -381,7 +390,7 @@ impl<C> Decode<'_, C> for DocumentDisseminationBody {
 }
 
 /// `.new` message payload.
-#[derive(Deref, Encode, Into)]
+#[derive(Encode, derive_more::Deref, derive_more::Into)]
 #[cbor(transparent)]
 pub struct New(#[n(0)] DocumentDisseminationBody);
 
@@ -415,6 +424,6 @@ impl TryFrom<DocumentDisseminationBody> for New {
 }
 
 /// `.diff` message payload.
-#[derive(Deref, Decode, Encode, From, Into)]
+#[derive(Decode, Encode, derive_more::Deref, derive_more::From, derive_more::Into)]
 #[cbor(transparent)]
 pub struct Diff(#[n(0)] DocumentDisseminationBody);
