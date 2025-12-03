@@ -198,17 +198,17 @@ impl DocumentDisseminationBody {
 
     /// Returns `true` if `in_reply_to` field is present.
     fn contains_in_reply_to(&self) -> bool {
-        !matches!(
+        matches!(
             self,
             Self::Docs {
                 common_fields: CommonFields {
-                    in_reply_to: None,
+                    in_reply_to: Some(_),
                     ..
                 },
                 ..
             } | Self::Manifest {
                 common_fields: CommonFields {
-                    in_reply_to: None,
+                    in_reply_to: Some(_),
                     ..
                 },
                 ..
