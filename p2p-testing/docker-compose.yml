@@ -19,6 +19,7 @@ services:
       - HERMES_ACTIVATE_AUTH=true
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
+      - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
     ports:
       # HTTP Gateway
       - "5000:5000"
@@ -43,6 +44,7 @@ services:
       - HERMES_ACTIVATE_AUTH=true
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
+      - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
     ports:
       # HTTP Gateway (different host port)
       - "5002:5000"
@@ -67,6 +69,7 @@ services:
       - HERMES_ACTIVATE_AUTH=true
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
+      - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
     ports:
       # HTTP Gateway (different host port)
       - "5004:5000"

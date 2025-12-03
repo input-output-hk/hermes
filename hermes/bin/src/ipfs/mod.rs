@@ -99,7 +99,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         let node = runtime.block_on(async move { builder.start().await })?;
 
         let _handle = std::thread::spawn(move || {
-            let _unused = runtime.block_on(async move {
+            let result = runtime.block_on(async move {
                 if default_bootstrap {
                     // Add default addresses for bootstrapping
                     let addresses = node.default_bootstrap().await?;
@@ -120,7 +120,9 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
                 let (..) = tokio::join!(h);
                 Ok::<(), anyhow::Error>(())
             });
-            std::process::exit(0);
+            if let Err(e) = result {
+                tracing::error!("IPFS thread error: {}", e);
+            }
         });
         Ok(Self {
             sender: Some(sender),
