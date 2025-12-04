@@ -46,12 +46,19 @@ pub(crate) static HERMES_IPFS: OnceCell<HermesIpfsNode<dummy::Behaviour>> = Once
 
 /// Bootstrap `HERMES_IPFS` node.
 ///
+/// ## Parameters
+///
+/// * `base_dir` - Base directory for IPFS data storage
+/// * `default_bootstrap` - Whether to use default public IPFS bootstrap nodes
+/// * `custom_peers` - Optional list of custom bootstrap peer multiaddrs
+///
 /// ## Errors
 ///
 /// Returns errors if IPFS node fails to start.
 pub fn bootstrap(
     base_dir: &Path,
     default_bootstrap: bool,
+    custom_peers: Option<Vec<String>>,
 ) -> anyhow::Result<()> {
     let ipfs_data_path = base_dir.join("ipfs");
     if !ipfs_data_path.exists() {
@@ -66,6 +73,7 @@ pub fn bootstrap(
             .with_default()
             .set_disk_storage(ipfs_data_path.clone()),
         default_bootstrap,
+        custom_peers,
     )?;
     HERMES_IPFS
         .set(ipfs_node)
@@ -92,6 +100,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
     pub(crate) fn init(
         builder: HermesIpfsBuilder<N>,
         default_bootstrap: bool,
+        custom_peers: Option<Vec<String>>,
     ) -> anyhow::Result<Self> {
         let runtime = Builder::new_current_thread().enable_all().build()?;
         let (sender, receiver) = mpsc::channel(1);
@@ -101,7 +110,32 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
 
         let _handle = std::thread::spawn(move || {
             let result = runtime.block_on(async move {
-                if default_bootstrap {
+                // Connect to custom bootstrap peers if provided
+                if let Some(peers) = custom_peers {
+                    tracing::info!("Connecting to {} custom bootstrap peer(s)", peers.len());
+                    let mut connected_count = 0;
+                    for peer_addr in &peers {
+                        match peer_addr.parse::<hermes_ipfs::Multiaddr>() {
+                            Ok(multiaddr) => {
+                                match node.connect(multiaddr).await {
+                                    Ok(_) => {
+                                        tracing::info!("✓ Connected to bootstrap peer: {}", peer_addr);
+                                        connected_count += 1;
+                                    },
+                                    Err(e) => {
+                                        tracing::warn!("⚠ Failed to connect to {}: {}", peer_addr, e);
+                                    },
+                                }
+                            },
+                            Err(e) => {
+                                tracing::warn!("⚠ Invalid multiaddr {}: {}", peer_addr, e);
+                            },
+                        }
+                    }
+                    tracing::info!("Custom bootstrap: connected to {}/{} peers", connected_count, peers.len());
+                }
+                // Only use public bootstrap if no custom peers provided
+                else if default_bootstrap {
                     // Add default addresses for bootstrapping
                     let addresses = node.default_bootstrap().await?;
                     // Connect to bootstrap nodes.

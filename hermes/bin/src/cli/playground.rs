@@ -105,7 +105,7 @@ fn init_ipfs(temp_dir: &TempDir) -> anyhow::Result<()> {
     let ipfs_dir = create_temp_dir_child(temp_dir, Path::new("ipfs"))?;
     // disable bootstrapping the IPFS node to default addresses for testing
     let default_bootstrap = false;
-    ipfs::bootstrap(ipfs_dir.as_path(), default_bootstrap)
+    ipfs::bootstrap(ipfs_dir.as_path(), default_bootstrap, None)
 }
 
 /// Collects `.wasm` files in the current directory or sub-directories of the current

@@ -53,10 +53,36 @@ impl Run {
 
         let hermes_home_dir = Cli::hermes_home()?;
 
-        // enable bootstrapping the IPFS node to default addresses
-        let default_bootstrap = true;
-        tracing::info!("{} Bootstrapping IPFS node", console::Emoji::new("🖧", ""),);
-        ipfs::bootstrap(hermes_home_dir.as_path(), default_bootstrap)?;
+        // Read custom bootstrap peers from environment variable
+        // Format: comma-separated multiaddrs, e.g.:
+        // /ip4/172.20.0.11/tcp/4001/p2p/12D3KooW...,/dns4/seed.example.com/tcp/4001/p2p/12D3KooW...
+        let custom_bootstrap_peers = std::env::var("IPFS_BOOTSTRAP_PEERS")
+            .ok()
+            .map(|peers_str| {
+                peers_str
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect::<Vec<String>>()
+            });
+
+        // Only use public bootstrap if no custom peers provided
+        let default_bootstrap = custom_bootstrap_peers.is_none();
+
+        if let Some(ref peers) = custom_bootstrap_peers {
+            tracing::info!(
+                "{} Bootstrapping IPFS node with {} custom peer(s)",
+                console::Emoji::new("🖧", ""),
+                peers.len()
+            );
+        } else {
+            tracing::info!(
+                "{} Bootstrapping IPFS node with default public peers",
+                console::Emoji::new("🖧", "")
+            );
+        }
+
+        ipfs::bootstrap(hermes_home_dir.as_path(), default_bootstrap, custom_bootstrap_peers)?;
         let app = build_app(&package, hermes_home_dir)?;
 
         if self.rt_config.serialize_sqlite {
