@@ -6,6 +6,8 @@ use once_cell::sync::Lazy;
 mod event;
 mod host;
 
+pub(crate) use event::OnNewDocEvent;
+
 /// Initialize state. Which is mapping from String hash to String itself.
 ///
 /// Note:

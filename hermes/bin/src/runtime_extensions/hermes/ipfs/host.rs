@@ -2,7 +2,7 @@
 
 use crate::{
     ipfs::{
-        hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_dht_get_providers,
+        self, hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_dht_get_providers,
         hermes_ipfs_dht_provide, hermes_ipfs_evict_peer, hermes_ipfs_get_dht_value,
         hermes_ipfs_get_file, hermes_ipfs_get_peer_identity, hermes_ipfs_pin_file,
         hermes_ipfs_publish, hermes_ipfs_put_dht_value, hermes_ipfs_subscribe,
@@ -105,7 +105,11 @@ impl Host for HermesRuntimeContext {
         &mut self,
         topic: PubsubTopic,
     ) -> wasmtime::Result<Result<bool, Errno>> {
-        Ok(hermes_ipfs_subscribe(self.app_name(), topic))
+        Ok(hermes_ipfs_subscribe(
+            ipfs::SubscriptionKind::Default,
+            self.app_name(),
+            topic,
+        ))
     }
 
     fn ipfs_content_validate(
