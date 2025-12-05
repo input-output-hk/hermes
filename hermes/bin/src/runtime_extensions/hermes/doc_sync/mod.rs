@@ -5,6 +5,7 @@ use once_cell::sync::Lazy;
 
 mod event;
 mod host;
+mod timers;
 
 /// Initialize state. Which is mapping from String hash to String itself.
 ///
