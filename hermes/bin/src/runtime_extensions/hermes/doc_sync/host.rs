@@ -3,6 +3,7 @@ use cardano_chain_follower::pallas_codec::minicbor::{self, Encode, Encoder, data
 use stringzilla::stringzilla::Sha256;
 use wasmtime::component::Resource;
 
+use super::ChannelState;
 use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
@@ -13,7 +14,10 @@ use crate::{
             },
             ipfs::api::{FileAddResult, Host as IpfsHost},
         },
-        hermes::doc_sync::DOC_SYNC_STATE,
+        hermes::doc_sync::{
+            DOC_SYNC_STATE,
+            timers::{config::SyncTimersConfig, state::SyncTimersState},
+        },
     },
 };
 
@@ -111,22 +115,41 @@ impl HostSyncChannel for HermesRuntimeContext {
         let resource: u32 = u32::from_be_bytes(*prefix_bytes);
 
         // Code block is used to minimize locking scope.
-        {
-            let entry = DOC_SYNC_STATE.entry(resource).or_insert(name.clone());
-            if &name != entry.value() {
+        let topic_new = {
+            let topic = format!("{name}.new");
+            let mut entry = DOC_SYNC_STATE
+                .entry(resource)
+                .or_insert_with(|| ChannelState::new(topic.clone()));
+            if entry.topic != name {
                 return Err(wasmtime::Error::msg(format!(
                     "Collision occurred with previous value = {} and new one = {name}",
-                    entry.value()
+                    entry.topic
                 )));
             }
-        }
+
+            if entry.timers.is_none() {
+                let timers = SyncTimersState::new(
+                    SyncTimersConfig::default(),
+                    self.app_name().clone(),
+                    &entry.topic,
+                );
+                timers.start_quiet_timer();
+                entry.timers = Some(timers);
+            }
+
+            entry.topic.clone()
+        };
 
         // When the channel is created, subscribe to .new <base>.<topic>
-        if let Err(err) = self.pubsub_subscribe(format!("{name}.new")) {
+        if let Err(err) = self.pubsub_subscribe(topic_new.clone()) {
             // FIXME - Do we want to remove the entry from the map here?
-            DOC_SYNC_STATE.remove(&resource);
+            if let Some((_, state)) = DOC_SYNC_STATE.remove(&resource)
+                && let Some(timers) = state.timers
+            {
+                timers.stop_quiet_timer();
+            }
             return Err(wasmtime::Error::msg(format!(
-                "Subscription to {name}.new failed: {err}",
+                "Subscription to {topic_new} failed: {err}",
             )));
         }
 
@@ -366,13 +389,12 @@ fn publish(
     rep: u32,
 ) -> wasmtime::Result<Result<(), Errno>> {
     const STEP: u8 = 5;
-    let channel_name = DOC_SYNC_STATE
+    let channel_state = DOC_SYNC_STATE
         .get(&rep)
         .ok_or_else(|| wasmtime::Error::msg("Channel not found"))?
-        .value()
         .clone();
 
-    let topic_new = format!("{channel_name}.new");
+    let topic_new = channel_state.topic.clone();
 
     // The channel should already be subscribed to the `.new` topic (subscription
     // is performed in `new()`). Invoking the subscription again to ensure
@@ -398,6 +420,10 @@ fn publish(
             "   Note: Gossipsub requires other nodes subscribing to '{topic_new}' to work",
         );
         tracing::info!("   Document is successfully stored in IPFS");
+    }
+
+    if let Some(timers) = channel_state.timers {
+        timers.reset_quiet_timer();
     }
 
     Ok(Ok(()))
