@@ -1,11 +1,48 @@
-# P2P Testing Justfile
-# Multi-node Hermes testing environment for P2P features
+# ==============================================================================
+# Hermes P2P Testing Environment
+# ==============================================================================
+#
+# 3-node Docker setup for testing P2P features:
+# - Persistent IPFS keypairs (stable peer IDs across restarts)
+# - Bootstrap retry logic (automatic reconnection)
+# - Gossipsub v1.2 PubSub protocol
+# - Full mesh connectivity on isolated network (172.20.0.0/16)
+#
+# QUICK START:
+#   just start          # Interactive mode
+#   just test-pubsub    # Verify PubSub works
+#   just logs           # Monitor activity
+#   just stop           # Stop nodes
+#
+# CI/CD:
+#   just start-ci && just test-ci && just clean
+#
+# NODE ENDPOINTS:
+#   Node 1: http://localhost:5000 (IPFS: 4001, API: 5001) [172.20.0.10]
+#   Node 2: http://localhost:5002 (IPFS: 4002, API: 5003) [172.20.0.11]
+#   Node 3: http://localhost:5004 (IPFS: 4003, API: 5005) [172.20.0.12]
+#
+# PERSISTENT PEER IDS:
+#   Node 1: 12D3KooWBxass2EcccdN5FzC2e6er3uyuYJkTchMX11iKWaJ9aj1
+#   Node 2: 12D3KooWBkdsbenzeixaTmEXdmpf5P2pXtyvm4Qb4sGZJ1Wi4BUB
+#   Node 3: 12D3KooWA5tEBmYCXQfmAdt5zZonBouBt2KBN6umaUtdQVY39GPK
+#
+# PREREQUISITES:
+#   - Docker & Docker Compose
+#   - Just (https://just.systems)
+#   - Earthly (https://earthly.dev) - for builds
+#
+# ==============================================================================
 
-# Default recipe - show help
+# Show available commands (default)
 default:
     @just --list
 
-# Build Hermes binary (fast local build)
+# ==============================================================================
+# BUILD COMMANDS
+# ==============================================================================
+
+# Build Hermes binary only (fast local build, ~3-5 min)
 build:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -13,7 +50,7 @@ build:
     echo "🔨 Building Hermes..."
     just get-local-hermes-fast
 
-# Build Hermes binary and Athena WASM (for full testing)
+# Build Hermes + Athena WASM modules (full build, ~10-15 min)
 build-all:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -22,17 +59,21 @@ build-all:
     just get-local-hermes-fast
     just get-local-athena
 
-# Build Docker images
+# Build Docker images from built artifacts
 build-images:
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🐳 Building Docker images..."
     docker compose build
 
-# Build everything (CI-friendly, no prompts)
+# Build everything (CI mode: no prompts, always clean build)
 build-ci: build-all build-images
 
-# Start nodes (will prompt to rebuild if artifacts exist)
+# ==============================================================================
+# NODE MANAGEMENT
+# ==============================================================================
+
+# Start 3-node test environment (interactive: prompts to rebuild if artifacts exist)
 start:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -62,7 +103,7 @@ start:
     echo ""
     just status
 
-# Start nodes (CI mode - no prompts, always rebuild)
+# Start nodes (CI mode: no prompts, always rebuilds)
 start-ci:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -72,19 +113,30 @@ start-ci:
     sleep 10
     just status
 
-# Stop nodes (preserve data)
+# Stop nodes (preserves data in Docker volumes)
 stop:
     @echo "🛑 Stopping nodes..."
     @docker compose down
-    @echo "✅ Nodes stopped (data preserved)"
+    @echo "✅ Nodes stopped (data preserved in volumes)"
+    @echo "💡 To remove data: just clean"
 
-# Stop nodes and clean all data
+# Stop nodes and remove all data (volumes deleted)
 clean:
     @echo "🧹 Stopping nodes and cleaning data..."
     @docker compose down -v
     @echo "✅ All nodes stopped and data cleaned"
 
-# Show node status
+# Restart nodes (stop + start, preserves data)
+restart: stop start
+
+# Full reset (clean + start fresh with new volumes)
+reset: clean start
+
+# ==============================================================================
+# MONITORING
+# ==============================================================================
+
+# Show node status and endpoints
 status:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -96,15 +148,15 @@ status:
     echo "   Node 2: http://localhost:5002 (IPFS: 4002, API: 5003) [172.20.0.11]"
     echo "   Node 3: http://localhost:5004 (IPFS: 4003, API: 5005) [172.20.0.12]"
 
-# Show logs from all nodes
+# Follow logs from all nodes
 logs:
     @docker compose logs -f
 
-# Show logs from a specific node (1, 2, or 3)
+# Follow logs from specific node (1, 2, or 3)
 logs-node node:
     @docker compose logs -f hermes-node{{node}}
 
-# Check P2P connectivity
+# Check P2P connectivity (bootstrap, gossipsub, listening addresses)
 check-connectivity:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -122,7 +174,11 @@ check-connectivity:
     echo "👂 Listening addresses:"
     docker compose logs 2>&1 | grep "listening on 0.0.0.0:4001" | head -3 || echo "   ⚠️  Nodes may not be listening on port 4001"
 
-# Run integration tests on all nodes
+# ==============================================================================
+# TESTING
+# ==============================================================================
+
+# Run integration tests on all nodes (requires Athena WASM modules)
 test: test-node1 test-node2 test-node3
     @echo ""
     @echo "✅ All nodes tested!"
@@ -142,11 +198,11 @@ test-node3:
     @echo "🧪 Testing Node 3..."
     @docker exec hermes-node3 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
 
-# Test PubSub functionality across nodes
+# Test PubSub infrastructure (verifies Gossipsub protocol and connectivity)
 test-pubsub:
     #!/usr/bin/env bash
     set -euo pipefail
-    echo "🧪 Testing PubSub across nodes..."
+    echo "🧪 Testing PubSub infrastructure..."
     echo ""
 
     # Check if nodes are running
@@ -190,7 +246,7 @@ test-pubsub:
     echo ""
     echo "💡 PubSub is ready! Messages published to topics will propagate between nodes."
 
-# Verify P2P setup and run all tests (CI-friendly)
+# Full CI test suite (status + connectivity + pubsub)
 test-ci:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -223,43 +279,77 @@ test-ci:
     echo ""
     echo "✅ CI test suite passed!"
 
-# Restart nodes (preserves data)
-restart: stop start
+# ==============================================================================
+# HELP
+# ==============================================================================
 
-# Full reset - clean everything and start fresh
-reset: clean start
-
-# Show this help
+# Show detailed help with examples
 help:
-    @echo "P2P Testing Commands:"
+    @echo "================================================================================"
+    @echo "Hermes P2P Testing Environment"
+    @echo "================================================================================"
     @echo ""
-    @echo "  Setup & Build:"
-    @echo "    just build              Build Hermes binary (fast)"
-    @echo "    just build-all          Build Hermes + Athena"
-    @echo "    just build-images       Build Docker images"
-    @echo "    just build-ci           Build everything (CI mode)"
+    @echo "QUICK START:"
+    @echo "  just start              # Start 3 nodes"
+    @echo "  just test-pubsub        # Verify PubSub works"
+    @echo "  just logs               # Monitor activity"
+    @echo "  just stop               # Stop nodes"
     @echo ""
-    @echo "  Node Management:"
-    @echo "    just start              Start 3-node test environment"
-    @echo "    just start-ci           Start nodes (CI mode, no prompts)"
-    @echo "    just stop               Stop nodes (preserve data)"
-    @echo "    just clean              Stop nodes and remove all data"
-    @echo "    just restart            Restart nodes"
-    @echo "    just reset              Clean + start fresh"
+    @echo "COMMON WORKFLOWS:"
     @echo ""
-    @echo "  Monitoring:"
-    @echo "    just status             Show node status and endpoints"
-    @echo "    just logs               Show logs from all nodes"
-    @echo "    just logs-node N        Show logs from node N (1,2,3)"
-    @echo "    just check-connectivity Check P2P connection status"
+    @echo "  Developer Testing:"
+    @echo "    just start            # Interactive, prompts to rebuild"
+    @echo "    just test-pubsub      # Quick infrastructure check"
+    @echo "    just logs-node 1      # Debug specific node"
+    @echo "    just restart          # Apply code changes"
     @echo ""
-    @echo "  Testing:"
-    @echo "    just test               Run integration tests on all nodes"
-    @echo "    just test-nodeN         Run tests on specific node"
-    @echo "    just test-pubsub        Test PubSub functionality"
-    @echo "    just test-ci            Full CI test suite"
+    @echo "  CI/CD Pipeline:"
+    @echo "    just start-ci         # Non-interactive, always rebuilds"
+    @echo "    just test-ci          # Full validation suite"
+    @echo "    just clean            # Cleanup"
     @echo ""
-    @echo "📡 Node Endpoints:"
-    @echo "  Node 1: http://localhost:5000 (IPFS: 4001, API: 5001)"
-    @echo "  Node 2: http://localhost:5002 (IPFS: 4002, API: 5003)"
-    @echo "  Node 3: http://localhost:5004 (IPFS: 4003, API: 5005)"
+    @echo "  From Scratch (simulates fresh git clone):"
+    @echo "    just clean            # Remove everything"
+    @echo "    just build-all        # Build from scratch"
+    @echo "    just start-ci         # Start and verify"
+    @echo ""
+    @echo "BUILD COMMANDS:"
+    @echo "  build                   Build Hermes binary only (fast)"
+    @echo "  build-all               Build Hermes + Athena WASM (full)"
+    @echo "  build-images            Build Docker images"
+    @echo "  build-ci                Build everything (CI mode)"
+    @echo ""
+    @echo "NODE MANAGEMENT:"
+    @echo "  start                   Start nodes (interactive)"
+    @echo "  start-ci                Start nodes (CI mode)"
+    @echo "  stop                    Stop nodes (preserve data)"
+    @echo "  clean                   Stop and remove data"
+    @echo "  restart                 Stop + start"
+    @echo "  reset                   Clean + start fresh"
+    @echo ""
+    @echo "MONITORING:"
+    @echo "  status                  Show node status"
+    @echo "  logs                    Follow all logs"
+    @echo "  logs-node N             Follow node N logs (1-3)"
+    @echo "  check-connectivity      Check P2P status"
+    @echo ""
+    @echo "TESTING:"
+    @echo "  test                    Run integration tests"
+    @echo "  test-nodeN              Test specific node (1-3)"
+    @echo "  test-pubsub             Test PubSub infrastructure"
+    @echo "  test-ci                 Full CI test suite"
+    @echo ""
+    @echo "NODE ENDPOINTS:"
+    @echo "  Node 1: http://localhost:5000 (IPFS: 4001) [172.20.0.10]"
+    @echo "  Node 2: http://localhost:5002 (IPFS: 4002) [172.20.0.11]"
+    @echo "  Node 3: http://localhost:5004 (IPFS: 4003) [172.20.0.12]"
+    @echo ""
+    @echo "FEATURES:"
+    @echo "  • Persistent peer IDs (keypairs stored in volumes)"
+    @echo "  • Bootstrap retry logic (10s interval, 10 max attempts)"
+    @echo "  • Gossipsub v1.2 PubSub protocol"
+    @echo "  • Full mesh connectivity (each node connected to others)"
+    @echo "  • Isolated Docker network (172.20.0.0/16)"
+    @echo ""
+    @echo "For more info: cat justfile"
+    @echo "================================================================================"
