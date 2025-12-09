@@ -329,6 +329,10 @@ fn ensure_provided(
     peer_id: &str,
 ) -> wasmtime::Result<Result<(), Errno>> {
     const STEP: u8 = 4;
+    const BACKOFF_DURATION: [u64; 5] = [100, 200, 400, 800, 1600];
+    let mut sleep_iter = BACKOFF_DURATION
+        .into_iter()
+        .chain(std::iter::repeat_n(2000, 5));
     loop {
         let providers = ctx.dht_get_providers(cid.into())??;
         if is_pre_publish_completed(peer_id, &providers) {
@@ -338,8 +342,13 @@ fn ensure_provided(
         tracing::info!(
             "✓ Step {STEP}/{POST_STEP_COUNT}: Other DHT providers not found, sleeping..."
         );
-        // TODO[rafal-ch]: Exponential backoff
-        std::thread::sleep(std::time::Duration::from_secs(1));
+        let Some(sleep_duration) = sleep_iter.next() else {
+            tracing::error!(
+                "✓ Step {STEP}/{POST_STEP_COUNT}: Other DHT providers not found, aborting"
+            );
+            return Ok(Err(Errno::DocErrorPlaceholder));
+        };
+        std::thread::sleep(std::time::Duration::from_millis(sleep_duration));
     }
 }
 
