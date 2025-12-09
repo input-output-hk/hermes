@@ -3191,7 +3191,7 @@ dependencies = [
 [[package]]
 name = "hermes-ipfs"
 version = "0.0.8"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?branch=feat%2Fhermes-ipfs-transport-enable-methods#293ef3c44acef814d94c7e6d3d52d6f745b3b6dc"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?branch=feat%2Fhermes-ipfs-persistent-keypair#9d68a93a3cdd58f1ea28ffa0f43d5bc2ad1bfbcc"
 dependencies = [
  "anyhow",
  "bytemuck",

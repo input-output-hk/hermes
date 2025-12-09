@@ -20,6 +20,7 @@ services:
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWBkdsbenzeixaTmEXdmpf5P2pXtyvm4Qb4sGZJ1Wi4BUB,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWA5tEBmYCXQfmAdt5zZonBouBt2KBN6umaUtdQVY39GPK
     ports:
       # HTTP Gateway
       - "5000:5000"
@@ -28,7 +29,7 @@ services:
       # IPFS API
       - "5001:5001"
     volumes:
-      - node1-data:/data
+      - node1-data:/home/hermes
     networks:
       hermes-p2p:
         ipv4_address: 172.20.0.10
@@ -45,6 +46,7 @@ services:
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWBxass2EcccdN5FzC2e6er3uyuYJkTchMX11iKWaJ9aj1,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWA5tEBmYCXQfmAdt5zZonBouBt2KBN6umaUtdQVY39GPK
     ports:
       # HTTP Gateway (different host port)
       - "5002:5000"
@@ -53,7 +55,7 @@ services:
       # IPFS API
       - "5003:5001"
     volumes:
-      - node2-data:/data
+      - node2-data:/home/hermes
     networks:
       hermes-p2p:
         ipv4_address: 172.20.0.11
@@ -70,6 +72,7 @@ services:
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWBxass2EcccdN5FzC2e6er3uyuYJkTchMX11iKWaJ9aj1,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWBkdsbenzeixaTmEXdmpf5P2pXtyvm4Qb4sGZJ1Wi4BUB
     ports:
       # HTTP Gateway (different host port)
       - "5004:5000"
@@ -78,7 +81,7 @@ services:
       # IPFS API
       - "5005:5001"
     volumes:
-      - node3-data:/data
+      - node3-data:/home/hermes
     networks:
       hermes-p2p:
         ipv4_address: 172.20.0.12

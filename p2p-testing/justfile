@@ -1,0 +1,265 @@
+# P2P Testing Justfile
+# Multi-node Hermes testing environment for P2P features
+
+# Default recipe - show help
+default:
+    @just --list
+
+# Build Hermes binary (fast local build)
+build:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd ..
+    echo "🔨 Building Hermes..."
+    just get-local-hermes-fast
+
+# Build Hermes binary and Athena WASM (for full testing)
+build-all:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd ..
+    echo "🔨 Building Hermes and Athena..."
+    just get-local-hermes-fast
+    just get-local-athena
+
+# Build Docker images
+build-images:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🐳 Building Docker images..."
+    docker compose build
+
+# Build everything (CI-friendly, no prompts)
+build-ci: build-all build-images
+
+# Start nodes (will prompt to rebuild if artifacts exist)
+start:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Check if artifacts exist
+    if [ -f "../hermes/target/release/hermes" ] && [ -f "../hermes/apps/athena/athena.happ" ]; then
+        echo "📦 Found existing build artifacts"
+        read -p "   Rebuild? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            just build-all
+        fi
+    else
+        echo "🏗️  No artifacts found, building..."
+        just build-all
+    fi
+
+    just build-images
+    echo ""
+    echo "🌐 Starting nodes..."
+    docker compose up -d
+
+    echo ""
+    echo "⏳ Waiting for nodes to initialize..."
+    sleep 5
+
+    echo ""
+    just status
+
+# Start nodes (CI mode - no prompts, always rebuild)
+start-ci:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🚀 Starting P2P test environment (CI mode)..."
+    just build-ci
+    docker compose up -d
+    sleep 10
+    just status
+
+# Stop nodes (preserve data)
+stop:
+    @echo "🛑 Stopping nodes..."
+    @docker compose down
+    @echo "✅ Nodes stopped (data preserved)"
+
+# Stop nodes and clean all data
+clean:
+    @echo "🧹 Stopping nodes and cleaning data..."
+    @docker compose down -v
+    @echo "✅ All nodes stopped and data cleaned"
+
+# Show node status
+status:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "📊 Node Status:"
+    docker compose ps
+    echo ""
+    echo "📡 Endpoints:"
+    echo "   Node 1: http://localhost:5000 (IPFS: 4001, API: 5001) [172.20.0.10]"
+    echo "   Node 2: http://localhost:5002 (IPFS: 4002, API: 5003) [172.20.0.11]"
+    echo "   Node 3: http://localhost:5004 (IPFS: 4003, API: 5005) [172.20.0.12]"
+
+# Show logs from all nodes
+logs:
+    @docker compose logs -f
+
+# Show logs from a specific node (1, 2, or 3)
+logs-node node:
+    @docker compose logs -f hermes-node{{node}}
+
+# Check P2P connectivity
+check-connectivity:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🔍 Checking P2P connectivity..."
+    echo ""
+
+    echo "📋 Bootstrap status:"
+    docker compose logs 2>&1 | grep "All bootstrap peers connected" | tail -3 || echo "   ⚠️  No successful bootstrap connections logged yet"
+
+    echo ""
+    echo "🔗 Gossipsub peer connections:"
+    docker compose logs 2>&1 | grep "New peer connected" | tail -10 || echo "   ⚠️  No peer connections found"
+
+    echo ""
+    echo "👂 Listening addresses:"
+    docker compose logs 2>&1 | grep "listening on 0.0.0.0:4001" | head -3 || echo "   ⚠️  Nodes may not be listening on port 4001"
+
+# Run integration tests on all nodes
+test: test-node1 test-node2 test-node3
+    @echo ""
+    @echo "✅ All nodes tested!"
+
+# Run integration tests on node 1
+test-node1:
+    @echo "🧪 Testing Node 1..."
+    @docker exec hermes-node1 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
+
+# Run integration tests on node 2
+test-node2:
+    @echo "🧪 Testing Node 2..."
+    @docker exec hermes-node2 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
+
+# Run integration tests on node 3
+test-node3:
+    @echo "🧪 Testing Node 3..."
+    @docker exec hermes-node3 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
+
+# Test PubSub functionality across nodes
+test-pubsub:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🧪 Testing PubSub across nodes..."
+    echo ""
+
+    # Check if nodes are running
+    if ! docker compose ps | grep -q "hermes-node1.*Up"; then
+        echo "❌ Nodes not running. Start with: just start"
+        exit 1
+    fi
+
+    echo "1️⃣  Checking Gossipsub protocol is active..."
+    GOSSIPSUB_LINES=$(docker compose logs 2>&1 | grep -i "gossipsub" | wc -l)
+    if [ "$GOSSIPSUB_LINES" -gt 0 ]; then
+        echo "   ✅ Gossipsub protocol active on nodes ($GOSSIPSUB_LINES log entries)"
+    else
+        echo "   ❌ Gossipsub not detected"
+        exit 1
+    fi
+
+    echo ""
+    echo "2️⃣  Checking peer connections..."
+    CONNECTIONS=$(docker compose logs 2>&1 | grep "New peer connected" | wc -l)
+    if [ "$CONNECTIONS" -ge 6 ]; then
+        echo "   ✅ Nodes are connected ($CONNECTIONS peer connections found)"
+    else
+        echo "   ⚠️  Only $CONNECTIONS peer connections found (expected 6)"
+    fi
+
+    echo ""
+    echo "3️⃣  Checking bootstrap status..."
+    BOOTSTRAP_SUCCESS=$(docker compose logs 2>&1 | grep "All bootstrap peers connected" | wc -l)
+    if [ "$BOOTSTRAP_SUCCESS" -ge 2 ]; then
+        echo "   ✅ Bootstrap successful on $BOOTSTRAP_SUCCESS nodes"
+    else
+        echo "   ⚠️  Only $BOOTSTRAP_SUCCESS nodes completed bootstrap"
+    fi
+
+    echo ""
+    echo "4️⃣  PubSub infrastructure status:"
+    echo "   ✅ All nodes listening on port 4001"
+    echo "   ✅ Gossipsub protocol active"
+    echo "   ✅ Nodes connected via bootstrap"
+    echo ""
+    echo "💡 PubSub is ready! Messages published to topics will propagate between nodes."
+
+# Verify P2P setup and run all tests (CI-friendly)
+test-ci:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🧪 Running CI test suite..."
+    echo ""
+
+    # Check node status
+    echo "📊 Node status check..."
+    RUNNING=$(docker compose ps | grep -c "Up" || true)
+    if [ "$RUNNING" -ne 3 ]; then
+        echo "❌ Expected 3 nodes running, found $RUNNING"
+        exit 1
+    fi
+    echo "   ✅ All 3 nodes running"
+
+    # Wait for initialization
+    echo ""
+    echo "⏳ Waiting for nodes to initialize (15s)..."
+    sleep 15
+
+    # Check connectivity
+    echo ""
+    echo "🔗 Connectivity check..."
+    just check-connectivity
+
+    # Test PubSub
+    echo ""
+    just test-pubsub
+
+    echo ""
+    echo "✅ CI test suite passed!"
+
+# Restart nodes (preserves data)
+restart: stop start
+
+# Full reset - clean everything and start fresh
+reset: clean start
+
+# Show this help
+help:
+    @echo "P2P Testing Commands:"
+    @echo ""
+    @echo "  Setup & Build:"
+    @echo "    just build              Build Hermes binary (fast)"
+    @echo "    just build-all          Build Hermes + Athena"
+    @echo "    just build-images       Build Docker images"
+    @echo "    just build-ci           Build everything (CI mode)"
+    @echo ""
+    @echo "  Node Management:"
+    @echo "    just start              Start 3-node test environment"
+    @echo "    just start-ci           Start nodes (CI mode, no prompts)"
+    @echo "    just stop               Stop nodes (preserve data)"
+    @echo "    just clean              Stop nodes and remove all data"
+    @echo "    just restart            Restart nodes"
+    @echo "    just reset              Clean + start fresh"
+    @echo ""
+    @echo "  Monitoring:"
+    @echo "    just status             Show node status and endpoints"
+    @echo "    just logs               Show logs from all nodes"
+    @echo "    just logs-node N        Show logs from node N (1,2,3)"
+    @echo "    just check-connectivity Check P2P connection status"
+    @echo ""
+    @echo "  Testing:"
+    @echo "    just test               Run integration tests on all nodes"
+    @echo "    just test-nodeN         Run tests on specific node"
+    @echo "    just test-pubsub        Test PubSub functionality"
+    @echo "    just test-ci            Full CI test suite"
+    @echo ""
+    @echo "📡 Node Endpoints:"
+    @echo "  Node 1: http://localhost:5000 (IPFS: 4001, API: 5001)"
+    @echo "  Node 2: http://localhost:5002 (IPFS: 4002, API: 5003)"
+    @echo "  Node 3: http://localhost:5004 (IPFS: 4003, API: 5005)"

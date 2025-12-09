@@ -14,7 +14,8 @@ pub(crate) use api::{
 };
 use dashmap::DashMap;
 use hermes_ipfs::{
-    AddIpfsFile, Cid, HermesIpfs, HermesIpfsBuilder, IpfsPath as BaseIpfsPath, rust_ipfs::dummy,
+    AddIpfsFile, Cid, HermesIpfs, HermesIpfsBuilder, IpfsPath as BaseIpfsPath,
+    rust_ipfs::{Keypair, dummy},
 };
 use once_cell::sync::OnceCell;
 use task::{IpfsCommand, ipfs_command_handler};
@@ -44,6 +45,88 @@ use crate::{
 /// the `HermesIpfsNode`.
 pub(crate) static HERMES_IPFS: OnceCell<HermesIpfsNode<dummy::Behaviour>> = OnceCell::new();
 
+/// Load an existing keypair from a file or generate a new one.
+///
+/// ## Parameters
+///
+/// * `keypair_path` - Path where the keypair should be stored
+///
+/// ## Returns
+///
+/// The loaded or newly generated keypair.
+///
+/// ## Errors
+///
+/// Returns errors if file I/O fails.
+fn load_or_generate_keypair(keypair_path: &Path) -> anyhow::Result<Keypair> {
+    if keypair_path.exists() {
+        tracing::info!("Loading existing IPFS keypair from: {}", keypair_path.display());
+        let bytes = std::fs::read(keypair_path)?;
+        let keypair = Keypair::from_protobuf_encoding(&bytes)
+            .map_err(|e| anyhow::anyhow!("Failed to decode keypair: {}", e))?;
+
+        // Log the peer ID for debugging
+        let peer_id = keypair.public().to_peer_id();
+        tracing::info!("Loaded keypair with Peer ID: {}", peer_id);
+
+        Ok(keypair)
+    } else {
+        tracing::info!("Generating new IPFS keypair at: {}", keypair_path.display());
+        let keypair = Keypair::generate_ed25519();
+
+        // Log the peer ID for debugging
+        let peer_id = keypair.public().to_peer_id();
+        tracing::info!("Generated new keypair with Peer ID: {}", peer_id);
+
+        // Save the keypair for future use
+        let bytes = keypair.to_protobuf_encoding()
+            .map_err(|e| anyhow::anyhow!("Failed to encode keypair: {}", e))?;
+        std::fs::write(keypair_path, bytes)?;
+        tracing::info!("Saved keypair to: {}", keypair_path.display());
+
+        Ok(keypair)
+    }
+}
+
+/// Retry bootstrap connections in the background.
+///
+/// Periodically attempts to reconnect to failed peers until all are connected or max retries reached.
+async fn retry_bootstrap_connections(
+    node: hermes_ipfs::Ipfs,
+    mut failed_peers: Vec<(String, hermes_ipfs::Multiaddr)>,
+) {
+    const RETRY_INTERVAL_SECS: u64 = 10;
+    const MAX_RETRIES: u32 = 10;
+
+    for attempt in 1..=MAX_RETRIES {
+        if failed_peers.is_empty() {
+            break;
+        }
+
+        tokio::time::sleep(std::time::Duration::from_secs(RETRY_INTERVAL_SECS)).await;
+        tracing::debug!("Bootstrap retry {}/{}: attempting {} peer(s)", attempt, MAX_RETRIES, failed_peers.len());
+
+        let mut still_failed = Vec::new();
+        for (addr, multiaddr) in failed_peers {
+            match node.connect(multiaddr.clone()).await {
+                Ok(_) => {
+                    tracing::info!("✓ Bootstrap retry succeeded: {}", addr);
+                },
+                Err(_) => {
+                    still_failed.push((addr, multiaddr));
+                },
+            }
+        }
+        failed_peers = still_failed;
+    }
+
+    if failed_peers.is_empty() {
+        tracing::info!("✓ All bootstrap peers connected");
+    } else {
+        tracing::warn!("⚠ {} bootstrap peer(s) still unreachable after {} retries", failed_peers.len(), MAX_RETRIES);
+    }
+}
+
 /// Bootstrap `HERMES_IPFS` node.
 ///
 /// ## Parameters
@@ -65,8 +148,14 @@ pub fn bootstrap(
         tracing::info!("creating IPFS repo directory: {}", ipfs_data_path.display());
         std::fs::create_dir_all(&ipfs_data_path)?;
     }
+
+    // Load or generate persistent keypair
+    let keypair_path = ipfs_data_path.join("keypair");
+    let keypair = load_or_generate_keypair(&keypair_path)?;
+
     let ipfs_node = HermesIpfsNode::init(
-        HermesIpfsBuilder::new()
+        HermesIpfsBuilder::with_keypair(keypair)
+            .map_err(|e| anyhow::anyhow!("Failed to create IPFS builder with keypair: {}", e))?
             .enable_tcp()
             .enable_quic()
             .enable_dns()
@@ -110,20 +199,35 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
 
         let _handle = std::thread::spawn(move || {
             let result = runtime.block_on(async move {
+                // Configure listening address for P2P connections
+                match "/ip4/0.0.0.0/tcp/4001".parse() {
+                    Ok(multiaddr) => {
+                        match node.add_listening_address(multiaddr).await {
+                            Ok(addr) => tracing::info!("IPFS listening on: {}", addr),
+                            Err(e) => tracing::error!("Failed to listen on port 4001: {}", e),
+                        }
+                    },
+                    Err(e) => tracing::error!("Invalid multiaddr format: {}", e),
+                }
+
                 // Connect to custom bootstrap peers if provided
                 if let Some(peers) = custom_peers {
                     tracing::info!("Connecting to {} custom bootstrap peer(s)", peers.len());
-                    let mut connected_count = 0;
+
+                    let mut connected = 0;
+                    let mut failed = Vec::new();
+
                     for peer_addr in &peers {
                         match peer_addr.parse::<hermes_ipfs::Multiaddr>() {
                             Ok(multiaddr) => {
-                                match node.connect(multiaddr).await {
+                                match node.connect(multiaddr.clone()).await {
                                     Ok(_) => {
                                         tracing::info!("✓ Connected to bootstrap peer: {}", peer_addr);
-                                        connected_count += 1;
+                                        connected += 1;
                                     },
                                     Err(e) => {
-                                        tracing::warn!("⚠ Failed to connect to {}: {}", peer_addr, e);
+                                        tracing::warn!("⚠ Initial connection failed for {}: {}", peer_addr, e);
+                                        failed.push((peer_addr.clone(), multiaddr));
                                     },
                                 }
                             },
@@ -132,7 +236,13 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
                             },
                         }
                     }
-                    tracing::info!("Custom bootstrap: connected to {}/{} peers", connected_count, peers.len());
+
+                    tracing::info!("Custom bootstrap: connected to {}/{} peers", connected, peers.len());
+
+                    // Spawn retry task for failed peers
+                    if !failed.is_empty() {
+                        tokio::spawn(retry_bootstrap_connections(node.clone(), failed));
+                    }
                 }
                 // Only use public bootstrap if no custom peers provided
                 else if default_bootstrap {

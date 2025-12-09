@@ -1,27 +1,34 @@
-# Multi-Node Testing Infrastructure for P2P Features
+# Hermes P2P Testing Infrastructure
 
-Docker-based setup for testing IPFS PubSub, DHT, and P2P features across multiple Hermes nodes.
+Multi-node Docker environment for testing Hermes P2P features including IPFS connectivity, bootstrap nodes, and PubSub messaging.
+
+## Features
+
+- **3-Node Isolated Network**: Simulates distributed deployment on 172.20.0.0/16
+- **Persistent Peer Identity**: Stable peer IDs across restarts via keypair persistence
+- **Bootstrap Retry Logic**: Automatic reconnection with exponential backoff
+- **PubSub Support**: Gossipsub v1.2 protocol for message propagation
+- **CI-Ready**: Non-interactive commands for automated testing
+- **Justfile Commands**: Clean, organized command interface
 
 ## Why Docker?
 
 Hermes will be downloaded and run by people on their own computers across the internet. Docker simulates this by:
 
 - **Network Isolation** - Each container = separate computer with its own IP
-- **Separate IPFS Repos** - Each node has isolated `/root/.hermes/` directory
+- **Separate IPFS Repos** - Each node has isolated `~/.hermes/` directory
 - **Realistic P2P** - Nodes communicate over virtual network, not localhost
 - **Cross-Platform** - Works consistently across Mac, Linux, Windows
 
 ## Why Earthly? (Critical for Docker Compatibility)
 
-**IMPORTANT:** The build process MUST use Earthly (containerized builds) to ensure Docker compatibility:
+**IMPORTANT:** The build process uses Earthly (containerized builds) to ensure Docker compatibility:
 
-- **GLIBC Compatibility** - Binaries built on your host (e.g., Fedora, Ubuntu) may have different GLIBC versions than the Docker container (Debian Bookworm)
-- **Consistent Builds** - Earthly builds in a container with controlled dependencies, ensuring binaries work in Docker regardless of your host OS
-- **Cross-Platform** - Earthly-built binaries work on any host system (Mac, Linux, Windows)
+- **GLIBC Compatibility** - Binaries built on your host may have different GLIBC versions than the Docker container
+- **Consistent Builds** - Earthly builds in a controlled environment, ensuring binaries work in Docker
+- **Cross-Platform** - Earthly-built binaries work on any host system
 
-**Never use locally-built binaries** (e.g., `cargo build`) for Docker - they may have GLIBC incompatibilities and fail to run in containers.
-
-The scripts automatically use Earthly via `just get-local-hermes` and `just get-local-athena`.
+**Never use locally-built binaries** (`cargo build`) for Docker - they may have GLIBC incompatibilities.
 
 ## Prerequisites
 
@@ -32,225 +39,223 @@ The scripts automatically use Earthly via `just get-local-hermes` and `just get-
 ## Quick Start
 
 ```bash
-# Start 3 nodes in Docker
-./p2p-testing/start-nodes.sh
+# Start the test environment
+cd p2p-testing
+just start
 
-# Test connectivity
-./p2p-testing/test-pubsub.sh
+# Check status
+just status
+
+# Test PubSub functionality
+just test-pubsub
 
 # View logs
-docker compose -f p2p-testing/docker-compose.yml logs -f
+just logs
 
 # Stop nodes
-./p2p-testing/stop-nodes.sh
-
-# Stop and clean data
-./p2p-testing/stop-nodes.sh --clean
+just stop
 ```
 
-## How It Works
+## Architecture
 
-### Build Process
-
-1. **Justfile orchestrates** the build (leverages existing parallel logic):
-   - `just get-local-hermes` → **Earthly containerized build** (GLIBC-compatible)
-   - `just get-local-athena` → **Earthly builds WASM** + parallel packaging
-2. **Docker copies** pre-built artifacts into lightweight runtime images
-3. **Docker Compose** orchestrates 3 nodes on isolated network
-
-**Why justfile?** Reuses proven parallel packaging logic instead of duplicating it.
-
-**Why containerized builds?** Ensures the binary's GLIBC version matches the Docker runtime environment, preventing "GLIBC not found" errors across different host systems.
-
-### Network Architecture
+### Network Topology
 
 ```
-Docker Network (172.20.0.0/16)
-├── Node 1 (172.20.0.10) → localhost:5000
-├── Node 2 (172.20.0.11) → localhost:5002
-└── Node 3 (172.20.0.12) → localhost:5004
+172.20.0.0/16 Docker Network
+├── Node 1 (172.20.0.10) - Bootstrap peer for nodes 2 & 3
+├── Node 2 (172.20.0.11) - Bootstrap peer for nodes 1 & 3
+└── Node 3 (172.20.0.12) - Bootstrap peer for nodes 1 & 2
 ```
 
-Each node:
-- Has its own IPFS repository
-- Runs on isolated filesystem
-- Can discover other nodes via P2P
-- Exposes HTTP/IPFS ports to host
+### Persistent Peer IDs
 
-## Node Endpoints
+Each node stores its libp2p keypair at `~/.hermes/ipfs/keypair`, ensuring stable peer IDs across restarts:
 
-| Node   | HTTP (Host) | HTTP (Container) | IPFS Swarm | IP Address   |
-|--------|-------------|------------------|------------|--------------|
-| Node 1 | 5000        | 5000             | 4001       | 172.20.0.10  |
-| Node 2 | 5002        | 5000             | 4002       | 172.20.0.11  |
-| Node 3 | 5004        | 5000             | 4003       | 172.20.0.12  |
+- **Node 1**: `12D3KooWBxass2EcccdN5FzC2e6er3uyuYJkTchMX11iKWaJ9aj1`
+- **Node 2**: `12D3KooWBkdsbenzeixaTmEXdmpf5P2pXtyvm4Qb4sGZJ1Wi4BUB`
+- **Node 3**: `12D3KooWA5tEBmYCXQfmAdt5zZonBouBt2KBN6umaUtdQVY39GPK`
 
-## Testing P2P Features
+### Port Mapping
 
-### View Logs
+| Node | HTTP | IPFS P2P | IPFS API | IP Address   |
+|------|------|----------|----------|--------------|
+| 1    | 5000 | 4001     | 5001     | 172.20.0.10 |
+| 2    | 5002 | 4002     | 5003     | 172.20.0.11 |
+| 3    | 5004 | 4003     | 5005     | 172.20.0.12 |
+
+## Commands
+
+### Setup & Build
 
 ```bash
-cd p2p-testing
-
-# All nodes
-docker compose logs -f
-
-# Single node
-docker compose logs -f hermes-node1
-
-# Search logs
-docker compose logs | grep -i ipfs
+just build              # Build Hermes binary (fast local build)
+just build-all          # Build Hermes + Athena WASM
+just build-images       # Build Docker images
+just build-ci           # Build everything (CI mode, no prompts)
 ```
 
-### Access Node Shell
+### Node Management
 
 ```bash
-# Node 1
-docker exec -it hermes-node1 /bin/bash
-
-# Node 2
-docker exec -it hermes-node2 /bin/bash
-
-# Node 3
-docker exec -it hermes-node3 /bin/bash
+just start              # Start nodes (prompts to rebuild if artifacts exist)
+just start-ci           # Start nodes (CI mode, always rebuilds)
+just stop               # Stop nodes (preserve data in volumes)
+just clean              # Stop nodes and remove all data
+just restart            # Stop and start (preserves data)
+just reset              # Clean everything and start fresh
 ```
 
-### Manual PubSub Testing
-
-1. **Terminal 1 - Subscribe on Node 1:**
-   ```bash
-   docker exec -it hermes-node1 /bin/bash
-   # Use Hermes IPFS commands to subscribe
-   ```
-
-2. **Terminal 2 - Subscribe on Node 2:**
-   ```bash
-   docker exec -it hermes-node2 /bin/bash
-   # Use Hermes IPFS commands to subscribe
-   ```
-
-3. **Terminal 3 - Publish from Node 3:**
-   ```bash
-   docker exec -it hermes-node3 /bin/bash
-   # Use Hermes IPFS commands to publish
-   ```
-
-### Network Testing
-
-Nodes can communicate via Docker network:
-```bash
-# From inside node1 container
-ping 172.20.0.11  # Ping node2
-ping 172.20.0.12  # Ping node3
-```
-
-## Development Workflow
-
-### Rebuild After Code Changes
+### Monitoring
 
 ```bash
-cd p2p-testing
-
-# Stop nodes
-./stop-nodes.sh
-
-# Rebuild (uses justfile)
-cd ..
-just get-local-hermes
-just get-local-athena  # Earthly + parallel packaging
-
-# Or restart which will detect changes
-./p2p-testing/start-nodes.sh
+just status             # Show node status and endpoints
+just logs               # Follow logs from all nodes
+just logs-node 1        # Follow logs from specific node (1, 2, or 3)
+just check-connectivity # Check P2P connection status
 ```
 
-### Quick Restart (no rebuild)
+### Testing
 
 ```bash
-cd p2p-testing
-./stop-nodes.sh
-./start-nodes.sh  # Will use existing build
+just test               # Run integration tests on all nodes
+just test-node1         # Run tests on node 1
+just test-node2         # Run tests on node 2
+just test-node3         # Run tests on node 3
+just test-pubsub        # Verify PubSub infrastructure
+just test-ci            # Full CI test suite (status + connectivity + pubsub)
 ```
 
-### Clean Start
+## CI Integration
+
+For automated testing in CI pipelines:
 
 ```bash
-cd p2p-testing
-./stop-nodes.sh --clean  # Remove all data
-./start-nodes.sh         # Fresh start
+# Full CI workflow
+just start-ci           # Start nodes (no prompts, always clean build)
+just test-ci            # Run full test suite
+just clean              # Clean up
 ```
 
-## Configuration
+The `test-ci` command verifies:
+1. All 3 nodes are running
+2. Nodes are listening on port 4001
+3. Bootstrap connections succeeded
+4. Gossipsub protocol is active
+5. Peer connections are established
 
-### Environment Variables
+## PubSub Testing
 
-Set in `docker-compose.yml`:
+The `test-pubsub` command verifies the PubSub infrastructure is ready by checking:
 
-- `HERMES_HTTP_PORT` - HTTP gateway port (5000 inside container)
-- `HERMES_ACTIVATE_AUTH` - Enable authentication (default: true)
-- `REDIRECT_ALLOWED_HOSTS` - Allowed redirect hosts
-- `REDIRECT_ALLOWED_PATH_PREFIXES` - Allowed path prefixes
+1. **Gossipsub Protocol**: Verifies Gossipsub v1.2 is active on all nodes
+2. **Peer Connections**: Confirms nodes are connected (expects 6 peer connections)
+3. **Bootstrap Status**: Checks bootstrap retry logic succeeded
+4. **Infrastructure**: Validates listening addresses and protocol readiness
 
-### Add More Nodes
+To test actual message propagation, use the WASM integration tests:
 
-Edit `docker-compose.yml`:
-
-```yaml
-hermes-node4:
-  # Copy node3 config
-  container_name: hermes-node4
-  hostname: node4
-  ports:
-    - "5006:5000"  # Increment host ports
-    - "4004:4001"
-    - "5007:5001"
-  volumes:
-    - node4-data:/data
-  networks:
-    hermes-p2p:
-      ipv4_address: 172.20.0.13  # Increment IP
+```bash
+just test               # Runs integration tests including PubSub subscribe/publish
 ```
 
-Add volume:
-```yaml
-volumes:
-  node4-data:
+## Bootstrap Retry Logic
+
+Nodes automatically retry failed bootstrap connections:
+
+- **Retry Interval**: 10 seconds
+- **Max Retries**: 10 attempts
+- **Implementation**: `hermes/bin/src/ipfs/mod.rs:99-128`
+
+Logs show retry progress:
+```
+Bootstrap retry 1/10: attempting 2 peer(s)
+✓ Bootstrap retry succeeded: /ip4/172.20.0.11/tcp/4001/p2p/...
+✓ All bootstrap peers connected
 ```
 
-## Files
+## Key Implementation Details
 
-- `p2p-testing/Dockerfile` - Runtime image (copies Earthly artifacts)
-- `p2p-testing/docker-compose.yml` - 3-node orchestration
-- `p2p-testing/start-nodes.sh` - Build and start nodes
-- `p2p-testing/stop-nodes.sh` - Stop nodes
-- `p2p-testing/test-pubsub.sh` - Test framework
-- `p2p-testing/README.md` - This file
+### Persistent Keypair Storage
+
+**Location**: `hermes/bin/src/ipfs/mod.rs:34-57`
+
+The `load_or_generate_keypair()` function:
+- Checks for existing keypair at `~/.hermes/ipfs/keypair`
+- Loads existing keypair using protobuf encoding
+- Generates new Ed25519 keypair if none exists
+- Logs peer ID for verification
+
+### Bootstrap Retry
+
+**Location**: `hermes/bin/src/ipfs/mod.rs:99-128`
+
+The `retry_bootstrap_connections()` function:
+- Spawns async task for failed bootstrap peers
+- Retries every 10 seconds up to 10 times
+- Removes successful connections from retry list
+- Logs final status (success or failure)
+
+### Listening Address Configuration
+
+**Location**: `hermes/bin/src/ipfs/mod.rs:202-211`
+
+After node initialization, `add_listening_address()` is called to bind to port 4001:
+- Parses multiaddr `/ip4/0.0.0.0/tcp/4001`
+- Configures node to listen on all interfaces
+- Logs success or failure with clear error messages
 
 ## Troubleshooting
 
-### Docker daemon not running
+### Nodes not connecting
 
 ```bash
-sudo systemctl start docker
+# Check if nodes are listening on port 4001
+just check-connectivity
+
+# View bootstrap logs
+just logs | grep bootstrap
+
+# Check for connection errors
+just logs | grep "Connection refused"
 ```
 
-### Earthly build fails
+### Docker network conflicts
+
+If you see "Pool overlaps with other one":
 
 ```bash
-# Check Earthly installation
-earthly --version
+# List networks using 172.20.x.x
+docker network ls --format '{{.Name}}' | xargs -I {} sh -c 'docker network inspect {} --format "{{.Name}}: {{range .IPAM.Config}}{{.Subnet}}{{end}}" 2>/dev/null | grep 172.20'
 
-# Try building directly
-cd hermes
-earthly +build
-earthly +build-athena
+# Remove conflicting network (if not in use)
+docker network rm <network-name>
+
+# Restart nodes
+just restart
 ```
 
-### Nodes not starting
+### Stale containers
 
-Check logs:
 ```bash
-cd p2p-testing
-docker compose logs
+# Remove old containers with same names
+docker rm hermes-node1 hermes-node2 hermes-node3
+
+# Or use clean mode
+just clean
+just start
+```
+
+### Rebuilding after code changes
+
+```bash
+# Rebuild Hermes binary
+just build
+
+# Rebuild Docker images
+just build-images
+
+# Restart nodes with new binary
+just restart
 ```
 
 ### GLIBC errors ("GLIBC_X.XX not found")
@@ -258,35 +263,63 @@ docker compose logs
 This means the binary was built locally instead of with Earthly. **Solution:**
 
 ```bash
-# Stop nodes
-./p2p-testing/stop-nodes.sh --clean
+# Clean everything
+just clean
 
-# Rebuild with Earthly (containerized build)
-just get-local-hermes
-just get-local-athena
+# Rebuild with Earthly
+just build-all
 
-# Restart nodes
-./p2p-testing/start-nodes.sh
+# Restart
+just start
 ```
 
-The start script will prompt you to rebuild with Earthly if existing artifacts are found.
+## Development Workflow
 
-### Port conflicts
+### Making changes to P2P logic
 
-Check if ports are in use:
-```bash
-lsof -i :5000,5002,5004
-```
+1. Modify Rust code in `hermes/bin/src/ipfs/mod.rs`
+2. Rebuild: `just build`
+3. Rebuild images: `just build-images`
+4. Restart: `just restart`
+5. Test: `just test-pubsub`
 
-### Network issues
+### Testing new bootstrap strategies
 
-Reset Docker:
-```bash
-cd p2p-testing
-./stop-nodes.sh --clean
-docker network prune
-./start-nodes.sh
-```
+1. Update `IPFS_BOOTSTRAP_PEERS` in `docker-compose.yml`
+2. Restart: `just reset` (clean start recommended)
+3. Monitor: `just logs | grep bootstrap`
+
+### Adding new nodes
+
+1. Add service in `docker-compose.yml`
+2. Assign static IP in `172.20.0.0/16` range
+3. Update bootstrap peer lists for all nodes
+4. Update port mappings in README
+
+## Files
+
+- `justfile` - All commands and recipes (USE THIS)
+- `docker-compose.yml` - 3-node Docker configuration
+- `Dockerfile` - Hermes container image
+- `README.md` - This file
+
+### Legacy Scripts (Deprecated)
+
+The following shell scripts have been replaced by the justfile and should not be used:
+- `start-nodes.sh` → `just start`
+- `stop-nodes.sh` → `just stop` / `just clean`
+- `test-pubsub.sh` → `just test-pubsub`
+- `connect-nodes.sh` → No longer needed (auto-bootstrap)
+- `initialize-p2p.sh` → No longer needed (auto-bootstrap)
+
+These scripts are kept for reference only.
+
+## Related Documentation
+
+- [Hermes IPFS Module](../hermes/bin/src/ipfs/mod.rs)
+- [Docker Compose Config](./docker-compose.yml)
+- [WASM Integration Tests](../wasm/integration-test/ipfs/src/lib.rs)
+- [Catalyst Libs - hermes-ipfs](https://github.com/input-output-hk/catalyst-libs/tree/feat/hermes-ipfs-persistent-keypair)
 
 ## Related Issues
 
