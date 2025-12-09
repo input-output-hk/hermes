@@ -31,7 +31,7 @@ path = "tests/integration/tests/mod.rs"
 
 [dependencies]
 # Catalyst Internal Crates
-hermes-ipfs = { version = "0.0.7", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "hermes-ipfs/v0.0.7" }
+hermes-ipfs = { version = "0.0.8", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "hermes-ipfs/v0.0.8", features = ["doc-sync"] }
 cardano-blockchain-types = { version = "0.0.9", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "cardano-blockchain-types/v0.0.9" }
 cardano-chain-follower = { version = "0.0.19", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "cardano-chain-follower/v0.0.19" }
 catalyst-types = { version = "0.0.7", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "catalyst-types/v0.0.7" }
@@ -103,6 +103,9 @@ keyed-lock = "0.2.3"
 wasmprinter = "0.243.0"
 wat = "1.239.0"
 multihash = { version = "0.19.3", features = ["serde-codec"] }
+
+# Pinned to the catalyst_types minicbor version.
+minicbor = { version = "=0.25.1", features = ["std", "derive"] }
 
 [build-dependencies]
 build-info-build = "0.0.39"

@@ -860,6 +860,20 @@ name = "bytemuck"
 version = "1.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1fbdf580320f38b612e485521afda1ee26d10cc9884efaaa750d383e13e3c5f4"
+dependencies = [
+ "bytemuck_derive",
+]
+
+[[package]]
+name = "bytemuck_derive"
+version = "1.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9abbd1bc6865053c427f7198e6af43bfdedc55ab791faed4fbd361d789575ff"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.111",
+]
 
 [[package]]
 name = "byteorder"
@@ -1118,6 +1132,29 @@ dependencies = [
  "num-traits",
  "orx-concurrent-vec",
  "serde",
+ "strum 0.27.2",
+ "thiserror 2.0.17",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "catalyst-types"
+version = "0.0.11"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=catalyst-types%2Fv0.0.11#7a32dd981b5de571dc08a751f58f55d4b6fabaff"
+dependencies = [
+ "base64-url",
+ "chrono",
+ "displaydoc",
+ "ed25519-dalek",
+ "fluent-uri",
+ "fmmap",
+ "jsonschema 0.28.3",
+ "minicbor 0.25.1",
+ "num-traits",
+ "orx-concurrent-vec",
+ "serde",
+ "serde_json",
  "strum 0.27.2",
  "thiserror 2.0.17",
  "tracing",
@@ -2420,6 +2457,17 @@ checksum = "7360491ce676a36bf9bb3c56c1aa791658183a54d2744120f27285738d90465a"
 
 [[package]]
 name = "fancy-regex"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e24cb5a94bcae1e5408b0effca5cd7172ea3c5755049c5f3af4cd283a165298"
+dependencies = [
+ "bit-set",
+ "regex-automata",
+ "regex-syntax",
+]
+
+[[package]]
+name = "fancy-regex"
 version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "998b056554fbe42e03ae0e152895cd1a7e1002aec800fdc6635d20270260c46f"
@@ -3138,10 +3186,11 @@ dependencies = [
  "hyper",
  "hyper-util",
  "iana-time-zone",
- "jsonschema",
+ "jsonschema 0.33.0",
  "keyed-lock",
  "libsqlite3-sys",
  "libtest-mimic",
+ "minicbor 0.25.1",
  "multihash",
  "num-traits",
  "num_cpus",
@@ -3182,15 +3231,19 @@ dependencies = [
 
 [[package]]
 name = "hermes-ipfs"
-version = "0.0.7"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=hermes-ipfs%2Fv0.0.7#44776e3e61a92b5b5b762a51fb04a236ebe0fb78"
+version = "0.0.8"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=hermes-ipfs%2Fv0.0.8#dceedfe859247bce62d485e48fca305583ef34b0"
 dependencies = [
  "anyhow",
+ "bytemuck",
+ "catalyst-types 0.0.11",
  "connexa",
  "derive_more 2.0.1",
+ "ed25519-dalek",
  "futures",
  "ipld-core",
  "libp2p",
+ "minicbor 0.25.1",
  "rust-ipfs",
  "tokio",
 ]
@@ -3895,6 +3948,31 @@ dependencies = [
 
 [[package]]
 name = "jsonschema"
+version = "0.28.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b8f66fe41fa46a5c83ed1c717b7e0b4635988f427083108c8cf0a882cc13441"
+dependencies = [
+ "ahash",
+ "base64 0.22.1",
+ "bytecount",
+ "email_address",
+ "fancy-regex 0.14.0",
+ "fraction",
+ "idna",
+ "itoa",
+ "num-cmp",
+ "once_cell",
+ "percent-encoding",
+ "referencing 0.28.3",
+ "regex-syntax",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "uuid-simd",
+]
+
+[[package]]
+name = "jsonschema"
 version = "0.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d46662859bc5f60a145b75f4632fbadc84e829e45df6c5de74cfc8e05acb96b5"
@@ -3903,7 +3981,7 @@ dependencies = [
  "base64 0.22.1",
  "bytecount",
  "email_address",
- "fancy-regex",
+ "fancy-regex 0.16.2",
  "fraction",
  "idna",
  "itoa",
@@ -3911,7 +3989,7 @@ dependencies = [
  "num-traits",
  "once_cell",
  "percent-encoding",
- "referencing",
+ "referencing 0.33.0",
  "regex",
  "regex-syntax",
  "reqwest",
@@ -6696,6 +6774,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.111",
+]
+
+[[package]]
+name = "referencing"
+version = "0.28.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0dcb5ab28989ad7c91eb1b9531a37a1a137cc69a0499aee4117cae4a107c464"
+dependencies = [
+ "ahash",
+ "fluent-uri",
+ "once_cell",
+ "percent-encoding",
+ "serde_json",
 ]
 
 [[package]]

@@ -3,6 +3,7 @@ use std::{collections::HashSet, str::FromStr};
 
 use hermes_ipfs::{
     AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
+    doc_sync::payload::{self, DocumentDisseminationBody},
     rust_ipfs::path::PathRoot,
 };
 use tokio::{
@@ -317,33 +318,90 @@ fn doc_sync_topic_message_handler(
         return;
     };
 
-    let app_names = ipfs.apps.subscribed_apps(SubscriptionKind::DocSync, &topic);
+    // TODO: match the topic against a static list.
+    let Some(channel_name) = topic.strip_suffix(".new") else {
+        tracing::error!("Handling an IPFS message on a wrong channel.");
+        return;
+    };
 
-    // TODO: decode CID from .new payload
-    let dummy_cid = String::new();
-
-    let path = match Cid::try_from(dummy_cid) {
-        Ok(cid) => hermes_ipfs::IpfsPath::new(PathRoot::Ipld(cid)).to_string(),
+    let payload = match minicbor::decode::<payload::New>(&message.data) {
+        Ok(payload) => DocumentDisseminationBody::from(payload),
         Err(err) => {
-            tracing::error!(%err, "Failed to obtain Cid for the document");
+            tracing::error!(%channel_name, %err, "Failed to decode .new payload from IPFS message");
             return;
         },
     };
 
-    // Not tracking the app that pinned it, since the pin is re-used by all.
-    if let Err(err) = ipfs.file_pin(&path) {
-        tracing::error!(%topic, %err, "Failed to pin a document");
+    let new_cids = match payload {
+        DocumentDisseminationBody::Docs { docs, .. } => docs,
+        DocumentDisseminationBody::Manifest { .. } => {
+            tracing::error!("Manifest is not supported in a .new payload");
+            return;
+        },
+    };
+
+    let mut contents = Vec::with_capacity(new_cids.len());
+
+    for cid in new_cids {
+        let path = hermes_ipfs::IpfsPath::new(PathRoot::Ipld(cid)).to_string();
+
+        // Not tracking specific app (via `ipfs::api::hermes_ipfs_dht_provide`),
+        // since the action applies to all apps.
+        if let Err(err) = ipfs.dht_provide(cid.to_bytes()) {
+            tracing::error!(%channel_name, %cid, %err, "Failed to provide the CID as a IPFS DHT value");
+            continue;
+        }
+
+        // TODO: ensure the document is provided
+        let _peer_id = match ipfs.get_peer_identity() {
+            Ok(peer_info) => peer_info.peer_id,
+            Err(err) => {
+                tracing::error!(%channel_name, %cid, %err, "Failed to get peer id of the IPFS node");
+                continue;
+            },
+        };
+
+        // Not tracking any app that pinned it (via `ipfs::api::hermes_ipfs_pin_file`),
+        // since the pin is re-used by all apps.
+        match ipfs.file_pin(&path) {
+            Err(err) => {
+                tracing::error!(%channel_name, %cid, %err, "Failed to pin a document");
+                continue;
+            },
+            Ok(false) => {
+                tracing::error!(%channel_name, %cid, "Failed to pin a document (unspecified error)");
+                continue;
+            },
+            Ok(true) => (),
+        }
+
+        let content = match ipfs.file_get(&path) {
+            Ok(ipfs_file) => ipfs_file,
+            Err(err) => {
+                tracing::error!(
+                    %channel_name, %cid, %err,
+                    "Failed to get content of the document after a successful IPFS pin"
+                );
+                continue;
+            },
+        };
+
+        contents.push(content);
     }
 
-    let event = HermesEvent::new(
-        OnNewDocEvent::new(&topic, &message.data),
-        crate::event::TargetApp::List(app_names),
-        crate::event::TargetModule::All,
-    );
+    let app_names = ipfs.apps.subscribed_apps(SubscriptionKind::DocSync, &topic);
 
-    // Dispatch Hermes Event
-    if let Err(err) = send(event) {
-        tracing::error!(%topic, %err, "Failed to send on_new_doc event");
+    for content in contents {
+        let event = HermesEvent::new(
+            OnNewDocEvent::new(channel_name, &content),
+            crate::event::TargetApp::List(app_names.clone()),
+            crate::event::TargetModule::All,
+        );
+
+        // Dispatch Hermes Event
+        if let Err(err) = send(event) {
+            tracing::error!(%channel_name, %err, "Failed to send `on_new_doc` event");
+        }
     }
 }
 

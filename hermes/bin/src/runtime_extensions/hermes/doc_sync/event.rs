@@ -32,7 +32,7 @@ impl OnNewDocEvent {
         message: &[u8],
     ) -> Self {
         Self {
-            channel: format!("{channel}.new"),
+            channel: channel.to_owned(),
             doc: message.to_vec(),
         }
     }
