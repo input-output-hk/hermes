@@ -1,10 +1,15 @@
 //! Doc Sync host module.
+use std::sync::Arc;
+
 use cardano_chain_follower::pallas_codec::minicbor::{self, Encode, Encoder, data::Tag};
+use hermes_ipfs::doc_sync::timers::{config::SyncTimersConfig, state::SyncTimersState};
 use stringzilla::stringzilla::Sha256;
 use wasmtime::component::Resource;
 
 use super::ChannelState;
 use crate::{
+    app::ApplicationName,
+    ipfs::hermes_ipfs_publish,
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::hermes::{
@@ -14,10 +19,7 @@ use crate::{
             },
             ipfs::api::{FileAddResult, Host as IpfsHost},
         },
-        hermes::doc_sync::{
-            DOC_SYNC_STATE,
-            timers::{config::SyncTimersConfig, state::SyncTimersState},
-        },
+        hermes::doc_sync::DOC_SYNC_STATE,
     },
 };
 
@@ -112,48 +114,43 @@ impl HostSyncChannel for HermesRuntimeContext {
             wasmtime::Error::msg(format!("BLAKE2b hash output length must be 4 bytes: {err}"))
         })?;
 
+        // 1. Create a channel resource.
         let resource: u32 = u32::from_be_bytes(*prefix_bytes);
+        let mut channel_state = DOC_SYNC_STATE
+            .entry(resource)
+            .or_insert_with(|| ChannelState::new(&name));
+        // Same resource key cannot be reused for a different channel
+        if channel_state.channel_name != name {
+            return Err(wasmtime::Error::msg(format!(
+                "Collision occurred with previous value = {} and new one = {name}",
+                channel_state.channel_name
+            )));
+        }
 
-        // Code block is used to minimize locking scope.
-        let topic_new = {
-            let topic = format!("{name}.new");
-            let mut entry = DOC_SYNC_STATE
-                .entry(resource)
-                .or_insert_with(|| ChannelState::new(topic.clone()));
-            if entry.topic != name {
-                return Err(wasmtime::Error::msg(format!(
-                    "Collision occurred with previous value = {} and new one = {name}",
-                    entry.topic
-                )));
-            }
-
-            if entry.timers.is_none() {
-                let timers = SyncTimersState::new(
-                    SyncTimersConfig::default(),
-                    self.app_name().clone(),
-                    &entry.topic,
-                );
-                timers.start_quiet_timer();
-                entry.timers = Some(timers);
-            }
-
-            entry.topic.clone()
-        };
-
-        // When the channel is created, subscribe to .new <base>.<topic>
+        // 2. When the channel is created, subscribe to .new <base>.<topic>
+        let topic_new = format!("{name}.new");
         if let Err(err) = self.pubsub_subscribe(topic_new.clone()) {
-            // FIXME - Do we want to remove the entry from the map here?
-            if let Some((_, state)) = DOC_SYNC_STATE.remove(&resource)
-                && let Some(timers) = state.timers
-            {
-                timers.stop_quiet_timer();
-            }
+            DOC_SYNC_STATE.remove(&resource);
             return Err(wasmtime::Error::msg(format!(
                 "Subscription to {topic_new} failed: {err}",
             )));
         }
-
         tracing::info!("Created Doc Sync Channel: {name}");
+
+        // 3. When subscribe is successful, create and start the timer
+        if channel_state.timers.is_none() {
+            let timers = {
+                let app_name = self.app_name().clone();
+
+                let callback = Arc::new(move || {
+                    send_new_keepalive(&name, &app_name).map_err(|e| anyhow::anyhow!("{e:?}",))
+                });
+
+                SyncTimersState::new(SyncTimersConfig::default(), callback)
+            };
+            timers.start_quiet_timer();
+            channel_state.timers = Some(timers);
+        }
 
         Ok(wasmtime::component::Resource::new_own(resource))
     }
@@ -394,7 +391,7 @@ fn publish(
         .ok_or_else(|| wasmtime::Error::msg("Channel not found"))?
         .clone();
 
-    let topic_new = channel_state.topic.clone();
+    let topic_new = format!("{}.new", channel_state.channel_name);
 
     // The channel should already be subscribed to the `.new` topic (subscription
     // is performed in `new()`). Invoking the subscription again to ensure
@@ -452,6 +449,17 @@ fn is_pre_publish_completed(
     } else {
         !current_providers.is_empty()
     }
+}
+
+/// Sending new keep alive message for .new topic.
+fn send_new_keepalive(
+    base: &str,
+    app_name: &ApplicationName,
+) -> anyhow::Result<()> {
+    let new_topic = format!("{base}.new");
+    hermes_ipfs_publish(app_name, &new_topic, vec![])
+        .map_err(|e| anyhow::Error::msg(format!("Keepalive publish failed: {e:?}")))?;
+    Ok(())
 }
 
 #[cfg(test)]
