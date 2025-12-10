@@ -392,20 +392,30 @@ fn publish(
     }
 
     // Attempt to publish to PubSub
-    if let Ok(()) = ctx.pubsub_publish(topic_new.clone(), doc)? {
-        tracing::info!("✓ Step {STEP}/{POST_STEP_COUNT}: Published to PubSub → {topic_new}",);
-    } else {
-        // Non-fatal: PubSub requires peer nodes to be subscribed to the topic.
-        // In a single-node environment, this is expected to fail with
-        // "NoPeersSubscribedToTopic". We treat this as a warning rather
-        // than a fatal error since Step 1 already succeeded.
-        tracing::warn!(
-            "⚠ Step {STEP}/{POST_STEP_COUNT}: PubSub publish skipped (no peer nodes subscribed to topic)"
-        );
-        tracing::warn!(
-            "   Note: Gossipsub requires other nodes subscribing to '{topic_new}' to work",
-        );
-        tracing::info!("   Document is successfully stored in IPFS");
+    tracing::info!(
+        "📤 Attempting to publish {} bytes to topic: {}",
+        doc.len(),
+        topic_new
+    );
+
+    match ctx.pubsub_publish(topic_new.clone(), doc)? {
+        Ok(()) => {
+            tracing::info!("✅ Step {STEP}/{POST_STEP_COUNT}: Published to PubSub → {topic_new}");
+        },
+        Err(e) => {
+            // Non-fatal: PubSub requires peer nodes to be subscribed to the topic.
+            // In a single-node environment, this is expected to fail with
+            // "NoPeersSubscribedToTopic". We treat this as a warning rather
+            // than a fatal error since Step 1 already succeeded.
+            tracing::warn!(
+                "⚠ Step {STEP}/{POST_STEP_COUNT}: PubSub publish failed: {:?}",
+                e
+            );
+            tracing::warn!(
+                "   Note: Gossipsub requires other nodes subscribing to '{topic_new}' to work",
+            );
+            tracing::info!("   Document is successfully stored in IPFS");
+        },
     }
 
     Ok(Ok(()))

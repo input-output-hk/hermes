@@ -10,10 +10,12 @@ shared::bindings_generate!({
         world hermes {
             include wasi:cli/imports@0.2.6;
             import hermes:doc-sync/api;
+            import hermes:ipfs/api;
             import hermes:logging/api;
             import hermes:http-gateway/api;
 
             export hermes:init/event;
+            export hermes:ipfs/event;
             export hermes:doc-sync/event;
             export hermes:http-gateway/event;
         }
@@ -49,13 +51,58 @@ impl exports::hermes::init::event::Guest for Component {
     }
 }
 
-/// Stub event handler for receiving documents (not used in this publishing-only demo).
+/// Event handler for receiving PubSub messages.
+impl exports::hermes::ipfs::event::Guest for Component {
+    fn on_topic(message: hermes::ipfs::api::PubsubMessage) -> bool {
+        log::init(log::LevelFilter::Trace);
+
+        // Convert message bytes to string for logging
+        let msg_preview = String::from_utf8_lossy(&message.message);
+        let msg_size = message.message.len();
+
+        // Truncate long messages for logging
+        let preview = if msg_preview.len() > 100 {
+            format!("{}... ({} bytes)", &msg_preview[..100], msg_size)
+        } else {
+            format!("{} ({} bytes)", msg_preview, msg_size)
+        };
+
+        info!(
+            target: "doc_sync::receiver",
+            "📨 RECEIVED PubSub message on topic '{}': {}",
+            message.topic,
+            preview
+        );
+
+        true // Return true to indicate message was handled
+    }
+}
+
+/// Event handler for receiving documents via PubSub.
 impl exports::hermes::doc_sync::event::Guest for Component {
     fn on_new_doc(
-        _channel: ChannelName,
-        _doc: DocData,
+        channel: ChannelName,
+        doc: DocData,
     ) {
-        // Not implemented - this demo only shows publishing
+        log::init(log::LevelFilter::Trace);
+
+        // Convert document bytes to string for logging
+        let doc_preview = String::from_utf8_lossy(&doc);
+        let doc_size = doc.len();
+
+        // Truncate long messages for logging
+        let preview = if doc_preview.len() > 100 {
+            format!("{}... ({} bytes)", &doc_preview[..100], doc_size)
+        } else {
+            format!("{} ({} bytes)", doc_preview, doc_size)
+        };
+
+        info!(
+            target: "doc_sync::receiver",
+            "📨 RECEIVED PubSub message on channel '{}': {}",
+            channel,
+            preview
+        );
     }
 }
 

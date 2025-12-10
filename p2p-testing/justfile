@@ -58,14 +58,28 @@ build:
     echo "🔨 Building Hermes..."
     just get-local-hermes-fast
 
-# Build Hermes + Athena WASM modules (full build, ~10-15 min)
+# Build Hermes + Athena WASM modules (fast local build, ~1-2 min)
 build-all:
     #!/usr/bin/env bash
     set -euo pipefail
     cd ..
-    echo "🔨 Building Hermes and Athena..."
+    echo "🚀 Building Hermes and Athena..."
     just get-local-hermes-fast
-    just get-local-athena
+    just get-local-athena-fast
+
+    echo "📦 Packaging modules..."
+    cd hermes/apps/athena
+    for module_path in modules/*/lib/manifest_module.json; do
+        if [ -f "$module_path" ]; then
+            echo "  📦 Packaging $(dirname $(dirname $module_path))..."
+            ../../../target/release/hermes module package "$module_path" &
+        fi
+    done
+    wait
+
+    echo "📦 Packaging application..."
+    ../../../target/release/hermes app package manifest_app.json
+    echo "✅ Build complete!"
 
 # Build Docker images from built artifacts
 build-images:
@@ -269,6 +283,94 @@ test-pubsub:
     echo ""
     echo "✅ PubSub infrastructure verified (Gossipsub active, peers connected)"
 
+# Test PubSub message propagation (posts from Node 1, verifies others receive)
+test-pubsub-propagation:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🧪 Testing PubSub Message Propagation"
+    echo "======================================"
+    echo ""
+
+    # Check if nodes are running
+    if ! docker compose ps | grep -q "hermes-node1.*Up"; then
+        echo "❌ Nodes not running. Start with: just start"
+        exit 1
+    fi
+
+    # Clear recent logs (keep last 10 lines to avoid losing important startup info)
+    echo "📋 Preparing test environment..."
+    sleep 1
+
+    # Post a unique test message from Node 1
+    TIMESTAMP=$(date +%s)
+    TEST_MESSAGE="PubSub Test - Timestamp: $TIMESTAMP"
+
+    echo "📤 Posting message from Node 1..."
+    echo "   Message: \"$TEST_MESSAGE\""
+    echo ""
+
+    RESPONSE=$(curl -s -X POST http://localhost:5000/api/doc-sync/post \
+      -H "Host: athena.hermes.local" \
+      -H "Content-Type: text/plain" \
+      -d "$TEST_MESSAGE")
+
+    CID=$(echo "$RESPONSE" | jq -r '.cid' 2>/dev/null || echo "unknown")
+    SUCCESS=$(echo "$RESPONSE" | jq -r '.success' 2>/dev/null || echo "false")
+
+    if [ "$SUCCESS" != "true" ]; then
+        echo "❌ Failed to post message!"
+        echo "   Response: $RESPONSE"
+        exit 1
+    fi
+
+    echo "✅ Message posted successfully"
+    echo "   CID: $CID"
+    echo ""
+
+    # Wait for PubSub propagation
+    echo "⏳ Waiting 3 seconds for PubSub propagation..."
+    sleep 3
+
+    # Check which nodes received the message
+    echo ""
+    echo "📨 Checking which nodes received the message..."
+    echo ""
+
+    RECEIVED_COUNT=0
+
+    for NODE in {2..6}; do
+        NODE_NAME="hermes-node$NODE"
+
+        # Check if this node's logs contain the received message marker with our timestamp
+        if docker compose logs "$NODE_NAME" 2>&1 | grep "RECEIVED PubSub message" | grep -q "$TIMESTAMP"; then
+            echo "   ✅ Node $NODE: RECEIVED"
+            ((RECEIVED_COUNT++))
+        else
+            echo "   ❌ Node $NODE: Did NOT receive"
+        fi
+    done
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    # Evaluate results
+    if [ "$RECEIVED_COUNT" -ge 4 ]; then
+        echo "✅ SUCCESS: Message propagated to $RECEIVED_COUNT nodes!"
+        echo "   PubSub is working correctly."
+        exit 0
+    elif [ "$RECEIVED_COUNT" -gt 0 ]; then
+        echo "⚠️  PARTIAL: Message received by $RECEIVED_COUNT nodes"
+        echo "   Expected: 4-5 nodes (excluding sender)"
+        exit 1
+    else
+        echo "❌ FAILED: No nodes received the message"
+        echo "   PubSub propagation not working"
+        echo ""
+        echo "💡 Debug: Check logs with 'just logs | grep RECEIVED'"
+        exit 1
+    fi
+
 # Full CI test suite (status + connectivity + pubsub)
 test-ci:
     #!/usr/bin/env bash
@@ -338,7 +440,7 @@ help:
     @echo ""
     @echo "BUILD COMMANDS:"
     @echo "  build                   Build Hermes binary only (fast)"
-    @echo "  build-all               Build Hermes + Athena WASM (full)"
+    @echo "  build-all               Build Hermes + Athena WASM (fast, ~1-2 min)"
     @echo "  build-images            Build Docker images"
     @echo "  build-ci                Build everything (CI mode)"
     @echo ""

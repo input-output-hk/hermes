@@ -20,7 +20,7 @@ services:
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWCQyvURf8yCRygmF174j1yRY74ZhgC3qpqHVsEFAmpuQs,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWG725q46MVcCTp1pHFBVMcjDUfJXmPwrPLxZuRWC5ApYt
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.11/tcp/4001/p2p/12D3KooW9rXFf9Rq5SZgRDVFzGRX2pcuT4XC3HofntUNJ9whnpKw,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWRzuEj9cdpP5sFsp91nSeNHwZmhZPrgDKTi5eyFB5M55G
     ports:
       # HTTP Gateway
       - "5000:5000"
@@ -46,7 +46,7 @@ services:
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWFBU6YgSr4mNbJ9phTyaM9PnCLkgMfpzN6wLDikahb2KN,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWG725q46MVcCTp1pHFBVMcjDUfJXmPwrPLxZuRWC5ApYt
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWASCFfndfoG3CiQp15suXY47K2KgV3sm12Ed2T3QwGxnS,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWRzuEj9cdpP5sFsp91nSeNHwZmhZPrgDKTi5eyFB5M55G
     ports:
       # HTTP Gateway (different host port)
       - "5002:5000"
@@ -72,7 +72,7 @@ services:
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWFBU6YgSr4mNbJ9phTyaM9PnCLkgMfpzN6wLDikahb2KN,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWCQyvURf8yCRygmF174j1yRY74ZhgC3qpqHVsEFAmpuQs
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWASCFfndfoG3CiQp15suXY47K2KgV3sm12Ed2T3QwGxnS,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooW9rXFf9Rq5SZgRDVFzGRX2pcuT4XC3HofntUNJ9whnpKw
     ports:
       # HTTP Gateway (different host port)
       - "5004:5000"
@@ -98,7 +98,7 @@ services:
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWFBU6YgSr4mNbJ9phTyaM9PnCLkgMfpzN6wLDikahb2KN,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWCQyvURf8yCRygmF174j1yRY74ZhgC3qpqHVsEFAmpuQs,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWG725q46MVcCTp1pHFBVMcjDUfJXmPwrPLxZuRWC5ApYt
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWASCFfndfoG3CiQp15suXY47K2KgV3sm12Ed2T3QwGxnS,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooW9rXFf9Rq5SZgRDVFzGRX2pcuT4XC3HofntUNJ9whnpKw,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWRzuEj9cdpP5sFsp91nSeNHwZmhZPrgDKTi5eyFB5M55G
     ports:
       - "5006:5000"
       - "4004:4001"
@@ -121,7 +121,7 @@ services:
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWFBU6YgSr4mNbJ9phTyaM9PnCLkgMfpzN6wLDikahb2KN,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWCQyvURf8yCRygmF174j1yRY74ZhgC3qpqHVsEFAmpuQs,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWG725q46MVcCTp1pHFBVMcjDUfJXmPwrPLxZuRWC5ApYt
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWASCFfndfoG3CiQp15suXY47K2KgV3sm12Ed2T3QwGxnS,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooW9rXFf9Rq5SZgRDVFzGRX2pcuT4XC3HofntUNJ9whnpKw,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWRzuEj9cdpP5sFsp91nSeNHwZmhZPrgDKTi5eyFB5M55G
     ports:
       - "5008:5000"
       - "4005:4001"
@@ -144,7 +144,7 @@ services:
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWFBU6YgSr4mNbJ9phTyaM9PnCLkgMfpzN6wLDikahb2KN,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWCQyvURf8yCRygmF174j1yRY74ZhgC3qpqHVsEFAmpuQs,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWG725q46MVcCTp1pHFBVMcjDUfJXmPwrPLxZuRWC5ApYt
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWASCFfndfoG3CiQp15suXY47K2KgV3sm12Ed2T3QwGxnS,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooW9rXFf9Rq5SZgRDVFzGRX2pcuT4XC3HofntUNJ9whnpKw,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWRzuEj9cdpP5sFsp91nSeNHwZmhZPrgDKTi5eyFB5M55G
     ports:
       - "5010:5000"
       - "4006:4001"
