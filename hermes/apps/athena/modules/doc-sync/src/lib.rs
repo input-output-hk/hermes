@@ -15,8 +15,8 @@ shared::bindings_generate!({
             import hermes:http-gateway/api;
 
             export hermes:init/event;
-            export hermes:ipfs/event;
-            export hermes:doc-sync/event;
+            export hermes:ipfs/event;        // Required: Receives PubSub messages via on-topic
+            export hermes:doc-sync/event;    // Optional: Doc-sync specific events
             export hermes:http-gateway/event;
         }
     ",
@@ -51,7 +51,11 @@ impl exports::hermes::init::event::Guest for Component {
     }
 }
 
-/// Event handler for receiving PubSub messages.
+/// Event handler for receiving PubSub messages from IPFS layer.
+///
+/// This handler is REQUIRED for modules to receive PubSub messages. When a message
+/// arrives via Gossipsub, the Hermes runtime dispatches it to this `on-topic` handler.
+/// Without this export, the module cannot receive any PubSub messages.
 impl exports::hermes::ipfs::event::Guest for Component {
     fn on_topic(message: hermes::ipfs::api::PubsubMessage) -> bool {
         log::init(log::LevelFilter::Trace);
@@ -78,7 +82,10 @@ impl exports::hermes::ipfs::event::Guest for Component {
     }
 }
 
-/// Event handler for receiving documents via PubSub.
+/// Event handler for doc-sync specific events (not currently used).
+///
+/// This is for potential future doc-sync specific event types. Currently, all
+/// PubSub messages are received via the `on-topic` handler above.
 impl exports::hermes::doc_sync::event::Guest for Component {
     fn on_new_doc(
         channel: ChannelName,

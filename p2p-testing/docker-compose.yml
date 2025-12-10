@@ -1,11 +1,15 @@
 # Docker Compose for Hermes P2P Testing
 # Simulates multiple computers running Hermes with isolated networks
 #
-# IMPORTANT: Before running, build artifacts with Earthly for cross-platform compatibility:
-#   just get-local-hermes    # Containerized build (GLIBC-compatible)
-#   just get-local-athena    # WASM build + packaging
+# QUICK START:
+#   just build-all && just build-images  # Build everything
+#   just init-bootstrap                  # Sync bootstrap peer IDs (required first time)
+#   just test-pubsub                     # Verify PubSub works
 #
-# Or simply run: ./start-nodes.sh (handles builds automatically)
+# BOOTSTRAP PEER IDs:
+#   IPFS_BOOTSTRAP_PEERS below contain hardcoded peer IDs that must match
+#   actual keypairs in Docker volumes. Run 'just init-bootstrap' to sync
+#   after 'just clean' or first setup. See justfile for details.
 
 services:
   hermes-node1:

@@ -3,9 +3,10 @@
 # ==============================================================================
 #
 # 6-node Docker setup for testing P2P features:
-# - Persistent IPFS keypairs (stable peer IDs across restarts)
-# - Bootstrap retry logic (automatic reconnection)
-# - Gossipsub v1.2 PubSub protocol
+# - Persistent IPFS keypairs via PR#694 (peer IDs stable across stop/restart)
+# - Dynamic bootstrap discovery (syncs docker-compose.yml after volume clean)
+# - Bootstrap retry logic (automatic reconnection on failures)
+# - Gossipsub v1.2 PubSub with on-topic event handler
 # - Full mesh connectivity on isolated network (172.20.0.0/16)
 #
 # WHY 6 NODES?
@@ -13,11 +14,20 @@
 #   With fewer nodes, PubSub publish operations block waiting for mesh to form.
 #   Alternative would be forking rust-ipfs to add small mesh configuration support.
 #
-# QUICK START:
-#   just start          # Interactive mode
-#   just test-pubsub    # Verify PubSub works
+# QUICK START (first time):
+#   just build-all && just build-images  # Build everything
+#   just init-bootstrap                  # Discover peer IDs (REQUIRED after clean)
+#   just test-pubsub                     # Verify PubSub works
+#
+# DAILY WORKFLOW:
+#   just start          # Start nodes (preserves peer IDs)
+#   just test-pubsub    # Test PubSub propagation
 #   just logs           # Monitor activity
-#   just stop           # Stop nodes
+#   just stop           # Stop nodes (keeps data)
+#
+# AFTER CLEANING VOLUMES:
+#   just clean          # Deletes volumes + peer identities
+#   just init-bootstrap # REQUIRED: Rediscovers peer IDs before start
 #
 # CI/CD:
 #   just start-ci && just test-ci && just clean
@@ -143,10 +153,152 @@ stop:
     @echo "💡 To remove data: just clean"
 
 # Stop nodes and remove all data (volumes deleted)
+# WARNING: After clean, you must run 'just init-bootstrap' to rediscover peer IDs
 clean:
     @echo "🧹 Stopping nodes and cleaning data..."
     @docker compose down -v
     @echo "✅ All nodes stopped and data cleaned"
+    @echo ""
+    @echo "⚠️  IMPORTANT: Peer identities were deleted!"
+    @echo "   Run 'just init-bootstrap' before 'just start' to rediscover peer IDs"
+
+# ==============================================================================
+# BOOTSTRAP PEER DISCOVERY
+# ==============================================================================
+#
+# BACKGROUND: Hermes persists IPFS keypairs in Docker volumes (PR#694)
+#   - Keypair location: /home/hermes/.hermes/ipfs/keypair (inside volume)
+#   - Peer IDs remain stable across stop/restart (volumes preserved)
+#   - This works great for normal operations!
+#
+# THE PROBLEM: docker-compose.yml has HARDCODED bootstrap peer IDs
+#   - Each node's IPFS_BOOTSTRAP_PEERS env var contains specific peer IDs
+#   - Example: /ip4/172.20.0.11/tcp/4001/p2p/12D3KooW... (hardcoded)
+#   - When 'just clean' deletes volumes, new keypairs = new peer IDs
+#   - Hardcoded IDs in docker-compose.yml become stale → mesh formation fails
+#   - Errors: "wrong peer id", "Unexpected peer ID", no PubSub propagation
+#
+# THE SOLUTION: init-bootstrap command (dynamic discovery)
+#   Phase 1: Start bootstrap nodes (1-3) to generate/load keypairs
+#   Phase 2: Extract actual peer IDs from logs
+#   Phase 3: Update docker-compose.yml with discovered IDs (creates backup)
+#   Phase 4: Restart all nodes with correct bootstrap configuration
+#
+# WHEN NEEDED:
+#   ✅ After 'just clean' (volumes deleted → new keypairs → new peer IDs)
+#   ✅ First time setup (no volumes exist yet)
+#   ❌ NOT after 'just stop/restart' (volumes preserved → peer IDs unchanged)
+#
+# FUTURE IMPROVEMENT: Pre-generated test keypairs (optional convenience)
+#   - Generate 6 test keypairs offline: p2p-testing/identities/node{1-6}.keypair
+#   - Add to Dockerfile: COPY identities/*.keypair /home/hermes/.hermes/ipfs/
+#   - Benefit: Deterministic peer IDs documented in docker-compose.yml comments
+#   - Result: No init-bootstrap needed even after 'just clean'
+#   - Trade-off: Adds repo size, but eliminates manual step for test environment
+#
+# ==============================================================================
+
+# Initialize or reinitialize bootstrap configuration after volume changes
+# Run this after 'just clean' or when peer IDs change
+init-bootstrap:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    echo "🔍 Bootstrap Peer Discovery"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "Syncing docker-compose.yml bootstrap config with actual peer IDs"
+    echo "(Needed after 'just clean' or first setup)"
+    echo ""
+
+    # Check if nodes are running
+    if docker compose ps | grep -q "Up"; then
+        echo "⚠️  Nodes are running. Stopping them first..."
+        docker compose down
+        sleep 2
+    fi
+
+    # Start bootstrap nodes (1-3) without full mesh bootstrap config
+    echo "📡 Phase 1: Starting bootstrap nodes (1-3) without inter-node bootstrap..."
+    echo "   (They will generate or load their peer identities)"
+
+    # Temporarily disable bootstrap for initial startup
+    IPFS_BOOTSTRAP_PEERS="" docker compose up -d hermes-node1 hermes-node2 hermes-node3
+
+    echo "⏳ Waiting 15 seconds for nodes to initialize and generate peer IDs..."
+    sleep 15
+
+    # Extract peer IDs from running nodes
+    echo ""
+    echo "🔎 Phase 2: Discovering peer IDs from running nodes..."
+
+    PEER_ID_1=$(docker compose logs hermes-node1 2>&1 | grep 'Generated new keypair with Peer ID:' | grep -oP '12D3[^ "]+' | head -1)
+    PEER_ID_2=$(docker compose logs hermes-node2 2>&1 | grep 'Generated new keypair with Peer ID:' | grep -oP '12D3[^ "]+' | head -1)
+    PEER_ID_3=$(docker compose logs hermes-node3 2>&1 | grep 'Generated new keypair with Peer ID:' | grep -oP '12D3[^ "]+' | head -1)
+
+    if [ -z "$PEER_ID_1" ] || [ -z "$PEER_ID_2" ] || [ -z "$PEER_ID_3" ]; then
+        echo "❌ Failed to discover peer IDs from logs"
+        echo "   Node 1: ${PEER_ID_1:-NOT FOUND}"
+        echo "   Node 2: ${PEER_ID_2:-NOT FOUND}"
+        echo "   Node 3: ${PEER_ID_3:-NOT FOUND}"
+        echo ""
+        echo "💡 Check logs: docker compose logs"
+        exit 1
+    fi
+
+    echo "   ✅ Node 1 (172.20.0.10): $PEER_ID_1"
+    echo "   ✅ Node 2 (172.20.0.11): $PEER_ID_2"
+    echo "   ✅ Node 3 (172.20.0.12): $PEER_ID_3"
+
+    # Update docker-compose.yml with discovered peer IDs
+    echo ""
+    echo "📝 Phase 3: Updating docker-compose.yml with discovered peer IDs..."
+
+    # Create backup
+    cp docker-compose.yml docker-compose.yml.backup
+
+    # Update bootstrap peers using sed (portable across Linux/Mac)
+    # Node 1: bootstrap from nodes 2,3
+    sed -i.tmp "s|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.11/tcp/4001/p2p/[^,]*,/ip4/172.20.0.12/tcp/4001/p2p/[^\"]*|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.11/tcp/4001/p2p/$PEER_ID_2,/ip4/172.20.0.12/tcp/4001/p2p/$PEER_ID_3|g" docker-compose.yml
+
+    # Node 2: bootstrap from nodes 1,3
+    sed -i.tmp "s|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/[^,]*,/ip4/172.20.0.12/tcp/4001/p2p/[^\"]*|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/$PEER_ID_1,/ip4/172.20.0.12/tcp/4001/p2p/$PEER_ID_3|g" docker-compose.yml
+
+    # Nodes 3-6: bootstrap from nodes 1,2,3
+    sed -i.tmp "s|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/[^,]*,/ip4/172.20.0.11/tcp/4001/p2p/[^,]*,/ip4/172.20.0.12/tcp/4001/p2p/[^\"]*|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/$PEER_ID_1,/ip4/172.20.0.11/tcp/4001/p2p/$PEER_ID_2,/ip4/172.20.0.12/tcp/4001/p2p/$PEER_ID_3|g" docker-compose.yml
+
+    rm -f docker-compose.yml.tmp
+
+    echo "   ✅ docker-compose.yml updated (backup saved as docker-compose.yml.backup)"
+
+    # Restart all nodes with new bootstrap config
+    echo ""
+    echo "🔄 Phase 4: Restarting all nodes with correct bootstrap configuration..."
+    docker compose down
+    sleep 2
+    docker compose up -d
+
+    echo "⏳ Waiting for mesh to form..."
+    sleep 15
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "✅ Bootstrap configuration synced!"
+    echo ""
+    echo "📋 Current Peer IDs (now in docker-compose.yml):"
+    echo "   Node 1: $PEER_ID_1"
+    echo "   Node 2: $PEER_ID_2"
+    echo "   Node 3: $PEER_ID_3"
+    echo ""
+    echo "💡 Keypairs persist in Docker volumes (PR#694)"
+    echo "   - Normal stop/restart: No action needed, peer IDs stay the same"
+    echo "   - After 'just clean': Must run 'just init-bootstrap' again"
+    echo ""
+    echo "🔮 Future: Pre-generate test keypairs to skip this step entirely"
+    echo "   See FUTURE IMPROVEMENT in justfile comments"
+    echo ""
+
+    just status
 
 # Restart nodes (stop + start, preserves data)
 restart: stop start
