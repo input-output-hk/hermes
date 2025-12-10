@@ -1,49 +1,37 @@
-//! Runtime state backing quiet keepalives and jitter scheduling.
+//! Timer state backing quiet keepalives and jitter scheduling.
 
-use std::sync::Arc;
+use std::{sync::Arc, thread::JoinHandle};
 
-use tokio::{
-    sync::{Mutex, Notify},
-    task::JoinHandle,
-    time::Instant,
-};
+use tokio::sync::{Mutex, Notify};
 
 use super::config::SyncTimersConfig;
-use crate::{app::ApplicationName, ipfs::hermes_ipfs_publish};
 
-/// Sentinel payload published during quiet-period keepalives.
-const KEEPALIVE_SENTINEL: &[u8] = b"doc-sync-keepalive";
+/// Keepalive callback
+type KeepaliveCallback = Arc<dyn Fn() -> Result<(), anyhow::Error> + Send + Sync>;
 
-/// State managing timers (Quiet period background task + helpers for one-off jitters)
+/// State managing timers (Quiet period background task + helpers for one-off jitters).
 pub struct SyncTimersState {
     /// Timer configuration
-    pub cfg: SyncTimersConfig,
-    /// Last `.new` topic received (used for Quiet Timer metrics/logic)
-    pub last_new_received: Mutex<Instant>,
+    cfg: SyncTimersConfig,
+    /// Callback to invoke when a keepalive is sent.
+    send_new_keepalive: KeepaliveCallback,
     /// Handle for the background quiet-period keepalive task.
-    pub keepalive_task: Mutex<Option<JoinHandle<()>>>,
-    /// Notification for resetting the quiet timer
-    pub reset_new_notify: Notify,
-    /// Application name
-    pub app_name: ApplicationName,
-    /// Channel topic
-    pub channel_topic: String,
+    keepalive_task: Mutex<Option<JoinHandle<()>>>,
+    /// Notification for resetting the quiet timer.
+    reset_new_notify: Notify,
 }
 
 impl SyncTimersState {
-    /// Create a timer state for the supplied application/channel pair.
+    /// Create a timer state.
     pub fn new(
         cfg: SyncTimersConfig,
-        app_name: ApplicationName,
-        channel_topic: &str,
+        send_new_keepalive: KeepaliveCallback,
     ) -> Arc<Self> {
         Arc::new(Self {
             cfg,
-            last_new_received: Mutex::new(Instant::now()),
+            send_new_keepalive,
             keepalive_task: Mutex::new(None),
             reset_new_notify: Notify::new(),
-            app_name,
-            channel_topic: channel_topic.to_string(),
         })
     }
 
@@ -65,20 +53,34 @@ impl SyncTimersState {
 
     /// Start the quiet period keepalive timer for .new topic
     pub fn start_quiet_timer(self: &Arc<Self>) {
+        // Check whether the task is already running
         let mut task_guard = self.keepalive_task.blocking_lock();
-
         if task_guard.is_some() {
+            tracing::trace!("Quiet timer already running");
             return;
         }
 
-        let this = self.clone();
-        let handle = tokio::spawn(this.run_quiet_timer());
-
+        let this = Arc::clone(self);
+        let handle = std::thread::spawn(move || {
+            let rt = match tokio::runtime::Builder::new_current_thread()
+                .enable_time()
+                .build()
+            {
+                Ok(rt) => rt,
+                Err(err) => {
+                    tracing::error!("Failed to build Tokio runtime for quiet timer: {err}");
+                    return;
+                },
+            };
+            rt.block_on(async move {
+                this.run_quiet_timer().await;
+            });
+        });
         *task_guard = Some(handle);
     }
 
-    /// Background loop that waits for the quiet period and emits keepalives.
-    async fn run_quiet_timer(self: Arc<Self>) {
+    /// Background loop that waits for the quiet period, emits keepalives, and listen to reset notifications.
+    async fn run_quiet_timer(&self) {
         loop {
             // Pick a random duration for THIS cycle
             let sleep_dur = self.cfg.random_quiet();
@@ -86,56 +88,83 @@ impl SyncTimersState {
             tokio::select! {
                 // Case A: Timer expired (send keepalive)
                 () = tokio::time::sleep(sleep_dur) => {
-                    tracing::debug!(
-                        "Quiet period {:?} elapsed for topic {}, sending keepalive",
-                        sleep_dur,
-                        self.channel_topic
-                    );
+                    // Using spawn_blocking because the callback may perform blocking operations
+                    let result = tokio::task::spawn_blocking({
+                        let callback = self.send_new_keepalive.clone();
+                        move || callback()
+                    }).await;
 
-                    if let Err(err) = self.send_new_keepalive() {
-                       tracing::warn!("Failed to send .new keepalive: {:?}", err);
+                    match result {
+                        Ok(Ok(())) => tracing::debug!("Keepalive sent"),
+                        Ok(Err(e)) => tracing::warn!("Keepalive failed: {e:?}"),
+                        Err(e) => tracing::error!("Keepalive task failed: {e:?}"),
                     }
                     // Loop restarts -> New random duration picked
                 }
-
-                // Case B: Reset triggered (.new observed externally)
+                // Case B: Timer reset triggered (.new observed externally)
                 () = self.reset_new_notify.notified() => {
-                    tracing::trace!("Quiet timer reset received for topic {}", self.channel_topic);
+                    tracing::trace!("Quiet timer reset");
                     // Loop restarts immediately -> New random duration picked
-                    // This acts as the "timer reset"
                 }
             }
         }
     }
 
-    /// Publish a sentinel `.new` keepalive payload and reset the timer.
-    fn send_new_keepalive(&self) -> anyhow::Result<()> {
-        // TODO: Replace sentinel payload with deterministic CBOR envelope once SMT summary is
-        // wired.
-        hermes_ipfs_publish(
-            &self.app_name,
-            &self.channel_topic,
-            KEEPALIVE_SENTINEL.to_vec(),
-        )
-        .map_err(|err| anyhow::Error::msg(format!("keepalive publish failed: {err:?}")))?;
-        self.reset_quiet_timer();
-        Ok(())
-    }
-
     /// Reset quiet-period timer (call on every received or posted .new)
     pub fn reset_quiet_timer(&self) {
-        {
-            let mut last = self.last_new_received.blocking_lock();
-            *last = Instant::now();
-        }
-        // Wake up the background task to reset its sleep loop
+        tracing::trace!("Resetting quiet timer");
+        // Notify the background task to reset its sleep loop
         self.reset_new_notify.notify_waiters();
     }
 
     /// Stop the quiet-period background task, if running.
     pub fn stop_quiet_timer(&self) {
-        if let Some(handle) = self.keepalive_task.blocking_lock().take() {
-            handle.abort();
+        self.keepalive_task.blocking_lock().take();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU32, Ordering};
+    use std::time::Duration;
+
+    fn timer_config() -> SyncTimersConfig {
+        SyncTimersConfig {
+            quiet_period: Duration::from_millis(100)..Duration::from_millis(100),
+            ..Default::default()
         }
+    }
+    #[tokio::test]
+    async fn test_start_quiet_timer_count_keepalive() {
+        // Track how many times the callback is called
+        let callback_count = Arc::new(AtomicU32::new(0)).clone();
+        let callback: KeepaliveCallback = Arc::new({
+            let counter = callback_count.clone();
+            move || {
+                counter.fetch_add(1, Ordering::Relaxed);
+                Ok(())
+            }
+        });
+
+        let state = SyncTimersState::new(timer_config(), callback);
+        let state_clone = state.clone();
+        tokio::task::spawn_blocking(move || {
+            state_clone.start_quiet_timer();
+        })
+        .await
+        .unwrap();
+
+        // Trigger 2 keepalives
+        tokio::time::sleep(Duration::from_millis(250)).await;
+        state.reset_quiet_timer();
+        // Trigger 1 keepalive
+        tokio::time::sleep(Duration::from_millis(120)).await;
+
+        let count = callback_count.load(Ordering::Relaxed);
+        assert!(
+            count == 3,
+            "Expected callback to be called 3 times, got {count}"
+        );
     }
 }
