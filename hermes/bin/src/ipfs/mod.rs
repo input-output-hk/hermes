@@ -167,6 +167,15 @@ pub fn bootstrap(
     HERMES_IPFS
         .set(ipfs_node)
         .map_err(|_| anyhow::anyhow!("failed to start IPFS node"))?;
+
+    // Auto-subscribe to documents.new for P2P mesh formation
+    // This ensures all nodes are subscribed on startup, allowing the Gossipsub
+    // mesh to form immediately for the documents.new topic (requires mesh_n=6 peers)
+    let app_name = ApplicationName::new("athena");
+    let topic = PubsubTopic::from("documents.new".to_string());
+    hermes_ipfs_subscribe(&app_name, topic)?;
+    tracing::info!("Auto-subscribed to documents.new topic for P2P mesh formation");
+
     Ok(())
 }
 

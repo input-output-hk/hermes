@@ -2,11 +2,16 @@
 # Hermes P2P Testing Environment
 # ==============================================================================
 #
-# 3-node Docker setup for testing P2P features:
+# 6-node Docker setup for testing P2P features:
 # - Persistent IPFS keypairs (stable peer IDs across restarts)
 # - Bootstrap retry logic (automatic reconnection)
 # - Gossipsub v1.2 PubSub protocol
 # - Full mesh connectivity on isolated network (172.20.0.0/16)
+#
+# WHY 6 NODES?
+#   Gossipsub default mesh_n=6 requires at least 6 peers for optimal operation.
+#   With fewer nodes, PubSub publish operations block waiting for mesh to form.
+#   Alternative would be forking rust-ipfs to add small mesh configuration support.
 #
 # QUICK START:
 #   just start          # Interactive mode
@@ -21,8 +26,11 @@
 #   Node 1: http://localhost:5000 (IPFS: 4001, API: 5001) [172.20.0.10]
 #   Node 2: http://localhost:5002 (IPFS: 4002, API: 5003) [172.20.0.11]
 #   Node 3: http://localhost:5004 (IPFS: 4003, API: 5005) [172.20.0.12]
+#   Node 4: http://localhost:5006 (IPFS: 4004, API: 5007) [172.20.0.13]
+#   Node 5: http://localhost:5008 (IPFS: 4005, API: 5009) [172.20.0.14]
+#   Node 6: http://localhost:5010 (IPFS: 4006, API: 5011) [172.20.0.15]
 #
-# PERSISTENT PEER IDS:
+# PERSISTENT PEER IDS (nodes 1-3, 4-6 generated on first run):
 #   Node 1: 12D3KooWBxass2EcccdN5FzC2e6er3uyuYJkTchMX11iKWaJ9aj1
 #   Node 2: 12D3KooWBkdsbenzeixaTmEXdmpf5P2pXtyvm4Qb4sGZJ1Wi4BUB
 #   Node 3: 12D3KooWA5tEBmYCXQfmAdt5zZonBouBt2KBN6umaUtdQVY39GPK
@@ -147,6 +155,9 @@ status:
     echo "   Node 1: http://localhost:5000 (IPFS: 4001, API: 5001) [172.20.0.10]"
     echo "   Node 2: http://localhost:5002 (IPFS: 4002, API: 5003) [172.20.0.11]"
     echo "   Node 3: http://localhost:5004 (IPFS: 4003, API: 5005) [172.20.0.12]"
+    echo "   Node 4: http://localhost:5006 (IPFS: 4004, API: 5007) [172.20.0.13]"
+    echo "   Node 5: http://localhost:5008 (IPFS: 4005, API: 5009) [172.20.0.14]"
+    echo "   Node 6: http://localhost:5010 (IPFS: 4006, API: 5011) [172.20.0.15]"
 
 # Follow logs from all nodes
 logs:
@@ -179,7 +190,7 @@ check-connectivity:
 # ==============================================================================
 
 # Run integration tests on all nodes (requires Athena WASM modules)
-test: test-node1 test-node2 test-node3
+test: test-node1 test-node2 test-node3 test-node4 test-node5 test-node6
     @echo ""
     @echo "✅ All nodes tested!"
 
@@ -198,7 +209,22 @@ test-node3:
     @echo "🧪 Testing Node 3..."
     @docker exec hermes-node3 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
 
-# Test PubSub infrastructure (verifies Gossipsub protocol and connectivity)
+# Run integration tests on node 4
+test-node4:
+    @echo "🧪 Testing Node 4..."
+    @docker exec hermes-node4 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
+
+# Run integration tests on node 5
+test-node5:
+    @echo "🧪 Testing Node 5..."
+    @docker exec hermes-node5 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
+
+# Run integration tests on node 6
+test-node6:
+    @echo "🧪 Testing Node 6..."
+    @docker exec hermes-node6 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
+
+# Test PubSub infrastructure (connectivity and Gossipsub)
 test-pubsub:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -214,7 +240,7 @@ test-pubsub:
     echo "1️⃣  Checking Gossipsub protocol is active..."
     GOSSIPSUB_LINES=$(docker compose logs 2>&1 | grep -i "gossipsub" | wc -l)
     if [ "$GOSSIPSUB_LINES" -gt 0 ]; then
-        echo "   ✅ Gossipsub protocol active on nodes ($GOSSIPSUB_LINES log entries)"
+        echo "   ✅ Gossipsub protocol active ($GOSSIPSUB_LINES log entries)"
     else
         echo "   ❌ Gossipsub not detected"
         exit 1
@@ -223,28 +249,25 @@ test-pubsub:
     echo ""
     echo "2️⃣  Checking peer connections..."
     CONNECTIONS=$(docker compose logs 2>&1 | grep "New peer connected" | wc -l)
-    if [ "$CONNECTIONS" -ge 6 ]; then
-        echo "   ✅ Nodes are connected ($CONNECTIONS peer connections found)"
+    if [ "$CONNECTIONS" -ge 30 ]; then
+        echo "   ✅ Full mesh connected ($CONNECTIONS peer connections)"
     else
-        echo "   ⚠️  Only $CONNECTIONS peer connections found (expected 6)"
+        echo "   ⚠️  Only $CONNECTIONS peer connections (expected 30 for 6-node full mesh)"
     fi
 
     echo ""
     echo "3️⃣  Checking bootstrap status..."
-    BOOTSTRAP_SUCCESS=$(docker compose logs 2>&1 | grep "All bootstrap peers connected" | wc -l)
-    if [ "$BOOTSTRAP_SUCCESS" -ge 2 ]; then
-        echo "   ✅ Bootstrap successful on $BOOTSTRAP_SUCCESS nodes"
+    BOOTSTRAP_SUCCESS=$(docker compose logs 2>&1 | grep "All bootstrap peers connected" | wc -l || true)
+    if [ "$BOOTSTRAP_SUCCESS" -ge 4 ]; then
+        echo "   ✅ Bootstrap complete on $BOOTSTRAP_SUCCESS nodes"
+    elif [ "$CONNECTIONS" -ge 20 ]; then
+        echo "   ⚠️  Bootstrap retry still running, but nodes are connected"
     else
-        echo "   ⚠️  Only $BOOTSTRAP_SUCCESS nodes completed bootstrap"
+        echo "   ⚠️  Bootstrap incomplete ($BOOTSTRAP_SUCCESS nodes)"
     fi
 
     echo ""
-    echo "4️⃣  PubSub infrastructure status:"
-    echo "   ✅ All nodes listening on port 4001"
-    echo "   ✅ Gossipsub protocol active"
-    echo "   ✅ Nodes connected via bootstrap"
-    echo ""
-    echo "💡 PubSub is ready! Messages published to topics will propagate between nodes."
+    echo "✅ PubSub infrastructure verified (Gossipsub active, peers connected)"
 
 # Full CI test suite (status + connectivity + pubsub)
 test-ci:
@@ -256,11 +279,11 @@ test-ci:
     # Check node status
     echo "📊 Node status check..."
     RUNNING=$(docker compose ps | grep -c "Up" || true)
-    if [ "$RUNNING" -ne 3 ]; then
-        echo "❌ Expected 3 nodes running, found $RUNNING"
+    if [ "$RUNNING" -ne 6 ]; then
+        echo "❌ Expected 6 nodes running, found $RUNNING"
         exit 1
     fi
-    echo "   ✅ All 3 nodes running"
+    echo "   ✅ All 6 nodes running"
 
     # Wait for initialization
     echo ""
@@ -330,12 +353,12 @@ help:
     @echo "MONITORING:"
     @echo "  status                  Show node status"
     @echo "  logs                    Follow all logs"
-    @echo "  logs-node N             Follow node N logs (1-3)"
+    @echo "  logs-node N             Follow node N logs (1-6)"
     @echo "  check-connectivity      Check P2P status"
     @echo ""
     @echo "TESTING:"
     @echo "  test                    Run integration tests"
-    @echo "  test-nodeN              Test specific node (1-3)"
+    @echo "  test-nodeN              Test specific node (1-6)"
     @echo "  test-pubsub             Test PubSub infrastructure"
     @echo "  test-ci                 Full CI test suite"
     @echo ""
@@ -343,6 +366,14 @@ help:
     @echo "  Node 1: http://localhost:5000 (IPFS: 4001) [172.20.0.10]"
     @echo "  Node 2: http://localhost:5002 (IPFS: 4002) [172.20.0.11]"
     @echo "  Node 3: http://localhost:5004 (IPFS: 4003) [172.20.0.12]"
+    @echo "  Node 4: http://localhost:5006 (IPFS: 4004) [172.20.0.13]"
+    @echo "  Node 5: http://localhost:5008 (IPFS: 4005) [172.20.0.14]"
+    @echo "  Node 6: http://localhost:5010 (IPFS: 4006) [172.20.0.15]"
+    @echo ""
+    @echo "WHY 6 NODES:"
+    @echo "  Gossipsub default mesh_n=6 requires 6+ peers for optimal operation."
+    @echo "  With fewer nodes, PubSub publish operations block waiting for mesh."
+    @echo "  Alternative: fork rust-ipfs to add small mesh configuration support."
     @echo ""
     @echo "FEATURES:"
     @echo "  • Persistent peer IDs (keypairs stored in volumes)"

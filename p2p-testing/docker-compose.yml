@@ -20,7 +20,7 @@ services:
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWBkdsbenzeixaTmEXdmpf5P2pXtyvm4Qb4sGZJ1Wi4BUB,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWA5tEBmYCXQfmAdt5zZonBouBt2KBN6umaUtdQVY39GPK
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWCQyvURf8yCRygmF174j1yRY74ZhgC3qpqHVsEFAmpuQs,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWG725q46MVcCTp1pHFBVMcjDUfJXmPwrPLxZuRWC5ApYt
     ports:
       # HTTP Gateway
       - "5000:5000"
@@ -46,7 +46,7 @@ services:
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWBxass2EcccdN5FzC2e6er3uyuYJkTchMX11iKWaJ9aj1,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWA5tEBmYCXQfmAdt5zZonBouBt2KBN6umaUtdQVY39GPK
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWFBU6YgSr4mNbJ9phTyaM9PnCLkgMfpzN6wLDikahb2KN,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWG725q46MVcCTp1pHFBVMcjDUfJXmPwrPLxZuRWC5ApYt
     ports:
       # HTTP Gateway (different host port)
       - "5002:5000"
@@ -72,7 +72,7 @@ services:
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWBxass2EcccdN5FzC2e6er3uyuYJkTchMX11iKWaJ9aj1,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWBkdsbenzeixaTmEXdmpf5P2pXtyvm4Qb4sGZJ1Wi4BUB
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWFBU6YgSr4mNbJ9phTyaM9PnCLkgMfpzN6wLDikahb2KN,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWCQyvURf8yCRygmF174j1yRY74ZhgC3qpqHVsEFAmpuQs
     ports:
       # HTTP Gateway (different host port)
       - "5004:5000"
@@ -86,6 +86,75 @@ services:
       hermes-p2p:
         ipv4_address: 172.20.0.12
 
+  hermes-node4:
+    build:
+      context: ..
+      dockerfile: p2p-testing/Dockerfile
+    container_name: hermes-node4
+    hostname: node4
+    environment:
+      - HERMES_HTTP_PORT=5000
+      - HERMES_ACTIVATE_AUTH=true
+      - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
+      - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
+      - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWFBU6YgSr4mNbJ9phTyaM9PnCLkgMfpzN6wLDikahb2KN,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWCQyvURf8yCRygmF174j1yRY74ZhgC3qpqHVsEFAmpuQs,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWG725q46MVcCTp1pHFBVMcjDUfJXmPwrPLxZuRWC5ApYt
+    ports:
+      - "5006:5000"
+      - "4004:4001"
+      - "5007:5001"
+    volumes:
+      - node4-data:/home/hermes
+    networks:
+      hermes-p2p:
+        ipv4_address: 172.20.0.13
+
+  hermes-node5:
+    build:
+      context: ..
+      dockerfile: p2p-testing/Dockerfile
+    container_name: hermes-node5
+    hostname: node5
+    environment:
+      - HERMES_HTTP_PORT=5000
+      - HERMES_ACTIVATE_AUTH=true
+      - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
+      - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
+      - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWFBU6YgSr4mNbJ9phTyaM9PnCLkgMfpzN6wLDikahb2KN,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWCQyvURf8yCRygmF174j1yRY74ZhgC3qpqHVsEFAmpuQs,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWG725q46MVcCTp1pHFBVMcjDUfJXmPwrPLxZuRWC5ApYt
+    ports:
+      - "5008:5000"
+      - "4005:4001"
+      - "5009:5001"
+    volumes:
+      - node5-data:/home/hermes
+    networks:
+      hermes-p2p:
+        ipv4_address: 172.20.0.14
+
+  hermes-node6:
+    build:
+      context: ..
+      dockerfile: p2p-testing/Dockerfile
+    container_name: hermes-node6
+    hostname: node6
+    environment:
+      - HERMES_HTTP_PORT=5000
+      - HERMES_ACTIVATE_AUTH=true
+      - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
+      - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
+      - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWFBU6YgSr4mNbJ9phTyaM9PnCLkgMfpzN6wLDikahb2KN,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWCQyvURf8yCRygmF174j1yRY74ZhgC3qpqHVsEFAmpuQs,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWG725q46MVcCTp1pHFBVMcjDUfJXmPwrPLxZuRWC5ApYt
+    ports:
+      - "5010:5000"
+      - "4006:4001"
+      - "5011:5001"
+    volumes:
+      - node6-data:/home/hermes
+    networks:
+      hermes-p2p:
+        ipv4_address: 172.20.0.15
+
 networks:
   hermes-p2p:
     driver: bridge
@@ -97,3 +166,6 @@ volumes:
   node1-data:
   node2-data:
   node3-data:
+  node4-data:
+  node5-data:
+  node6-data:
