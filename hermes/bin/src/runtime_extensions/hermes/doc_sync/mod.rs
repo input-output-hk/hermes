@@ -3,28 +3,26 @@
 use std::sync::Arc;
 
 use dashmap::DashMap;
+use hermes_ipfs::doc_sync::timers::state::SyncTimersState;
 use once_cell::sync::Lazy;
-
-use crate::runtime_extensions::hermes::doc_sync::timers::state::SyncTimersState;
 
 mod event;
 mod host;
-mod timers;
 
 /// In-memory representation for an opened doc-sync channel.
 #[derive(Clone)]
 pub(super) struct ChannelState {
-    /// Channel topic (e.g. `documents`)
-    pub topic: String,
-    /// Timer state driving quiet-period keepalives.
+    /// Name of the channel.
+    pub channel_name: String,
+    /// Timer state.
     pub timers: Option<Arc<SyncTimersState>>,
 }
 
 impl ChannelState {
     /// Create a new state entry for the provided channel name.
-    fn new(topic: String) -> Self {
+    fn new(channel_name: &str) -> Self {
         Self {
-            topic,
+            channel_name: channel_name.to_string(),
             timers: None,
         }
     }
