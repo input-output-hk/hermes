@@ -345,22 +345,6 @@ fn doc_sync_topic_message_handler(
     for cid in new_cids {
         let path = hermes_ipfs::IpfsPath::new(PathRoot::Ipld(cid)).to_string();
 
-        // Not tracking specific app (via `ipfs::api::hermes_ipfs_dht_provide`),
-        // since the action applies to all apps.
-        if let Err(err) = ipfs.dht_provide(cid.to_bytes()) {
-            tracing::error!(%channel_name, %cid, %err, "Failed to provide the CID as a IPFS DHT value");
-            continue;
-        }
-
-        // TODO: ensure the document is provided
-        let _peer_id = match ipfs.get_peer_identity() {
-            Ok(peer_info) => peer_info.peer_id,
-            Err(err) => {
-                tracing::error!(%channel_name, %cid, %err, "Failed to get peer id of the IPFS node");
-                continue;
-            },
-        };
-
         // Not tracking any app that pinned it (via `ipfs::api::hermes_ipfs_pin_file`),
         // since the pin is re-used by all apps.
         match ipfs.file_pin(&path) {
