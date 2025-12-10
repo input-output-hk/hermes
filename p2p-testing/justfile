@@ -135,11 +135,18 @@ start:
     echo ""
     just status
 
-# Start nodes (CI mode: no prompts, always rebuilds)
+# Start nodes (CI mode: no prompts, always rebuilds from clean state)
 start-ci:
     #!/usr/bin/env bash
     set -euo pipefail
     echo "🚀 Starting P2P test environment (CI mode)..."
+
+    # Ensure clean state
+    if docker compose ps | grep -q "Up"; then
+        echo "🧹 Cleaning existing environment..."
+        docker compose down -v
+    fi
+
     just build-ci
     just init-bootstrap
     echo ""
