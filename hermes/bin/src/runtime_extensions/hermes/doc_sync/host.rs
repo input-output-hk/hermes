@@ -453,10 +453,10 @@ fn is_pre_publish_completed(
 
 /// Sending new keep alive message for .new topic.
 fn send_new_keepalive(
-    base: &str,
+    channel_name: &str,
     app_name: &ApplicationName,
 ) -> anyhow::Result<()> {
-    let new_topic = format!("{base}.new");
+    let new_topic = format!("{channel_name}.new");
     hermes_ipfs_publish(app_name, &new_topic, vec![])
         .map_err(|e| anyhow::Error::msg(format!("Keepalive publish failed: {e:?}")))?;
     Ok(())
