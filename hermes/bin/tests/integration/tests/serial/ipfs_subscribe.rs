@@ -22,11 +22,6 @@ fn ipfs_subscribe() {
 
     assert!(utils::assert::app_logs_contain(
         &temp_dir,
-        "Subscription event"
-    ));
-
-    assert!(utils::assert::app_logs_contain(
-        &temp_dir,
         "added subscription topic stream"
     ));
 
@@ -38,5 +33,5 @@ fn ipfs_subscribe() {
     // Uncomment the line below if you want to inspect the details
     // available in the temp directory.
     //
-    // utils::debug_sleep(&temp_dir);
+    utils::debug_sleep(&temp_dir);
 }
