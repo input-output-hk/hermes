@@ -141,8 +141,8 @@ start-ci:
     set -euo pipefail
     echo "🚀 Starting P2P test environment (CI mode)..."
     just build-ci
-    docker compose up -d
-    sleep 10
+    just init-bootstrap
+    echo ""
     just status
 
 # Stop nodes (preserves data in Docker volumes)
@@ -232,9 +232,9 @@ init-bootstrap:
     echo ""
     echo "🔎 Phase 2: Discovering peer IDs from running nodes..."
 
-    PEER_ID_1=$(docker compose logs hermes-node1 2>&1 | grep 'Generated new keypair with Peer ID:' | grep -oP '12D3[^ "]+' | head -1)
-    PEER_ID_2=$(docker compose logs hermes-node2 2>&1 | grep 'Generated new keypair with Peer ID:' | grep -oP '12D3[^ "]+' | head -1)
-    PEER_ID_3=$(docker compose logs hermes-node3 2>&1 | grep 'Generated new keypair with Peer ID:' | grep -oP '12D3[^ "]+' | head -1)
+    PEER_ID_1=$(docker compose logs hermes-node1 2>&1 | grep -E '(Generated new keypair|Loaded keypair) with Peer ID:' | grep -oP '12D3[^ "]+' | head -1)
+    PEER_ID_2=$(docker compose logs hermes-node2 2>&1 | grep -E '(Generated new keypair|Loaded keypair) with Peer ID:' | grep -oP '12D3[^ "]+' | head -1)
+    PEER_ID_3=$(docker compose logs hermes-node3 2>&1 | grep -E '(Generated new keypair|Loaded keypair) with Peer ID:' | grep -oP '12D3[^ "]+' | head -1)
 
     if [ -z "$PEER_ID_1" ] || [ -z "$PEER_ID_2" ] || [ -z "$PEER_ID_3" ]; then
         echo "❌ Failed to discover peer IDs from logs"
@@ -496,7 +496,7 @@ test-pubsub-propagation:
         # Check if this node's logs contain the received message marker with our timestamp
         if docker compose logs "$NODE_NAME" 2>&1 | grep "RECEIVED PubSub message" | grep -q "$TIMESTAMP"; then
             echo "   ✅ Node $NODE: RECEIVED"
-            ((RECEIVED_COUNT++))
+            RECEIVED_COUNT=$((RECEIVED_COUNT + 1))
         else
             echo "   ❌ Node $NODE: Did NOT receive"
         fi
@@ -549,9 +549,13 @@ test-ci:
     echo "🔗 Connectivity check..."
     just check-connectivity
 
-    # Test PubSub
+    # Test PubSub infrastructure
     echo ""
     just test-pubsub
+
+    # Test PubSub message propagation (end-to-end)
+    echo ""
+    just test-pubsub-propagation
 
     echo ""
     echo "✅ CI test suite passed!"
