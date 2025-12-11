@@ -14,7 +14,7 @@ mod bindings {
             package hermes:app;
 
             world hermes {
-                import hermes:ipfs/api;
+                import hermes:doc-sync/api;
 
                 export hermes:init/event;
             }
@@ -23,15 +23,13 @@ mod bindings {
     });
 }
 
-struct IPFSSubscribeApp;
+struct DocSyncSubscribeApp;
 
-impl bindings::exports::hermes::init::event::Guest for IPFSSubscribeApp {
+impl bindings::exports::hermes::init::event::Guest for DocSyncSubscribeApp {
     fn init() -> bool {
-        if let Err(err) = bindings::hermes::ipfs::api::pubsub_subscribe("ipfs_channel.new") {
-            panic!("Couldn't subscribe to IPFS topic {err}");
-        }
+        bindings::hermes::doc_sync::api::SyncChannel::new("ipfs_channel");
         false
     }
 }
 
-bindings::export!(IPFSSubscribeApp with_types_in bindings);
+bindings::export!(DocSyncSubscribeApp with_types_in bindings);

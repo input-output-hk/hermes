@@ -131,6 +131,10 @@ impl Cli {
 /// Additional Hermes run arguments
 #[derive(Args, Debug)]
 pub(crate) struct RuntimeConfig {
+    /// Delay before any applications are run (milliseconds)
+    #[arg(long)]
+    delay_ms: Option<u64>,
+
     /// Shutdown Hermes after the timeout (milliseconds)
     #[arg(long)]
     timeout_ms: Option<u64>,
