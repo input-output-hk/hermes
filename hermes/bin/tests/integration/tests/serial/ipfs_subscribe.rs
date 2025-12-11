@@ -33,5 +33,5 @@ fn ipfs_subscribe() {
     // Uncomment the line below if you want to inspect the details
     // available in the temp directory.
     //
-    utils::debug_sleep(&temp_dir);
+    // utils::debug_sleep(&temp_dir);
 }

@@ -5,6 +5,7 @@ use std::{
     ffi::OsStr,
     fs,
     path::{Path, PathBuf},
+    thread,
     time::Duration,
 };
 
@@ -79,6 +80,14 @@ impl Playground {
             set_no_parallel_event_execution();
         } else {
             pool::init()?;
+        }
+
+        if let Some(delay_ms) = self.rt_config.delay_ms {
+            println!(
+                "{} Delaying the run by {delay_ms} milliseconds...",
+                Emoji::new("🛠️", ""),
+            );
+            thread::sleep(Duration::from_millis(delay_ms));
         }
 
         println!("{} Loading an application...", Emoji::new("🛠️", ""),);
