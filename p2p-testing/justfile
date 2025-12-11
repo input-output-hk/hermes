@@ -21,7 +21,7 @@
 #
 # DAILY WORKFLOW:
 #   just start          # Start nodes (preserves peer IDs)
-#   just test-pubsub    # Test PubSub propagation
+#   just test-pubsub-propagation  # Test message propagation (with visualization)
 #   just logs           # Monitor activity
 #   just stop           # Stop nodes (keeps data)
 #
@@ -57,6 +57,152 @@ default:
     @just --list
 
 # ==============================================================================
+# HELPER FUNCTIONS & UTILITIES
+# ==============================================================================
+# Internal helpers used by other commands. These start with _ and are not meant
+# to be called directly by users.
+
+# Common bash functions template (copy into recipes that need them)
+# Usage: Copy the setup_colors function into your recipe's bash script
+#
+# setup_colors() {
+#     GREEN='\033[32m'
+#     RED='\033[31m'
+#     YELLOW='\033[33m'
+#     BLUE='\033[34m'
+#     BOLD='\033[1m'
+#     RESET='\033[0m'
+# }
+
+# Helper: Check if all 6 nodes are running (returns 0 if all running, 1 if not)
+_check-nodes-running:
+    #!/usr/bin/env bash
+    RUNNING=$(docker compose ps | grep -c "Up" || echo "0")
+    if [ "$RUNNING" -eq 6 ]; then
+        exit 0
+    else
+        echo "❌ Only $RUNNING/6 nodes running" >&2
+        exit 1
+    fi
+
+# Helper: Wait for HTTP endpoint to be ready with retries
+# Usage: just _wait-for-http [max_retries] [delay_seconds]
+_wait-for-http retries="6" delay="5":
+    #!/usr/bin/env bash
+    MAX_RETRIES={{retries}}
+    DELAY={{delay}}
+
+    for ((i=1; i<=MAX_RETRIES; i++)); do
+        if curl -s -f -m 5 http://localhost:5000/health >/dev/null 2>&1 || \
+           curl -s -f -m 5 http://localhost:5000/ >/dev/null 2>&1; then
+            exit 0
+        fi
+
+        if [ $i -lt $MAX_RETRIES ]; then
+            echo "⏳ Waiting for HTTP endpoint... (attempt $i/$MAX_RETRIES)" >&2
+            sleep $DELAY
+        fi
+    done
+
+    echo "❌ HTTP endpoint not ready after $MAX_RETRIES attempts" >&2
+    exit 1
+
+# Helper: Post message to doc-sync with retries
+# Usage: just _post-message "message text" [max_retries]
+_post-message message retries="3":
+    #!/usr/bin/env bash
+    MAX_RETRIES={{retries}}
+    MESSAGE="{{message}}"
+
+    for ((i=1; i<=MAX_RETRIES; i++)); do
+        RESPONSE=$(curl -s -X POST http://localhost:5000/api/doc-sync/post \
+          -H "Host: athena.hermes.local" \
+          -H "Content-Type: text/plain" \
+          -d "$MESSAGE" 2>&1)
+
+        SUCCESS=$(echo "$RESPONSE" | jq -r '.success' 2>/dev/null || echo "false")
+
+        if [ "$SUCCESS" = "true" ]; then
+            echo "$RESPONSE"
+            exit 0
+        fi
+
+        if [ $i -lt $MAX_RETRIES ]; then
+            echo "⚠️  Post failed, retrying... (attempt $((i+1))/$MAX_RETRIES)" >&2
+            sleep 5
+        fi
+    done
+
+    echo "❌ Failed to post message after $MAX_RETRIES attempts" >&2
+    echo "$RESPONSE" >&2
+    exit 1
+
+# Helper: Count nodes that received a specific message (by timestamp)
+# Usage: just _count-received-nodes timestamp
+_count-received-nodes timestamp:
+    #!/usr/bin/env bash
+    TIMESTAMP="{{timestamp}}"
+    COUNT=0
+
+    for NODE in {2..6}; do
+        if docker compose logs "hermes-node$NODE" 2>&1 | \
+           grep "RECEIVED PubSub message" | grep -q "$TIMESTAMP"; then
+            COUNT=$((COUNT + 1))
+        fi
+    done
+
+    echo $COUNT
+
+# Helper: Get peer count for a specific node
+_get-node-peer-count node:
+    #!/usr/bin/env bash
+    NODE={{node}}
+    docker compose logs "hermes-node$NODE" 2>&1 | grep "peer connected" | wc -l
+
+# Helper: Wait for mesh to form (checks for sufficient peer connections)
+_wait-for-mesh min_connections="25" max_wait="60":
+    #!/usr/bin/env bash
+    MIN_CONNECTIONS={{min_connections}}
+    MAX_WAIT={{max_wait}}
+
+    echo "⏳ Waiting for mesh formation..." >&2
+
+    for ((i=0; i<MAX_WAIT; i+=5)); do
+        CONNECTIONS=$(docker compose logs 2>&1 | grep "peer connected" | wc -l || echo "0")
+
+        if [ "$CONNECTIONS" -ge "$MIN_CONNECTIONS" ]; then
+            echo "✅ Mesh formed ($CONNECTIONS connections)" >&2
+            exit 0
+        fi
+
+        if [ $i -lt $((MAX_WAIT - 5)) ]; then
+            echo "   Current: $CONNECTIONS connections (target: $MIN_CONNECTIONS)" >&2
+            sleep 5
+        fi
+    done
+
+    echo "⚠️  Mesh not fully formed after ${MAX_WAIT}s ($CONNECTIONS connections)" >&2
+    exit 1
+
+# Helper: Extract CID from curl response
+_extract-cid response:
+    #!/usr/bin/env bash
+    echo "{{response}}" | jq -r '.cid' 2>/dev/null || echo "unknown"
+
+# ------------------------------------------------------------------------------
+# Common Bash Patterns for Recipes
+# ------------------------------------------------------------------------------
+# Many recipes need color codes and common setup. Copy this snippet into recipes
+# that need formatting:
+#
+#   #!/usr/bin/env bash
+#   set -euo pipefail
+#   GREEN='\033[32m'; RED='\033[31m'; YELLOW='\033[33m'
+#   BLUE='\033[34m'; BOLD='\033[1m'; RESET='\033[0m'
+#
+# This provides consistent color formatting across all commands.
+
+# ==============================================================================
 # QUICK START
 # ==============================================================================
 
@@ -64,14 +210,8 @@ default:
 quickstart:
     #!/usr/bin/env bash
     set -euo pipefail
-
-    # Color codes
-    GREEN='\033[32m'
-    RED='\033[31m'
-    YELLOW='\033[33m'
-    BLUE='\033[34m'
-    BOLD='\033[1m'
-    RESET='\033[0m'
+    GREEN='\033[32m'; RED='\033[31m'; YELLOW='\033[33m'
+    BLUE='\033[34m'; BOLD='\033[1m'; RESET='\033[0m'
 
     echo ""
     echo -e "${BOLD}${BLUE}╔════════════════════════════════════════════════════════════╗${RESET}"
@@ -242,13 +382,8 @@ build-ci: build-all build-images
 validate-prereqs:
     #!/usr/bin/env bash
     set -euo pipefail
-
-    # Color codes
-    GREEN='\033[32m'
-    RED='\033[31m'
-    YELLOW='\033[33m'
-    BLUE='\033[34m'
-    RESET='\033[0m'
+    GREEN='\033[32m'; RED='\033[31m'; YELLOW='\033[33m'
+    BLUE='\033[34m'; RESET='\033[0m'
 
     echo -e "${BLUE}🔍 Validating Prerequisites${RESET}"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -349,13 +484,8 @@ validate-prereqs:
 health-check:
     #!/usr/bin/env bash
     set -euo pipefail
-
-    # Color codes
-    GREEN='\033[32m'
-    RED='\033[31m'
-    YELLOW='\033[33m'
-    BLUE='\033[34m'
-    RESET='\033[0m'
+    GREEN='\033[32m'; RED='\033[31m'; YELLOW='\033[33m'
+    BLUE='\033[34m'; RESET='\033[0m'
 
     echo -e "${BLUE}🏥 Health Check${RESET}"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -467,13 +597,8 @@ health-check:
 troubleshoot:
     #!/usr/bin/env bash
     set -euo pipefail
-
-    # Color codes
-    GREEN='\033[32m'
-    RED='\033[31m'
-    YELLOW='\033[33m'
-    BLUE='\033[34m'
-    RESET='\033[0m'
+    GREEN='\033[32m'; RED='\033[31m'; YELLOW='\033[33m'
+    BLUE='\033[34m'; RESET='\033[0m'
 
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     REPORT_FILE="p2p-troubleshoot-$TIMESTAMP.txt"
@@ -637,14 +762,8 @@ troubleshoot:
 dashboard:
     #!/usr/bin/env bash
     set -euo pipefail
-
-    # Color codes
-    GREEN='\033[32m'
-    RED='\033[31m'
-    YELLOW='\033[33m'
-    BLUE='\033[34m'
-    BOLD='\033[1m'
-    RESET='\033[0m'
+    GREEN='\033[32m'; RED='\033[31m'; YELLOW='\033[33m'
+    BLUE='\033[34m'; BOLD='\033[1m'; RESET='\033[0m'
 
     echo ""
     echo -e "${BOLD}╔════════════════════════════════════════════════════════════╗${RESET}"
@@ -1067,33 +1186,69 @@ test-pubsub:
     echo ""
     echo "✅ PubSub infrastructure verified (Gossipsub active, peers connected)"
 
-# Test PubSub message propagation (posts from Node 1, verifies others receive)
-test-pubsub-propagation:
+# Core PubSub propagation test (minimal output, for CI)
+test-pubsub-core:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    # Color codes
-    GREEN='\033[32m'
-    RED='\033[31m'
-    YELLOW='\033[33m'
-    BLUE='\033[34m'
-    BOLD='\033[1m'
-    RESET='\033[0m'
+    # Check if nodes are running using helper
+    just _check-nodes-running || exit 1
+
+    # Wait for nodes to fully initialize (HTTP gateway, Athena app, IPFS)
+    echo "⏳ Waiting for nodes to initialize..."
+    sleep 30
+
+    # Post test message using helper (handles retries)
+    TIMESTAMP=$(date +%s)
+    TEST_MESSAGE="PubSub Test - Timestamp: $TIMESTAMP"
+
+    RESPONSE=$(just _post-message "$TEST_MESSAGE" 3)
+    if [ $? -ne 0 ]; then
+        echo "❌ Failed to post message"
+        exit 1
+    fi
+
+    echo "✅ Message published"
+
+    # Wait for propagation
+    sleep 3
+
+    # Check reception using helper
+    echo "⏳ Checking message reception..."
+    RECEIVED_COUNT=$(just _count-received-nodes "$TIMESTAMP")
+
+    # Evaluate results
+    if [ "$RECEIVED_COUNT" -ge 4 ]; then
+        echo "✅ PubSub propagation successful ($RECEIVED_COUNT/5 nodes)"
+        exit 0
+    else
+        echo "❌ PubSub propagation failed (only $RECEIVED_COUNT/5 nodes received)"
+        exit 1
+    fi
+
+# Test PubSub message propagation with full visualization (for interactive use)
+test-pubsub-propagation:
+    @just _test-pubsub-explain
+    @just _test-pubsub-execute
+    @just _test-pubsub-visualize
+
+# Internal: Show explanation and topology
+_test-pubsub-explain:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    GREEN='\033[32m'; YELLOW='\033[33m'; BLUE='\033[34m'
+    BOLD='\033[1m'; RESET='\033[0m'
 
     echo ""
     echo -e "${BOLD}${BLUE}🧪 Testing PubSub Message Propagation${RESET}"
     echo -e "${BLUE}═══════════════════════════════════════════${RESET}"
     echo ""
-
-    # Explanation
     echo -e "${BOLD}What's happening:${RESET}"
     echo -e "  • All 6 nodes are subscribed to the ${BLUE}doc-sync${RESET} PubSub topic"
     echo -e "  • Node 1 will publish a message to this topic"
     echo -e "  • ${BOLD}Gossipsub${RESET} protocol propagates the message through the mesh"
     echo -e "  • Each node receives and validates the message"
     echo ""
-
-    # Show network topology with publisher visualization
     echo -e "${BOLD}Why Node 1 is the Publisher:${RESET}"
     echo ""
     echo -e "  ${BLUE}┌─────────────────────────────────────────────────────┐${RESET}"
@@ -1132,47 +1287,61 @@ test-pubsub-propagation:
     echo -e "  ${BLUE}ℹ️  Each node is connected to all others (30 total connections)${RESET}"
     echo -e "  ${BLUE}ℹ️  Any node can be a publisher - depends on which receives HTTP POST${RESET}"
     echo ""
+    echo -e "${BOLD}Why Node 1 is the Publisher:${RESET}"
+    echo ""
+    echo -e "  The test sends an HTTP POST to Node 1's endpoint:"
+    echo ""
+    echo -e "  ${BLUE}curl -X POST http://localhost:5000/api/doc-sync/post${RESET} \\"
+    echo -e "       ${BLUE}-H \"Host: athena.hermes.local\"${RESET} \\"
+    echo -e "       ${BLUE}-H \"Content-Type: text/plain\"${RESET} \\"
+    echo -e "       ${BLUE}-d \"PubSub Test - Timestamp: <timestamp>\"${RESET}"
+    echo ""
+    echo -e "  ${GREEN}→${RESET} Node 1 receives the HTTP request"
+    echo -e "  ${GREEN}→${RESET} Node 1's Athena app publishes to the PubSub topic"
+    echo -e "  ${GREEN}→${RESET} Gossipsub propagates the message to all subscribed nodes"
+    echo ""
+    echo -e "  ${YELLOW}Note:${RESET} Any node could be the publisher if you POST to its endpoint"
+    echo -e "        (e.g., POST to localhost:5002 would make Node 2 the publisher)"
+    echo ""
 
-    # Check if nodes are running
-    RUNNING=$(docker compose ps | grep -c "Up" || echo "0")
-    if [ "$RUNNING" -lt 6 ]; then
+# Internal: Execute core test and store results
+_test-pubsub-execute:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    GREEN='\033[32m'; RED='\033[31m'; YELLOW='\033[33m'
+    BLUE='\033[34m'; BOLD='\033[1m'; RESET='\033[0m'
+
+    # Check nodes using helper
+    if ! just _check-nodes-running >/dev/null 2>&1; then
+        RUNNING=$(docker compose ps | grep -c "Up" || echo "0")
         echo -e "${RED}❌ Only $RUNNING/6 nodes running${RESET}"
         echo ""
-        echo "Required actions:"
         echo -e "  ${BLUE}→ Start nodes: just start${RESET}"
         exit 1
     fi
-
     echo -e "${GREEN}✓${RESET} All 6 nodes running"
     echo ""
 
-    # Wait a bit more for HTTP endpoints to be ready
+    # Wait for endpoints
     echo -e "${BLUE}Waiting for HTTP endpoints to initialize...${RESET}"
     sleep 5
-
-    # Check if Node 1 HTTP endpoint is responding
     echo -n "  Checking Node 1 HTTP endpoint... "
     if curl -s -f -m 5 http://localhost:5000/health >/dev/null 2>&1 || \
        curl -s -f -m 5 http://localhost:5000/ >/dev/null 2>&1; then
         echo -e "${GREEN}✓${RESET}"
     else
-        echo -e "${YELLOW}⚠️  Not responding yet, waiting 10s more...${RESET}"
+        echo -e "${YELLOW}⚠️  Not responding yet, waiting...${RESET}"
         sleep 10
     fi
+    echo ""
 
-    # Post a unique test message from Node 1
+    # Publish message
+    echo -e "${BOLD}Step 1/3:${RESET} Publishing message to PubSub topic..."
     TIMESTAMP=$(date +%s)
     TEST_MESSAGE="PubSub Test - Timestamp: $TIMESTAMP"
-
-    echo ""
-    echo -e "${BOLD}Step 1/3:${RESET} Publishing message to PubSub topic..."
     echo ""
     echo -e "  ${BLUE}ℹ️  Node 1 publishes to topic: ${BOLD}doc-sync${RESET}"
-    echo ""
-    echo -e "  ${BOLD}📨 Message Content:${RESET}"
-    echo -e "  ┌────────────────────────────────────────────┐"
-    echo -e "  │ ${BLUE}$TEST_MESSAGE${RESET}"
-    echo -e "  └────────────────────────────────────────────┘"
+    echo -e "  ${BOLD}📨 Message:${RESET} ${BLUE}\"$TEST_MESSAGE\"${RESET}"
     echo ""
 
     RESPONSE=$(curl -s -X POST http://localhost:5000/api/doc-sync/post \
@@ -1185,32 +1354,18 @@ test-pubsub-propagation:
 
     if [ "$SUCCESS" != "true" ]; then
         echo -e "${RED}❌ Failed to post message!${RESET}"
-        echo ""
-        echo "Response received:"
         echo "$RESPONSE" | head -20
         echo ""
-        echo "Possible causes:"
-        echo "  • Node 1 HTTP endpoint not ready (Athena app still loading)"
-        echo "  • Network connectivity issue"
-        echo "  • Doc-sync module not initialized"
-        echo ""
-        echo "Troubleshooting:"
-        echo -e "  ${BLUE}→ Check if Athena loaded: just logs-node 1 | grep 'Loading application'${RESET}"
-        echo -e "  ${BLUE}→ Check endpoint: curl -v http://localhost:5000/${RESET}"
         echo -e "  ${BLUE}→ Full diagnostics: just troubleshoot${RESET}"
-        echo -e "  ${BLUE}→ Wait and retry: sleep 30 && just test-pubsub-propagation${RESET}"
         exit 1
     fi
 
     echo -e "${GREEN}✓${RESET} Message published successfully"
-    echo -e "  ${BOLD}🔑 Content ID (CID):${RESET} ${BLUE}$CID${RESET}"
+    echo -e "  ${BOLD}🔑 CID:${RESET} ${BLUE}$CID${RESET}"
     echo -e "  ${BLUE}ℹ️  CID is the IPFS content hash (cryptographic fingerprint)${RESET}"
     echo ""
-    echo -e "  ${BOLD}📡 Broadcasting via Gossipsub protocol...${RESET}"
-    echo -e "  ${BLUE}ℹ️  Message propagates through mesh to all subscribed peers${RESET}"
-    echo ""
 
-    # Wait for PubSub propagation with countdown
+    # Wait for propagation
     echo -e "${BOLD}Step 2/3:${RESET} Waiting for P2P propagation..."
     echo -e "  ${BLUE}ℹ️  Gossipsub forwards message through peer connections${RESET}"
     for i in {3..1}; do
@@ -1220,44 +1375,33 @@ test-pubsub-propagation:
     echo -e "${GREEN}✓${RESET} Initial wait complete              "
     echo ""
 
-    # Check which nodes received the message with animation
+    # Check reception
     echo -e "${BOLD}Step 3/3:${RESET} Monitoring message reception..."
-    echo ""
-    echo -e "  ${BLUE}ℹ️  Checking logs for PubSub message receipts on each node${RESET}"
-    echo -e "  ${BLUE}ℹ️  Each node validates the message signature and CID${RESET}"
     echo ""
 
     RECEIVED_COUNT=0
     START_TIME=$(date +%s)
-
-    # Visual representation of nodes
-    declare -A NODE_STATUS
-    declare -A NODE_RECEIVE_TIME
-    PUBLISH_TIME=$START_TIME
+    declare -A NODE_STATUS NODE_RECEIVE_TIME
 
     for i in {2..6}; do
         NODE_STATUS[$i]="⏳"
         NODE_RECEIVE_TIME[$i]="0"
     done
 
-    # Check nodes in real-time with animation
-    MAX_WAIT=5  # Check for 5 seconds
+    MAX_WAIT=5
     for SECOND in $(seq 1 $MAX_WAIT); do
-        # Check each node
         for NODE in {2..6}; do
             if [ "${NODE_STATUS[$NODE]}" = "⏳" ]; then
-                NODE_NAME="hermes-node$NODE"
-                if docker compose logs "$NODE_NAME" 2>&1 | grep "RECEIVED PubSub message" | grep -q "$TIMESTAMP"; then
+                if docker compose logs "hermes-node$NODE" 2>&1 | grep "RECEIVED PubSub message" | grep -q "$TIMESTAMP"; then
                     NODE_STATUS[$NODE]="✅"
                     NODE_RECEIVE_TIME[$NODE]=$(date +%s)
                     RECEIVED_COUNT=$((RECEIVED_COUNT + 1))
-                    LATENCY=$((NODE_RECEIVE_TIME[$NODE] - PUBLISH_TIME))
-                    echo -e "  ${GREEN}✨ Node $NODE received message${RESET} (${LATENCY}s) → ${BLUE}\"$TEST_MESSAGE\"${RESET}"
+                    LATENCY=$((NODE_RECEIVE_TIME[$NODE] - START_TIME))
+                    echo -e "  ${GREEN}✨ Node $NODE received message${RESET} (${LATENCY}s)"
                 fi
             fi
         done
 
-        # Show progress
         if [ $RECEIVED_COUNT -lt 5 ]; then
             echo -ne "\r  Waiting... ${SECOND}s  [${NODE_STATUS[2]} ${NODE_STATUS[3]} ${NODE_STATUS[4]} ${NODE_STATUS[5]} ${NODE_STATUS[6]}]"
             sleep 1
@@ -1268,33 +1412,62 @@ test-pubsub-propagation:
     done
     echo ""
 
-    # Calculate statistics
+    # Store results in temp file for visualization
+    RESULTS_FILE="/tmp/p2p-test-results-$TIMESTAMP.txt"
+    echo "TIMESTAMP=$TIMESTAMP" > "$RESULTS_FILE"
+    echo "TEST_MESSAGE=\"$TEST_MESSAGE\"" >> "$RESULTS_FILE"
+    echo "CID=\"$CID\"" >> "$RESULTS_FILE"
+    echo "RECEIVED_COUNT=$RECEIVED_COUNT" >> "$RESULTS_FILE"
+    echo "START_TIME=$START_TIME" >> "$RESULTS_FILE"
+    for NODE in {2..6}; do
+        echo "NODE_STATUS_$NODE=\"${NODE_STATUS[$NODE]}\"" >> "$RESULTS_FILE"
+        echo "NODE_RECEIVE_TIME_$NODE=${NODE_RECEIVE_TIME[$NODE]}" >> "$RESULTS_FILE"
+    done
+
+# Internal: Show detailed visualization and statistics
+_test-pubsub-visualize:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    GREEN='\033[32m'; RED='\033[31m'; YELLOW='\033[33m'
+    BLUE='\033[34m'; BOLD='\033[1m'; RESET='\033[0m'
+
+    # Load results from temp file
+    RESULTS_FILE=$(ls -t /tmp/p2p-test-results-*.txt 2>/dev/null | head -1)
+    if [ -z "$RESULTS_FILE" ]; then
+        echo "❌ No test results found"
+        exit 1
+    fi
+
+    source "$RESULTS_FILE"
+
+    declare -A NODE_STATUS NODE_RECEIVE_TIME
+    for NODE in {2..6}; do
+        eval "NODE_STATUS[$NODE]=\$NODE_STATUS_$NODE"
+        eval "NODE_RECEIVE_TIME[$NODE]=\$NODE_RECEIVE_TIME_$NODE"
+    done
+
     END_TIME=$(date +%s)
     TOTAL_TIME=$((END_TIME - START_TIME))
     MSG_SIZE=$(echo -n "$TEST_MESSAGE" | wc -c)
     CID_SIZE=$(echo -n "$CID" | wc -c)
 
-    # Final status display
+    # Timeline
     echo ""
     echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     echo -e "${BOLD}1. PROPAGATION TIMELINE ⏱️${RESET}"
     echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     echo ""
     echo -e "  ${BLUE}0.0s${RESET} → ${BOLD}Node 1 publishes message${RESET}"
-
     for NODE in {2..6}; do
         if [ "${NODE_STATUS[$NODE]}" = "✅" ]; then
-            RECV_TIME=$((NODE_RECEIVE_TIME[$NODE] - PUBLISH_TIME))
+            RECV_TIME=$((NODE_RECEIVE_TIME[$NODE] - START_TIME))
             echo -e "  ${GREEN}${RECV_TIME}.0s${RESET} → Node $NODE received (${GREEN}+${RECV_TIME}s${RESET})"
-        fi
-    done
-
-    for NODE in {2..6}; do
-        if [ "${NODE_STATUS[$NODE]}" != "✅" ]; then
+        else
             echo -e "  ${RED}---${RESET} → Node $NODE ${RED}did not receive${RESET}"
         fi
     done
 
+    # Statistics
     echo ""
     echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     echo -e "${BOLD}2. NETWORK STATISTICS 📊${RESET}"
@@ -1310,23 +1483,14 @@ test-pubsub-propagation:
     echo -e "    • Total Connections: ${BLUE}30${RESET} (full mesh)"
     echo -e "    • Subscriber Nodes: ${BLUE}5${RESET}"
     echo -e "    • Success Rate: ${GREEN}$((RECEIVED_COUNT * 100 / 5))%${RESET} (${RECEIVED_COUNT}/5)"
-    echo ""
-    echo -e "  ${BOLD}Performance:${RESET}"
-    echo -e "    • Total Propagation Time: ${BLUE}~${TOTAL_TIME}s${RESET}"
-    if [ $RECEIVED_COUNT -gt 0 ]; then
-        AVG_TIME=$((TOTAL_TIME))
-        echo -e "    • Average Latency: ${BLUE}~${AVG_TIME}s per node${RESET}"
-    fi
     echo -e "    • Protocol: ${BLUE}Gossipsub v1.2 (libp2p)${RESET}"
+
+    # Log Preview
     echo ""
     echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     echo -e "${BOLD}3. LIVE LOG PREVIEW 📜${RESET}"
     echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     echo ""
-    echo -e "  ${BOLD}Recent PubSub activity (last 3 entries):${RESET}"
-    echo ""
-
-    # Show recent log entries from nodes that received the message
     for NODE in {2..3}; do
         if [ "${NODE_STATUS[$NODE]}" = "✅" ]; then
             echo -e "  ${BLUE}[Node $NODE]${RESET}"
@@ -1335,27 +1499,29 @@ test-pubsub-propagation:
         fi
     done
 
+    # Peer Connections
     echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
-    echo -e "${BOLD}5. PEER CONNECTIONS 🔗${RESET}"
+    echo -e "${BOLD}4. PEER CONNECTIONS 🔗${RESET}"
     echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     echo ""
-
-    # Get peer connection counts
     PEER_CONN=$(docker compose logs 2>&1 | grep -c "New peer connected" || echo "0")
     echo -e "  ${BOLD}Active P2P Connections:${RESET}"
     echo -e "    • Total peer connections logged: ${BLUE}${PEER_CONN}${RESET}"
     echo -e "    • Expected connections: ${BLUE}30${RESET} (each node connects to 5 others)"
     echo ""
     echo -e "  ${BOLD}Connection Matrix (Full Mesh):${RESET}"
-    echo -e "    Node 1 ⟷ Node 2, Node 3, Node 4, Node 5, Node 6"
-    echo -e "    Node 2 ⟷ Node 1, Node 3, Node 4, Node 5, Node 6"
-    echo -e "    Node 3 ⟷ Node 1, Node 2, Node 4, Node 5, Node 6"
-    echo -e "    Node 4 ⟷ Node 1, Node 2, Node 3, Node 5, Node 6"
-    echo -e "    Node 5 ⟷ Node 1, Node 2, Node 3, Node 4, Node 6"
-    echo -e "    Node 6 ⟷ Node 1, Node 2, Node 3, Node 4, Node 5"
+    for NODE in {1..6}; do
+        echo -n "    Node $NODE ⟷ "
+        OTHERS=()
+        for OTHER in {1..6}; do
+            [ $NODE -ne $OTHER ] && OTHERS+=("Node $OTHER")
+        done
+        echo "${OTHERS[*]}" | sed 's/ /, /g'
+    done
     echo ""
     echo -e "  ${BLUE}ℹ️  Each node maintains 5 peer connections (5 peers × 6 nodes = 30 total)${RESET}"
 
+    # Final Status
     echo ""
     echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     echo -e "${BOLD}FINAL STATUS 📋${RESET}"
@@ -1368,10 +1534,9 @@ test-pubsub-propagation:
     echo -e "  ${BOLD}Reception Status:${RESET}"
     for NODE in {2..6}; do
         if [ "${NODE_STATUS[$NODE]}" = "✅" ]; then
-            RECV_TIME=$((NODE_RECEIVE_TIME[$NODE] - PUBLISH_TIME))
+            RECV_TIME=$((NODE_RECEIVE_TIME[$NODE] - START_TIME))
             echo -e "    ${GREEN}✅ Node $NODE: RECEIVED${RESET} (${RECV_TIME}s)"
         else
-            NODE_STATUS[$NODE]="❌"
             echo -e "    ${RED}❌ Node $NODE: Did NOT receive${RESET}"
         fi
     done
@@ -1385,34 +1550,28 @@ test-pubsub-propagation:
         echo -e "${BOLD}${GREEN}✅ SUCCESS - Perfect Propagation!${RESET}"
         echo ""
         echo -e "  • ${GREEN}All 5 nodes${RESET} received the message"
-        echo -e "  • Latency: ~${LATENCY}s"
         echo -e "  • Mesh status: ${GREEN}Healthy${RESET}"
         echo ""
+        rm -f "$RESULTS_FILE"
         exit 0
     elif [ "$RECEIVED_COUNT" -ge 4 ]; then
         echo -e "${BOLD}${GREEN}✅ SUCCESS - Good Propagation${RESET}"
         echo ""
         echo -e "  • ${GREEN}$RECEIVED_COUNT/5 nodes${RESET} received the message"
-        echo -e "  • Latency: ~${LATENCY}s"
         echo -e "  • Mesh status: ${GREEN}Operational${RESET}"
         echo ""
+        rm -f "$RESULTS_FILE"
         exit 0
     elif [ "$RECEIVED_COUNT" -gt 0 ]; then
         echo -e "${BOLD}${YELLOW}⚠️  PARTIAL - Incomplete Propagation${RESET}"
         echo ""
         echo -e "  • Only ${YELLOW}$RECEIVED_COUNT/5 nodes${RESET} received the message"
-        echo -e "  • Expected: 4-5 nodes"
         echo -e "  • Mesh status: ${YELLOW}Degraded${RESET}"
-        echo ""
-        echo "Possible causes:"
-        echo "  • Mesh still forming (wait longer)"
-        echo "  • Some nodes not subscribed to topic"
-        echo "  • Network connectivity issues"
         echo ""
         echo "Troubleshooting:"
         echo -e "  ${BLUE}→ Check health: just health-check${RESET}"
         echo -e "  ${BLUE}→ View logs: just logs | grep -i pubsub${RESET}"
-        echo -e "  ${BLUE}→ Restart nodes: just restart${RESET}"
+        rm -f "$RESULTS_FILE"
         exit 1
     else
         echo -e "${BOLD}${RED}❌ FAILED - No Propagation${RESET}"
@@ -1420,16 +1579,10 @@ test-pubsub-propagation:
         echo -e "  • ${RED}No nodes${RESET} received the message"
         echo -e "  • Mesh status: ${RED}Broken${RESET}"
         echo ""
-        echo "Possible causes:"
-        echo "  • PubSub mesh not formed"
-        echo "  • Nodes not subscribed to topic"
-        echo "  • Bootstrap issues"
-        echo ""
         echo "Troubleshooting:"
-        echo -e "  ${BLUE}→ Check connectivity: just check-connectivity${RESET}"
         echo -e "  ${BLUE}→ Full diagnostics: just troubleshoot${RESET}"
-        echo -e "  ${BLUE}→ Reset bootstrap: just init-bootstrap${RESET}"
         echo -e "  ${BLUE}→ Check logs: just logs | grep -E '(RECEIVED|gossipsub|bootstrap)'${RESET}"
+        rm -f "$RESULTS_FILE"
         exit 1
     fi
 
@@ -1463,9 +1616,10 @@ test-ci:
     echo ""
     just test-pubsub
 
-    # Test PubSub message propagation (end-to-end)
+    # Test PubSub message propagation (end-to-end, minimal output for CI)
     echo ""
-    just test-pubsub-propagation
+    echo "🧪 PubSub propagation test..."
+    just test-pubsub-core
 
     echo ""
     echo "✅ CI test suite passed!"
