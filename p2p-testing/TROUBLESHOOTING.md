@@ -6,7 +6,7 @@ This guide helps you diagnose and fix common issues with the P2P testing environ
 
 ```bash
 just validate-prereqs    # Check prerequisites
-just health-check        # Comprehensive health check
+just test-pubsub-propagation        # Comprehensive health check
 just dashboard           # Live status view
 just troubleshoot        # Generate full diagnostic report
 ```
@@ -24,7 +24,7 @@ just troubleshoot        # Generate full diagnostic report
 
 **Diagnosis:**
 ```bash
-just health-check
+just test-pubsub-propagation
 just logs | grep -E '(gossipsub|bootstrap|RECEIVED)'
 ```
 
@@ -124,7 +124,7 @@ just start
 
 **Diagnosis:**
 ```bash
-just health-check
+just test-pubsub-propagation
 just logs | grep "peer connected" | wc -l  # Should be 30 for full mesh
 ```
 
@@ -410,7 +410,7 @@ just restart
 
 5. **Check health regularly:**
    ```bash
-   just health-check
+   just test-pubsub-propagation
    just dashboard
    ```
 
@@ -425,6 +425,6 @@ If none of these solutions work:
 3. Review Docker logs: `docker compose logs > full-logs.txt`
 4. Report the issue with:
    - Output of `just troubleshoot`
-   - Output of `just health-check`
+   - Output of `just test-pubsub-propagation`
    - Steps to reproduce the problem
    - Your system info (OS, Docker version)

@@ -24,24 +24,23 @@ just quickstart     # Does everything: build, start, test, verify
 
 ### Daily Workflow
 ```
-┌─────────────┐     ┌─────────────┐     ┌──────────────┐     ┌─────────┐     ┌──────┐
-│ just start  │ →   │  dashboard  │ →   │ test-pubsub- │ →   │  logs   │ →   │ stop │
-│             │     │             │     │ propagation  │     │         │     │      │
-└─────────────┘     └─────────────┘     └──────────────┘     └─────────┘     └──────┘
+┌─────────────┐     ┌──────────────┐     ┌─────────┐     ┌──────┐
+│ just start  │ →   │ test-pubsub- │ →   │  logs   │ →   │ stop │
+│             │     │ propagation  │     │         │     │      │
+└─────────────┘     └──────────────┘     └─────────┘     └──────┘
 ```
 
 ```bash
 just start              # Start 6 nodes (waits for mesh formation)
-just dashboard          # Check status
-just test-pubsub-propagation  # Test message propagation with visualization
+just test-pubsub-propagation  # Test message propagation
 just logs               # Monitor activity
 just stop               # Stop nodes (preserves peer IDs)
 ```
 
 ### When Things Go Wrong
 ```bash
-just health-check       # Quick diagnostic
-just troubleshoot       # Full diagnostic report
+just test-pubsub-propagation  # Diagnose with message propagation test
+just troubleshoot              # Full diagnostic report
 ```
 
 ### Complete Reset
@@ -61,8 +60,6 @@ just quickstart         # Start fresh from scratch
 
 **Testing & Monitoring:**
 - `just test-pubsub-propagation` - Test end-to-end message propagation
-- `just health-check` - Comprehensive system health check
-- `just dashboard` - Live status display with node info
 - `just logs` - View all logs
 - `just status` - Show node endpoints
 
@@ -101,11 +98,8 @@ just start-ci && just test-ci && just clean
 
 If `just test-pubsub-propagation` fails, follow these steps:
 
-### 1. Quick Health Check
-```bash
-just health-check
-```
-This checks all nodes, peer connections, Gossipsub, and bootstrap status.
+### 1. Quick Diagnostic
+Run the test again with fresh nodes or after waiting for mesh formation.
 
 ### 2. Common Fixes
 

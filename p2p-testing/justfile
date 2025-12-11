@@ -15,19 +15,26 @@
 #   Alternative would be forking rust-ipfs to add small mesh configuration support.
 #
 # QUICK START (first time):
+#   just quickstart     # Does everything: build, start, test, verify
+#
+# MANUAL SETUP (if you prefer step-by-step):
 #   just build-all && just build-images  # Build everything
 #   just init-bootstrap                  # Discover peer IDs (REQUIRED after clean)
-#   just test-pubsub                     # Verify PubSub works
+#   just test-pubsub                     # Verify PubSub infrastructure
 #
 # DAILY WORKFLOW:
-#   just start          # Start nodes (preserves peer IDs)
+#   just start                    # Start nodes (preserves peer IDs)
 #   just test-pubsub-propagation  # Test message propagation (with visualization)
-#   just logs           # Monitor activity
-#   just stop           # Stop nodes (keeps data)
+#   just logs                     # Monitor activity
+#   just stop                     # Stop nodes (keeps data)
 #
 # AFTER CLEANING VOLUMES:
-#   just clean          # Deletes volumes + peer identities
-#   just init-bootstrap # REQUIRED: Rediscovers peer IDs before start
+#   just clean                    # Deletes volumes + peer identities
+#   just init-bootstrap           # REQUIRED: Rediscover peer IDs
+#   just start                    # Now safe to start with fresh peer IDs
+#
+# OR: Use quickstart which handles init-bootstrap automatically:
+#   just clean && just quickstart
 #
 # CI/CD:
 #   just start-ci && just test-ci && just clean
@@ -285,7 +292,7 @@ quickstart:
     # Step 6: Health check
     echo ""
     echo -e "${BOLD}Step 6/7:${RESET} Running health check..."
-    if just health-check; then
+    if just test-pubsub-propagation; then
         echo ""
     else
         echo ""
@@ -314,7 +321,7 @@ quickstart:
         echo ""
         echo -e "${BOLD}Next Steps:${RESET}"
         echo "  • View logs: ${BLUE}just logs${RESET}"
-        echo "  • Check status: ${BLUE}just dashboard${RESET}"
+        echo "  • Check status: ${BLUE}just test-pubsub-propagation${RESET}"
         echo "  • Test again: ${BLUE}just test-pubsub-propagation${RESET}"
         echo "  • Stop nodes: ${BLUE}just stop${RESET}"
         echo ""
@@ -477,119 +484,6 @@ validate-prereqs:
     else
         echo -e "${RED}❌ Found $ERRORS issue(s). Please fix them before continuing.${RESET}"
         echo ""
-        exit 1
-    fi
-
-# Comprehensive health check of running environment
-health-check:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    GREEN='\033[32m'; RED='\033[31m'; YELLOW='\033[33m'
-    BLUE='\033[34m'; RESET='\033[0m'
-
-    echo -e "${BLUE}🏥 Health Check${RESET}"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo ""
-
-    ISSUES=0
-
-    # Check if nodes are running
-    echo -e "${BLUE}📊 Node Status:${RESET}"
-    RUNNING_NODES=$(docker compose ps --format json 2>/dev/null | jq -s 'map(select(.State == "running")) | length' 2>/dev/null || echo "0")
-
-    if [ "$RUNNING_NODES" -eq 6 ]; then
-        echo -e "  ${GREEN}✅ All 6 nodes running${RESET}"
-    elif [ "$RUNNING_NODES" -gt 0 ]; then
-        echo -e "  ${YELLOW}⚠️  Only $RUNNING_NODES/6 nodes running${RESET}"
-        ISSUES=$((ISSUES + 1))
-    else
-        echo -e "  ${RED}❌ No nodes running${RESET}"
-        echo -e "    ${YELLOW}→ Start nodes: just start${RESET}"
-        echo ""
-        exit 1
-    fi
-
-    # Check peer connections
-    echo ""
-    echo -e "${BLUE}🔗 Peer Connections:${RESET}"
-    CONN_COUNT=$(docker compose logs 2>&1 | grep -c "New peer connected" || echo "0")
-    if [ "$CONN_COUNT" -ge 30 ]; then
-        echo -e "  ${GREEN}✅ Full mesh connected ($CONN_COUNT peer connections)${RESET}"
-    elif [ "$CONN_COUNT" -ge 15 ]; then
-        echo -e "  ${YELLOW}⚠️  Partial mesh ($CONN_COUNT connections, expected 30)${RESET}"
-        ISSUES=$((ISSUES + 1))
-    else
-        echo -e "  ${RED}❌ Mesh not formed ($CONN_COUNT connections)${RESET}"
-        echo -e "    ${YELLOW}→ Wait longer or check: just logs | grep 'peer connected'${RESET}"
-        ISSUES=$((ISSUES + 1))
-    fi
-
-    # Check Gossipsub
-    echo ""
-    echo -e "${BLUE}📢 PubSub Status:${RESET}"
-    GOSSIPSUB_ACTIVE=$(docker compose logs 2>&1 | grep -ic "gossipsub" || echo "0")
-    if [ "$GOSSIPSUB_ACTIVE" -gt 0 ]; then
-        echo -e "  ${GREEN}✅ Gossipsub active ($GOSSIPSUB_ACTIVE log entries)${RESET}"
-    else
-        echo -e "  ${RED}❌ Gossipsub not detected${RESET}"
-        ISSUES=$((ISSUES + 1))
-    fi
-
-    # Check bootstrap
-    echo ""
-    echo -e "${BLUE}🚀 Bootstrap Status:${RESET}"
-    BOOTSTRAP_SUCCESS=$(docker compose logs 2>&1 | grep -c "All bootstrap peers connected")
-    BOOTSTRAP_SUCCESS=${BOOTSTRAP_SUCCESS:-0}
-    if [ "$BOOTSTRAP_SUCCESS" -ge 4 ]; then
-        echo -e "  ${GREEN}✅ Bootstrap complete on $BOOTSTRAP_SUCCESS nodes${RESET}"
-    else
-        echo -e "  ${YELLOW}⚠️  Bootstrap incomplete ($BOOTSTRAP_SUCCESS/6 nodes)${RESET}"
-        echo -e "    ${YELLOW}→ May still be connecting (check logs)${RESET}"
-    fi
-
-    # Check for errors in logs
-    echo ""
-    echo -e "${BLUE}⚠️  Error Check:${RESET}"
-    ERROR_COUNT=$(docker compose logs 2>&1 | grep -iE "(error|panic|failed)" | grep -vc "wrong peer id" || echo "0")
-    if [ "$ERROR_COUNT" -eq 0 ]; then
-        echo -e "  ${GREEN}✅ No errors in logs${RESET}"
-    else
-        echo -e "  ${YELLOW}⚠️  Found $ERROR_COUNT error messages${RESET}"
-        echo -e "    ${YELLOW}→ Review: just logs | grep -i error${RESET}"
-    fi
-
-    # Node endpoints
-    echo ""
-    echo -e "${BLUE}📡 Node Endpoints:${RESET}"
-    for i in {1..6}; do
-        NODE_NAME="hermes-node$i"
-        if docker compose ps "$NODE_NAME" 2>/dev/null | grep -q "Up"; then
-            PORT=$((5000 + (i-1)*2))
-            if [ "$i" -eq 1 ]; then PORT=5000; fi
-            echo -e "  ${GREEN}✅${RESET} Node $i: http://localhost:$PORT"
-        else
-            echo -e "  ${RED}❌${RESET} Node $i: not running"
-        fi
-    done
-
-    echo ""
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-    if [ $ISSUES -eq 0 ]; then
-        echo -e "${GREEN}✅ All systems operational!${RESET}"
-        echo ""
-        echo "Next steps:"
-        echo "  • Test propagation: just test-pubsub-propagation"
-        echo "  • View logs: just logs"
-        echo "  • Check dashboard: just dashboard"
-        exit 0
-    else
-        echo -e "${YELLOW}⚠️  Found $ISSUES issue(s) - system partially operational${RESET}"
-        echo ""
-        echo "Troubleshooting:"
-        echo "  • View logs: just logs"
-        echo "  • Full diagnostics: just troubleshoot"
-        echo "  • Restart: just restart"
         exit 1
     fi
 
@@ -756,93 +650,6 @@ troubleshoot:
     echo "  • Port conflicts: ${BLUE}just stop${RESET}"
     echo "  • Full reset: ${BLUE}just clean && just start${RESET}"
     echo "  • View logs: ${BLUE}just logs${RESET}"
-    echo ""
-
-# Display status dashboard
-dashboard:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    GREEN='\033[32m'; RED='\033[31m'; YELLOW='\033[33m'
-    BLUE='\033[34m'; BOLD='\033[1m'; RESET='\033[0m'
-
-    echo ""
-    echo -e "${BOLD}╔════════════════════════════════════════════════════════════╗${RESET}"
-    echo -e "${BOLD}║          Hermes P2P Testing Environment Status             ║${RESET}"
-    echo -e "${BOLD}╠════════════════════════════════════════════════════════════╣${RESET}"
-
-    # Check each node
-    for i in {1..6}; do
-        NODE_NAME="hermes-node$i"
-        if docker compose ps "$NODE_NAME" 2>/dev/null | grep -q "Up"; then
-            STATUS="running"
-        else
-            STATUS="not running"
-        fi
-
-        # Calculate port
-        case $i in
-            1) PORT=5000 ;;
-            2) PORT=5002 ;;
-            3) PORT=5004 ;;
-            4) PORT=5006 ;;
-            5) PORT=5008 ;;
-            6) PORT=5010 ;;
-        esac
-
-        # Get peer ID (shortened)
-        PEER_ID=$(docker compose logs "$NODE_NAME" 2>&1 | grep -oP 'Peer ID: \K12D3[^ ]+' | head -1 | cut -c1-9 || echo "unknown")
-
-        # Count peers for this node
-        PEER_COUNT=$(docker compose logs "$NODE_NAME" 2>&1 | grep -c "New peer connected" || echo "0")
-        if [ "$PEER_COUNT" -gt 5 ]; then PEER_COUNT=5; fi  # Max 5 peers per node
-
-        # Status indicator
-        if [ "$STATUS" = "running" ]; then
-            STATUS_ICON="${GREEN}✅${RESET}"
-            PEER_INFO="${GREEN}$PEER_COUNT peers${RESET}"
-        else
-            STATUS_ICON="${RED}❌${RESET}"
-            PEER_INFO="${RED}$STATUS${RESET}"
-        fi
-
-        printf "║ Node $i $STATUS_ICON  http://localhost:$PORT  │  %-15b │  $PEER_ID... ║\n" "$PEER_INFO"
-    done
-
-    echo -e "${BOLD}╠════════════════════════════════════════════════════════════╣${RESET}"
-
-    # Overall mesh status
-    RUNNING_NODES=$(docker compose ps | grep -c "Up" || echo "0")
-    TOTAL_CONNECTIONS=$(docker compose logs 2>&1 | grep -c "New peer connected" || echo "0")
-    GOSSIPSUB_ACTIVE=$(docker compose logs 2>&1 | grep -ic "gossipsub" || echo "0")
-
-    # Mesh status
-    if [ "$RUNNING_NODES" -eq 6 ] && [ "$TOTAL_CONNECTIONS" -ge 30 ]; then
-        MESH_STATUS="${GREEN}✅ Healthy${RESET}"
-    elif [ "$RUNNING_NODES" -eq 6 ]; then
-        MESH_STATUS="${YELLOW}⚠️  Forming${RESET}"
-    else
-        MESH_STATUS="${RED}❌ Down${RESET}"
-    fi
-
-    # PubSub status
-    if [ "$GOSSIPSUB_ACTIVE" -gt 0 ]; then
-        PUBSUB_STATUS="${GREEN}✅ Active${RESET}"
-    else
-        PUBSUB_STATUS="${RED}❌ Inactive${RESET}"
-    fi
-
-    # Calculate uptime (rough estimate from first container)
-    UPTIME=$(docker compose ps 2>/dev/null | grep "hermes-node1" | awk '{print $(NF-1), $NF}' || echo "unknown")
-
-    printf "║ Mesh: %-20b │  PubSub: %-20b │  Up: %-10s ║\n" "$MESH_STATUS" "$PUBSUB_STATUS" "$UPTIME"
-    echo -e "${BOLD}╚════════════════════════════════════════════════════════════╝${RESET}"
-    echo ""
-    echo -e "${BOLD}Commands:${RESET}"
-    echo "  just logs                - View all logs"
-    echo "  just test-pubsub         - Test infrastructure"
-    echo "  just test-pubsub-propagation  - Test message propagation"
-    echo "  just health-check        - Full diagnostics"
-    echo "  just troubleshoot        - Debug issues"
     echo ""
 
 # ==============================================================================
@@ -1322,12 +1129,11 @@ _test-pubsub-execute:
     echo -e "${GREEN}✓${RESET} All 6 nodes running"
     echo ""
 
-    # Wait for endpoints
+    # Wait for endpoints (HTTP gateway requires Host header)
     echo -e "${BLUE}Waiting for HTTP endpoints to initialize...${RESET}"
     sleep 5
     echo -n "  Checking Node 1 HTTP endpoint... "
-    if curl -s -f -m 5 http://localhost:5000/health >/dev/null 2>&1 || \
-       curl -s -f -m 5 http://localhost:5000/ >/dev/null 2>&1; then
+    if curl -s -f -m 5 -H "Host: athena.hermes.local" http://localhost:5000/ >/dev/null 2>&1; then
         echo -e "${GREEN}✓${RESET}"
     else
         echo -e "${YELLOW}⚠️  Not responding yet, waiting...${RESET}"
@@ -1569,7 +1375,7 @@ _test-pubsub-visualize:
         echo -e "  • Mesh status: ${YELLOW}Degraded${RESET}"
         echo ""
         echo "Troubleshooting:"
-        echo -e "  ${BLUE}→ Check health: just health-check${RESET}"
+        echo -e "  ${BLUE}→ Check health: just test-pubsub-propagation${RESET}"
         echo -e "  ${BLUE}→ View logs: just logs | grep -i pubsub${RESET}"
         rm -f "$RESULTS_FILE"
         exit 1
@@ -1639,7 +1445,7 @@ help:
     @echo ""
     @echo "QUICK START (Daily):"
     @echo "  just start              # Start 6 nodes (waits for mesh formation)"
-    @echo "  just dashboard          # Check status"
+    @echo "  just test-pubsub-propagation       # Check status"
     @echo "  just test-pubsub-propagation  # Test message propagation"
     @echo "  just logs               # Monitor activity"
     @echo "  just stop               # Stop nodes (preserves peer IDs)"
@@ -1652,8 +1458,7 @@ help:
     @echo "  Developer Testing:"
     @echo "    just validate-prereqs # Check prerequisites"
     @echo "    just start            # Interactive mode, prompts to rebuild"
-    @echo "    just dashboard        # View live status"
-    @echo "    just health-check     # Comprehensive health check"
+    @echo "    just test-pubsub-propagation     # Comprehensive health check"
     @echo "    just test-pubsub-propagation  # Test message propagation"
     @echo "    just logs-node 1      # Debug specific node"
     @echo "    just restart          # Apply code changes"
@@ -1664,7 +1469,7 @@ help:
     @echo "    just clean            # Cleanup (deletes peer IDs)"
     @echo ""
     @echo "  Troubleshooting:"
-    @echo "    just health-check     # Check system health"
+    @echo "    just test-pubsub-propagation     # Check system health"
     @echo "    just troubleshoot     # Generate diagnostic report (saves to file)"
     @echo "    just check-connectivity  # Check P2P connectivity"
     @echo "    just init-bootstrap   # Reset bootstrap (auto-runs on first start)"
@@ -1682,8 +1487,6 @@ help:
     @echo ""
     @echo "VALIDATION & DIAGNOSTICS:"
     @echo "  validate-prereqs        Check all prerequisites"
-    @echo "  health-check            Comprehensive system health check"
-    @echo "  dashboard               Live status display with node info"
     @echo "  troubleshoot            Generate full diagnostic report"
     @echo "  check-connectivity      Check P2P connectivity status"
     @echo ""
@@ -1699,7 +1502,6 @@ help:
     @echo ""
     @echo "MONITORING:"
     @echo "  status                  Show node status and endpoints"
-    @echo "  dashboard               Live status with health indicators"
     @echo "  logs                    Follow all logs"
     @echo "  logs-node N             Follow node N logs (1-6)"
     @echo ""
@@ -1729,14 +1531,6 @@ help:
     @echo "  With fewer nodes, PubSub publish operations block waiting for mesh."
     @echo "  Alternative: fork rust-ipfs to add small mesh configuration support."
     @echo ""
-    @echo "FEATURES:"
-    @echo "  • Persistent peer IDs (keypairs stored in volumes)"
-    @echo "  • Bootstrap retry logic (10s interval, 10 max attempts)"
-    @echo "  • Gossipsub v1.2 PubSub protocol"
-    @echo "  • Full mesh connectivity (each node connected to others)"
-    @echo "  • Isolated Docker network (172.20.0.0/16)"
-    @echo "  • Color-coded output with helpful error messages"
-    @echo "  • Comprehensive diagnostics and troubleshooting"
     @echo ""
     @echo "DOCUMENTATION:"
     @echo "  README.md               Quick start guide"
