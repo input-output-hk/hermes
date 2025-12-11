@@ -948,53 +948,8 @@ test-node6:
     @echo "🧪 Testing Node 6..."
     @docker exec hermes-node6 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
 
-# Test PubSub infrastructure (connectivity and Gossipsub)
+# Test PubSub message propagation (minimal output, for CI)
 test-pubsub:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo "🧪 Testing PubSub infrastructure..."
-    echo ""
-
-    # Check if nodes are running
-    if ! docker compose ps | grep -q "hermes-node1.*Up"; then
-        echo "❌ Nodes not running. Start with: just start"
-        exit 1
-    fi
-
-    echo "1️⃣  Checking Gossipsub protocol is active..."
-    GOSSIPSUB_LINES=$(docker compose logs 2>&1 | grep -i "gossipsub" | wc -l)
-    if [ "$GOSSIPSUB_LINES" -gt 0 ]; then
-        echo "   ✅ Gossipsub protocol active ($GOSSIPSUB_LINES log entries)"
-    else
-        echo "   ❌ Gossipsub not detected"
-        exit 1
-    fi
-
-    echo ""
-    echo "2️⃣  Checking peer connections..."
-    CONNECTIONS=$(docker compose logs 2>&1 | grep "New peer connected" | wc -l)
-    if [ "$CONNECTIONS" -ge 30 ]; then
-        echo "   ✅ Full mesh connected ($CONNECTIONS peer connections)"
-    else
-        echo "   ⚠️  Only $CONNECTIONS peer connections (expected 30 for 6-node full mesh)"
-    fi
-
-    echo ""
-    echo "3️⃣  Checking bootstrap status..."
-    BOOTSTRAP_SUCCESS=$(docker compose logs 2>&1 | grep "All bootstrap peers connected" | wc -l || true)
-    if [ "$BOOTSTRAP_SUCCESS" -ge 4 ]; then
-        echo "   ✅ Bootstrap complete on $BOOTSTRAP_SUCCESS nodes"
-    elif [ "$CONNECTIONS" -ge 20 ]; then
-        echo "   ⚠️  Bootstrap retry still running, but nodes are connected"
-    else
-        echo "   ⚠️  Bootstrap incomplete ($BOOTSTRAP_SUCCESS nodes)"
-    fi
-
-    echo ""
-    echo "✅ PubSub infrastructure verified (Gossipsub active, peers connected)"
-
-# Core PubSub propagation test (minimal output, for CI)
-test-pubsub-core:
     #!/usr/bin/env bash
     set -euo pipefail
 
@@ -1009,6 +964,7 @@ test-pubsub-core:
     TIMESTAMP=$(date +%s)
     TEST_MESSAGE="PubSub Test - Timestamp: $TIMESTAMP"
 
+    echo "📤 Publishing message..."
     RESPONSE=$(just _post-message "$TEST_MESSAGE" 3)
     if [ $? -ne 0 ]; then
         echo "❌ Failed to post message"
@@ -1026,7 +982,7 @@ test-pubsub-core:
 
     # Evaluate results
     if [ "$RECEIVED_COUNT" -ge 4 ]; then
-        echo "✅ PubSub propagation successful ($RECEIVED_COUNT/5 nodes)"
+        echo "✅ PubSub propagation successful ($RECEIVED_COUNT/5 nodes received)"
         exit 0
     else
         echo "❌ PubSub propagation failed (only $RECEIVED_COUNT/5 nodes received)"
@@ -1186,7 +1142,7 @@ _test-pubsub-execute:
     echo ""
 
     RECEIVED_COUNT=0
-    START_TIME=$(date +%s)
+    START_TIME=$(date +%s%3N)  # Milliseconds for accurate timing
     declare -A NODE_STATUS NODE_RECEIVE_TIME
 
     for i in {2..6}; do
@@ -1200,10 +1156,11 @@ _test-pubsub-execute:
             if [ "${NODE_STATUS[$NODE]}" = "⏳" ]; then
                 if docker compose logs "hermes-node$NODE" 2>&1 | grep "RECEIVED PubSub message" | grep -q "$TIMESTAMP"; then
                     NODE_STATUS[$NODE]="✅"
-                    NODE_RECEIVE_TIME[$NODE]=$(date +%s)
+                    NODE_RECEIVE_TIME[$NODE]=$(date +%s%3N)
                     RECEIVED_COUNT=$((RECEIVED_COUNT + 1))
-                    LATENCY=$((NODE_RECEIVE_TIME[$NODE] - START_TIME))
-                    echo -e "  ${GREEN}✨ Node $NODE received message${RESET} (${LATENCY}s)"
+                    LATENCY_MS=$((NODE_RECEIVE_TIME[$NODE] - START_TIME))
+                    LATENCY_SEC=$(echo "scale=3; $LATENCY_MS / 1000" | bc)
+                    echo -e "  ${GREEN}✨ Node $NODE received message${RESET} (${LATENCY_SEC}s)"
                 fi
             fi
         done
@@ -1263,11 +1220,12 @@ _test-pubsub-visualize:
     echo -e "${BOLD}1. PROPAGATION TIMELINE ⏱️${RESET}"
     echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     echo ""
-    echo -e "  ${BLUE}0.0s${RESET} → ${BOLD}Node 1 publishes message${RESET}"
+    echo -e "  ${BLUE}0.000s${RESET} → ${BOLD}Node 1 publishes message${RESET}"
     for NODE in {2..6}; do
         if [ "${NODE_STATUS[$NODE]}" = "✅" ]; then
-            RECV_TIME=$((NODE_RECEIVE_TIME[$NODE] - START_TIME))
-            echo -e "  ${GREEN}${RECV_TIME}.0s${RESET} → Node $NODE received (${GREEN}+${RECV_TIME}s${RESET})"
+            RECV_TIME_MS=$((NODE_RECEIVE_TIME[$NODE] - START_TIME))
+            RECV_TIME_SEC=$(echo "scale=3; $RECV_TIME_MS / 1000" | bc)
+            echo -e "  ${GREEN}${RECV_TIME_SEC}s${RESET} → Node $NODE received (${GREEN}+${RECV_TIME_SEC}s${RESET})"
         else
             echo -e "  ${RED}---${RESET} → Node $NODE ${RED}did not receive${RESET}"
         fi
@@ -1340,8 +1298,9 @@ _test-pubsub-visualize:
     echo -e "  ${BOLD}Reception Status:${RESET}"
     for NODE in {2..6}; do
         if [ "${NODE_STATUS[$NODE]}" = "✅" ]; then
-            RECV_TIME=$((NODE_RECEIVE_TIME[$NODE] - START_TIME))
-            echo -e "    ${GREEN}✅ Node $NODE: RECEIVED${RESET} (${RECV_TIME}s)"
+            RECV_TIME_MS=$((NODE_RECEIVE_TIME[$NODE] - START_TIME))
+            RECV_TIME_SEC=$(echo "scale=3; $RECV_TIME_MS / 1000" | bc)
+            echo -e "    ${GREEN}✅ Node $NODE: RECEIVED${RESET} (${RECV_TIME_SEC}s)"
         else
             echo -e "    ${RED}❌ Node $NODE: Did NOT receive${RESET}"
         fi
