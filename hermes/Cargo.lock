@@ -3224,8 +3224,8 @@ dependencies = [
 
 [[package]]
 name = "hermes-ipfs"
-version = "0.0.8"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?branch=feat%2Fdoc-sync-timers#488549821b33441e3cce80c00c46649ee5e18591"
+version = "0.0.9"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?branch=feat%2Fdoc-sync-timers#34de5330f838ae158c1af9c36c89e76423caac0d"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -4824,11 +4824,11 @@ dependencies = [
 
 [[package]]
 name = "logcall"
-version = "0.1.11"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56e8309d7cbf9e9f27139956138cb375f14621cdb2f4cdd91468467ec04b6784"
+checksum = "f25eafa59f810ac51403c1cf6d3277d88a1a8743ce481abee45c940eaecbc4ac"
 dependencies = [
- "proc-macro-error",
+ "proc-macro-error2",
  "proc-macro2",
  "quote",
  "syn 2.0.111",
@@ -6337,30 +6337,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "219cb19e96be00ab2e37d6e299658a0cfa83e52429179969b0f0121b4ac46983"
 dependencies = [
  "toml_edit",
-]
-
-[[package]]
-name = "proc-macro-error"
-version = "1.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da25490ff9892aab3fcf7c36f08cfb902dd3e71ca0f9f9517bea02a73a5ce38c"
-dependencies = [
- "proc-macro-error-attr",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
- "version_check",
-]
-
-[[package]]
-name = "proc-macro-error-attr"
-version = "1.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1be40180e52ecc98ad80b184934baf3d0d29f979574e439af5a55274b35f869"
-dependencies = [
- "proc-macro2",
- "quote",
- "version_check",
 ]
 
 [[package]]
