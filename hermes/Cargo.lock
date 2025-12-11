@@ -3225,7 +3225,7 @@ dependencies = [
 [[package]]
 name = "hermes-ipfs"
 version = "0.0.8"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?branch=feat%2Fdoc-sync-timers#92903b1536c038ef78e3e9e5e7aba07f9a44ed6a"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?branch=feat%2Fdoc-sync-timers#488549821b33441e3cce80c00c46649ee5e18591"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -10631,9 +10631,9 @@ dependencies = [
 
 [[package]]
 name = "zlib-rs"
-version = "0.5.3"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36134c44663532e6519d7a6dfdbbe06f6f8192bde8ae9ed076e9b213f0e31df7"
+checksum = "51f936044d677be1a1168fae1d03b583a285a5dd9d8cbf7b24c23aa1fc775235"
 
 [[package]]
 name = "zstd"
