@@ -189,6 +189,7 @@ _extract-cid response:
 # ==============================================================================
 
 # Complete end-to-end setup and test (for first-time users)
+# NOTE: Uses existing binaries if present. If you changed code, run 'just build-all' first.
 quickstart:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -218,7 +219,8 @@ quickstart:
             exit 1
         }
     else
-        echo -e "  ${GREEN}✅ Artifacts already exist${RESET}"
+        echo -e "  ${GREEN}✅ Artifacts already exist (using existing binaries)${RESET}"
+        echo -e "  ${BLUE}ℹ️  Note: If you changed code, run 'just build-all' first to rebuild${RESET}"
     fi
 
     # Step 3: Build Docker images

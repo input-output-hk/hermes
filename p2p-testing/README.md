@@ -13,6 +13,8 @@ just quickstart    # Build, start mesh, test PubSub
 
 That's it. The mesh starts, tests run automatically, and you'll see if PubSub propagation works.
 
+> **Note:** `quickstart` uses existing binaries if present. If you changed code, run `just build-all` first to rebuild.
+
 ---
 
 ## Common Operations
