@@ -627,6 +627,7 @@ checksum = "780955b8b195a21ab8e4ac6b60dd1dbdcec1dc6c51c0617964b08c81785e12c9"
 name = "doc-sync"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "serde_json",
  "shared",
 ]

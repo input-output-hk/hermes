@@ -11,5 +11,6 @@ workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
+anyhow = "1.0.100"
 shared = { version = "0.1.0", path = "../../shared" }
 serde_json = "1.0.145"

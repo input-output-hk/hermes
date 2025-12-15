@@ -31,7 +31,10 @@ use hermes::{
 };
 use shared::{
     bindings::hermes::doc_sync::api::ChannelName,
-    utils::log::{self, error, info},
+    utils::{
+        log::{self, error, info},
+        sqlite,
+    },
 };
 
 /// Doc Sync component - thin wrapper calling host-side implementation.
@@ -62,6 +65,11 @@ impl exports::hermes::init::event::Guest for Component {
     fn init() -> bool {
         log::init(log::LevelFilter::Trace);
         info!(target: "doc_sync::init", "Doc sync module initialized");
+        if let Err(err) = init_db(false) {
+            error!(target: "doc_sync::init", "Failed to initialize database: {err:?}");
+            return false;
+        }
+
         // Create the channel during initialization
         SyncChannel::new(DOC_SYNC_CHANNEL);
         true

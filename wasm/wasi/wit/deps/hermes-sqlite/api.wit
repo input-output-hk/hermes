@@ -11,6 +11,8 @@
 
 /// SQLite API Interface
 interface api {
+    use wasi:clocks/wall-clock@0.2.6.{datetime};
+
     /// Represents an error with a code and a message.
     record error-info {
         /// The numeric result code of the error.
@@ -41,7 +43,7 @@ interface api {
         forbidden-pragma-command,
         /// Unhandled null pointer is returned while interacting with the database.
         returned-null-pointer,
-        /// The numeric value is truncated or improperly converted during the execution.  
+        /// The numeric value is truncated or improperly converted during the execution.
         converting-numeric
     }
 
@@ -58,7 +60,9 @@ interface api {
         /// Null value.
         null,
         /// UTF-8 text.
-        text(string)
+        text(string),
+        /// Timestamp.
+        timestamp(datetime)
     }
 
     /// The result of advancing a prepared SQLite statement by one step.
@@ -123,9 +127,9 @@ interface api {
         /// Advances a statement to the next result row or to completion.
         ///
         /// After a prepared statement has been prepared, this function must be called one or more times to evaluate the statement.
-        /// 
+        ///
         /// ## Returns
-        /// 
+        ///
         /// A `step-result` indicating the status of the step.
         step: func() -> result<step-result, errno>;
 
