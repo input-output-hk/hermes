@@ -334,8 +334,8 @@ fn ensure_provided(
     /// - Start with fast retries (100ms) for local/fast networks
     /// - Exponentially increase to avoid hammering DHT in slower networks
     /// - Total initial backoff: ~3 seconds before switching to 2-second intervals
-    /// - After exhausting these, extends with 20x 2-second retries for P2P test environments
-    ///   where DHT propagation can be slower due to mesh formation delays
+    /// - After exhausting these, extends with 20x 2-second retries for P2P test
+    ///   environments where DHT propagation can be slower due to mesh formation delays
     const BACKOFF_DURATION: [u64; 5] = [100, 200, 400, 800, 1600];
 
     // Extend retries for P2P testing environments where DHT propagation may be slower
@@ -356,7 +356,11 @@ fn ensure_provided(
         tracing::info!(
             "✓ Step {STEP}/{POST_STEP_COUNT}: Other DHT providers not found (got {} provider(s), need {}), sleeping...",
             providers.len(),
-            if providers.contains(&peer_id.to_string()) { "2+" } else { "1+" }
+            if providers.contains(&peer_id.to_string()) {
+                "2+"
+            } else {
+                "1+"
+            }
         );
         let Some(sleep_duration) = sleep_iter.next() else {
             tracing::error!(
@@ -456,7 +460,7 @@ fn is_pre_publish_completed(
 ) -> bool {
     // If we find ourselves as a provider, DHT propagation worked
     if current_providers.contains(&our_peer_id.to_string()) {
-        true  // Changed from: current_providers.len() > 1
+        true // Changed from: current_providers.len() > 1
     } else {
         // If we're not in the list yet, at least one provider should exist
         !current_providers.is_empty()

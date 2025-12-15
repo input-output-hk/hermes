@@ -9,10 +9,12 @@ use std::{
 /// Default IPFS listening port (configurable via `IPFS_LISTEN_PORT` env var)
 const DEFAULT_IPFS_LISTEN_PORT: u16 = 4001;
 
-/// Default retry interval in seconds for bootstrap connections (configurable via `IPFS_RETRY_INTERVAL_SECS`)
+/// Default retry interval in seconds for bootstrap connections (configurable via
+/// `IPFS_RETRY_INTERVAL_SECS`)
 const DEFAULT_RETRY_INTERVAL_SECS: u64 = 10;
 
-/// Default maximum retry attempts for bootstrap connections (configurable via `IPFS_MAX_RETRIES`)
+/// Default maximum retry attempts for bootstrap connections (configurable via
+/// `IPFS_MAX_RETRIES`)
 const DEFAULT_MAX_RETRIES: u32 = 10;
 
 /// IPFS data subdirectory name within the base directory
@@ -81,7 +83,10 @@ pub(crate) static HERMES_IPFS: OnceCell<HermesIpfsNode<dummy::Behaviour>> = Once
 /// Returns errors if file I/O fails.
 fn load_or_generate_keypair(keypair_path: &Path) -> anyhow::Result<Keypair> {
     if keypair_path.exists() {
-        tracing::info!("Loading existing IPFS keypair from: {}", keypair_path.display());
+        tracing::info!(
+            "Loading existing IPFS keypair from: {}",
+            keypair_path.display()
+        );
         let bytes = std::fs::read(keypair_path)?;
         let keypair = Keypair::from_protobuf_encoding(&bytes)
             .map_err(|e| anyhow::anyhow!("Failed to decode keypair: {e}"))?;
@@ -100,7 +105,8 @@ fn load_or_generate_keypair(keypair_path: &Path) -> anyhow::Result<Keypair> {
         tracing::info!("Generated new keypair with Peer ID: {}", peer_id);
 
         // Save the keypair for future use
-        let bytes = keypair.to_protobuf_encoding()
+        let bytes = keypair
+            .to_protobuf_encoding()
             .map_err(|e| anyhow::anyhow!("Failed to encode keypair: {e}"))?;
         std::fs::write(keypair_path, bytes)?;
         tracing::info!("Saved keypair to: {}", keypair_path.display());
@@ -110,7 +116,10 @@ fn load_or_generate_keypair(keypair_path: &Path) -> anyhow::Result<Keypair> {
 }
 
 /// Parse environment variable with fallback to default value.
-fn env_var_or<T: std::str::FromStr>(key: &str, default: T) -> T {
+fn env_var_or<T: std::str::FromStr>(
+    key: &str,
+    default: T,
+) -> T {
     std::env::var(key)
         .ok()
         .and_then(|v| v.parse().ok())
@@ -178,7 +187,11 @@ async fn connect_to_bootstrap_peers(
         }
     }
 
-    tracing::info!("Custom bootstrap: connected to {}/{} peers", connected, peers.len());
+    tracing::info!(
+        "Custom bootstrap: connected to {}/{} peers",
+        connected,
+        peers.len()
+    );
 
     // Spawn retry task for failed peers
     if !failed.is_empty() {
@@ -200,7 +213,8 @@ async fn connect_to_bootstrap_peers(
 /// This ensures eventual connectivity even when peers are temporarily unreachable
 /// (e.g., network delays, node startup timing issues in test environments).
 ///
-/// Periodically attempts to reconnect to failed peers until all are connected or max retries reached.
+/// Periodically attempts to reconnect to failed peers until all are connected or max
+/// retries reached.
 async fn retry_bootstrap_connections(
     node: hermes_ipfs::Ipfs,
     mut failed_peers: Vec<(String, hermes_ipfs::Multiaddr)>,
@@ -209,14 +223,20 @@ async fn retry_bootstrap_connections(
         return;
     }
 
-    let retry_interval = std::time::Duration::from_secs(
-        env_var_or("IPFS_RETRY_INTERVAL_SECS", DEFAULT_RETRY_INTERVAL_SECS)
-    );
+    let retry_interval = std::time::Duration::from_secs(env_var_or(
+        "IPFS_RETRY_INTERVAL_SECS",
+        DEFAULT_RETRY_INTERVAL_SECS,
+    ));
     let max_retries = env_var_or("IPFS_MAX_RETRIES", DEFAULT_MAX_RETRIES);
 
     for attempt in 1..=max_retries {
         tokio::time::sleep(retry_interval).await;
-        tracing::debug!("Bootstrap retry {}/{}: attempting {} peer(s)", attempt, max_retries, failed_peers.len());
+        tracing::debug!(
+            "Bootstrap retry {}/{}: attempting {} peer(s)",
+            attempt,
+            max_retries,
+            failed_peers.len()
+        );
 
         let mut still_failed = Vec::new();
         for (addr, multiaddr) in failed_peers {
@@ -234,7 +254,11 @@ async fn retry_bootstrap_connections(
         }
     }
 
-    tracing::warn!("⚠ {} bootstrap peer(s) still unreachable after {} retries", failed_peers.len(), max_retries);
+    tracing::warn!(
+        "⚠ {} bootstrap peer(s) still unreachable after {} retries",
+        failed_peers.len(),
+        max_retries
+    );
 }
 
 /// Bootstrap `HERMES_IPFS` node.
@@ -316,7 +340,10 @@ pub fn bootstrap(
     let app_name = ApplicationName::new(DEFAULT_APP_NAME);
     let topic = PubsubTopic::from(DEFAULT_MESH_TOPIC.to_string());
     hermes_ipfs_subscribe(&app_name, topic)?;
-    tracing::info!("Auto-subscribed to {} topic for P2P mesh formation", DEFAULT_MESH_TOPIC);
+    tracing::info!(
+        "Auto-subscribed to {} topic for P2P mesh formation",
+        DEFAULT_MESH_TOPIC
+    );
 
     Ok(())
 }
@@ -360,22 +387,27 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
                     // Use public IPFS bootstrap nodes
                     let addresses = node.default_bootstrap().await?;
                     node.bootstrap().await?;
-                    tracing::debug!("Bootstrapped IPFS node with default addresses: {:?}", addresses);
+                    tracing::debug!(
+                        "Bootstrapped IPFS node with default addresses: {:?}",
+                        addresses
+                    );
                 }
 
                 // Enable DHT server mode for PubSub support
                 //
                 // Why DHT Server Mode is Required:
-                // - DHT (Distributed Hash Table) server mode makes this node actively
-                //   participate in the DHT by storing and serving routing information
+                // - DHT (Distributed Hash Table) server mode makes this node actively participate
+                //   in the DHT by storing and serving routing information
                 // - This is REQUIRED for Gossipsub PubSub to work properly because:
                 //   1. PubSub uses the DHT to discover which peers are subscribed to topics
                 //   2. Gossipsub builds mesh connections based on DHT peer discovery
-                //   3. Without server mode, the node would be a "leech" that can't help
-                //      other peers discover the network, weakening the mesh
+                //   3. Without server mode, the node would be a "leech" that can't help other peers
+                //      discover the network, weakening the mesh
                 // - All Hermes nodes should be DHT servers to form a robust P2P network
                 let hermes_node: HermesIpfs = node.into();
-                hermes_node.dht_mode(hermes_ipfs::rust_ipfs::DhtMode::Server).await?;
+                hermes_node
+                    .dht_mode(hermes_ipfs::rust_ipfs::DhtMode::Server)
+                    .await?;
                 tracing::debug!("IPFS node set to DHT server mode");
 
                 // Start command handler

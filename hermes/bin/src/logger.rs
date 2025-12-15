@@ -170,7 +170,7 @@ pub(crate) fn init(logger_config: &LoggerConfig) -> anyhow::Result<()> {
         // Use RUST_LOG env var if set, otherwise use default filter
         .with_env_filter(
             EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| EnvFilter::new("hermes=info,rust_ipfs=error"))
+                .unwrap_or_else(|_| EnvFilter::new("hermes=info,rust_ipfs=error")),
         )
         .finish();
 

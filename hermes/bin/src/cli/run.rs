@@ -55,16 +55,15 @@ impl Run {
 
         // Read custom bootstrap peers from environment variable
         // Format: comma-separated multiaddrs, e.g.:
-        // /ip4/172.20.0.11/tcp/4001/p2p/12D3KooW...,/dns4/seed.example.com/tcp/4001/p2p/12D3KooW...
-        let custom_bootstrap_peers = std::env::var("IPFS_BOOTSTRAP_PEERS")
-            .ok()
-            .map(|peers_str| {
-                peers_str
-                    .split(',')
-                    .map(|s| s.trim().to_string())
-                    .filter(|s| !s.is_empty())
-                    .collect::<Vec<String>>()
-            });
+        // /ip4/172.20.0.11/tcp/4001/p2p/12D3KooW...,/dns4/seed.example.com/tcp/4001/p2p/12D3KooW.
+        // ..
+        let custom_bootstrap_peers = std::env::var("IPFS_BOOTSTRAP_PEERS").ok().map(|peers_str| {
+            peers_str
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<String>>()
+        });
 
         // Only use public bootstrap if no custom peers provided
         let default_bootstrap = custom_bootstrap_peers.is_none();
@@ -82,7 +81,11 @@ impl Run {
             );
         }
 
-        ipfs::bootstrap(hermes_home_dir.as_path(), default_bootstrap, custom_bootstrap_peers)?;
+        ipfs::bootstrap(
+            hermes_home_dir.as_path(),
+            default_bootstrap,
+            custom_bootstrap_peers,
+        )?;
         let app = build_app(&package, hermes_home_dir)?;
 
         if self.rt_config.serialize_sqlite {
