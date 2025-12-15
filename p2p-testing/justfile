@@ -20,7 +20,7 @@
 # MANUAL SETUP (if you prefer step-by-step):
 #   just build-all && just build-images  # Build everything
 #   just init-bootstrap                  # Discover peer IDs (REQUIRED after clean)
-#   just test-pubsub                     # Verify PubSub infrastructure
+#   just test-pubsub-propagation         # Test message propagation
 #
 # DAILY WORKFLOW:
 #   just start                    # Start nodes (preserves peer IDs)
@@ -47,15 +47,15 @@
 #   Node 5: http://localhost:5008 (IPFS: 4005, API: 5009) [172.20.0.14]
 #   Node 6: http://localhost:5010 (IPFS: 4006, API: 5011) [172.20.0.15]
 #
-# PERSISTENT PEER IDS (nodes 1-3, 4-6 generated on first run):
-#   Node 1: 12D3KooWBxass2EcccdN5FzC2e6er3uyuYJkTchMX11iKWaJ9aj1
-#   Node 2: 12D3KooWBkdsbenzeixaTmEXdmpf5P2pXtyvm4Qb4sGZJ1Wi4BUB
-#   Node 3: 12D3KooWA5tEBmYCXQfmAdt5zZonBouBt2KBN6umaUtdQVY39GPK
+# PEER IDS (example - generated on first run, persist in Docker volumes):
+#   Each node generates a unique peer ID on first startup
+#   IDs remain stable across restarts (stored in Docker volumes)
+#   After 'just clean', new IDs are auto-generated
 #
 # PREREQUISITES:
 #   - Docker & Docker Compose
 #   - Just (https://just.systems)
-#   - Earthly (https://earthly.dev) - for builds
+#   - Rust toolchain (builds use cargo directly, bypassing Earthly)
 #
 # ==============================================================================
 
@@ -1352,6 +1352,7 @@ _test-pubsub-visualize:
     fi
 
 # Full CI test suite (status + connectivity + pubsub)
+# TODO: Integrate this into GitHub Actions runners for automated PR testing
 test-ci:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -1377,14 +1378,10 @@ test-ci:
     echo "🔗 Connectivity check..."
     just check-connectivity
 
-    # Test PubSub infrastructure
-    echo ""
-    just test-pubsub
-
     # Test PubSub message propagation (end-to-end, minimal output for CI)
     echo ""
     echo "🧪 PubSub propagation test..."
-    just test-pubsub-core
+    just test-pubsub
 
     echo ""
     echo "✅ CI test suite passed!"
@@ -1403,11 +1400,10 @@ help:
     @echo "  just quickstart         # Does everything: build, start, test, verify!"
     @echo ""
     @echo "QUICK START (Daily):"
-    @echo "  just start              # Start 6 nodes (waits for mesh formation)"
-    @echo "  just test-pubsub-propagation       # Check status"
-    @echo "  just test-pubsub-propagation  # Test message propagation"
-    @echo "  just logs               # Monitor activity"
-    @echo "  just stop               # Stop nodes (preserves peer IDs)"
+    @echo "  just start                     # Start 6 nodes (waits for mesh formation)"
+    @echo "  just test-pubsub-propagation   # Test message propagation"
+    @echo "  just logs                      # Monitor activity"
+    @echo "  just stop                      # Stop nodes (preserves peer IDs)"
     @echo ""
     @echo "COMMON WORKFLOWS:"
     @echo ""
@@ -1415,12 +1411,11 @@ help:
     @echo "    just quickstart       # Complete end-to-end setup and test"
     @echo ""
     @echo "  Developer Testing:"
-    @echo "    just validate-prereqs # Check prerequisites"
-    @echo "    just start            # Interactive mode, prompts to rebuild"
-    @echo "    just test-pubsub-propagation     # Comprehensive health check"
-    @echo "    just test-pubsub-propagation  # Test message propagation"
-    @echo "    just logs-node 1      # Debug specific node"
-    @echo "    just restart          # Apply code changes"
+    @echo "    just validate-prereqs        # Check prerequisites"
+    @echo "    just start                   # Interactive mode, prompts to rebuild"
+    @echo "    just test-pubsub-propagation # Test message propagation"
+    @echo "    just logs-node 1             # Debug specific node"
+    @echo "    just restart                 # Apply code changes"
     @echo ""
     @echo "  CI/CD Pipeline:"
     @echo "    just start-ci         # CI mode: non-interactive, always rebuilds"
@@ -1428,10 +1423,10 @@ help:
     @echo "    just clean            # Cleanup (deletes peer IDs)"
     @echo ""
     @echo "  Troubleshooting:"
-    @echo "    just test-pubsub-propagation     # Check system health"
-    @echo "    just troubleshoot     # Generate diagnostic report (saves to file)"
-    @echo "    just check-connectivity  # Check P2P connectivity"
-    @echo "    just init-bootstrap   # Reset bootstrap (auto-runs on first start)"
+    @echo "    just test-pubsub-propagation # Test message propagation"
+    @echo "    just troubleshoot            # Generate diagnostic report (saves to file)"
+    @echo "    just check-connectivity      # Check P2P connectivity"
+    @echo "    just init-bootstrap          # Reset bootstrap (auto-runs on first start)"
     @echo ""
     @echo "  From Scratch (simulates fresh git clone):"
     @echo "    just clean            # Remove everything"

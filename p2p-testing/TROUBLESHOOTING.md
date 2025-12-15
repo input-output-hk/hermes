@@ -5,10 +5,10 @@ This guide helps you diagnose and fix common issues with the P2P testing environ
 ## Quick Diagnostic Commands
 
 ```bash
-just validate-prereqs    # Check prerequisites
-just test-pubsub-propagation        # Comprehensive health check
-just dashboard           # Live status view
-just troubleshoot        # Generate full diagnostic report
+just validate-prereqs           # Check prerequisites
+just test-pubsub-propagation    # Comprehensive health check
+just status                     # Show node endpoints
+just troubleshoot               # Generate full diagnostic report
 ```
 
 ---
@@ -143,11 +143,12 @@ just check-connectivity
 
 **B. Network Latency**
 ```bash
-# Increase propagation wait time
-# Edit justfile line 1131-1133 to wait 5s instead of 3s
-
-# Or just wait and retry
+# Wait longer before checking reception
 sleep 10 && just test-pubsub-propagation
+
+# The test waits 3s for propagation by default
+# If you need more time consistently, you can increase MAX_WAIT
+# in the _test-pubsub-execute recipe (currently 5s total)
 ```
 
 **C. Gossipsub Configuration**
@@ -211,9 +212,11 @@ docker compose logs hermes-node1 hermes-node2 hermes-node3 | grep "Peer ID"
 
 **A. Nodes Not Starting Fast Enough**
 ```bash
-# Edit justfile line 236: increase wait time from 15s to 30s
-# Or manually wait and retry
+# Wait longer for nodes to fully start, then retry
 sleep 30 && just init-bootstrap
+
+# The init-bootstrap recipe waits 15s by default
+# If nodes consistently need more time, wait before running it
 ```
 
 **B. Volumes Corrupted**
@@ -411,7 +414,7 @@ just restart
 5. **Check health regularly:**
    ```bash
    just test-pubsub-propagation
-   just dashboard
+   just status
    ```
 
 ---

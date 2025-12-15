@@ -1,175 +1,166 @@
 # Hermes P2P Testing
 
-6-node Docker environment for testing P2P features with persistent peer identity, bootstrap retry logic, and PubSub (Gossipsub v1.2).
+6-node P2P mesh for testing Gossipsub message propagation.
 
-## Why 6 Nodes?
+---
 
-Gossipsub (libp2p's PubSub protocol) uses `mesh_n=6` by default, meaning each node expects to maintain connections to 6 peers in its mesh for optimal message propagation. With fewer than 6 nodes:
-- Nodes log "Mesh low" warnings
-- PubSub publish operations block waiting for the mesh to reach target size
-- End-to-end message propagation doesn't complete
+## TL;DR
 
-**Alternatives considered:**
-- Fork `rust-ipfs` to add small mesh configuration (mesh_n=2 for 3-node setups)
-- Requires modifying PubsubConfig and builder methods
-- 6-node setup avoids forking external dependencies
-
-## Quick Start
-
-### First Time Setup
 ```bash
 cd p2p-testing
-just quickstart     # Does everything: build, start, test, verify
+just quickstart    # Build, start mesh, test PubSub
 ```
 
-### Daily Workflow
-```
-┌─────────────┐     ┌──────────────┐     ┌─────────┐     ┌──────┐
-│ just start  │ →   │ test-pubsub- │ →   │  logs   │ →   │ stop │
-│             │     │ propagation  │     │         │     │      │
-└─────────────┘     └──────────────┘     └─────────┘     └──────┘
-```
+That's it. The mesh starts, tests run automatically, and you'll see if PubSub propagation works.
+
+---
+
+## Common Operations
 
 ```bash
-just start              # Start 6 nodes (waits for mesh formation)
-just test-pubsub-propagation  # Test message propagation
-just logs               # Monitor activity
-just stop               # Stop nodes (preserves peer IDs)
+# Start the mesh
+just start                       # Starts 6 nodes, waits for mesh formation
+
+# Test PubSub propagation
+just test-pubsub-propagation     # Sends message from node 1 → all others
+
+# Monitor
+just logs                        # View all node logs
+just status                      # Show node endpoints
+
+# Stop
+just stop                        # Stop nodes (preserves data)
+just clean                       # Stop and delete everything
 ```
 
-### When Things Go Wrong
+### Fast Restart (When Binary Unchanged)
+
 ```bash
-just test-pubsub-propagation  # Diagnose with message propagation test
-just troubleshoot              # Full diagnostic report
+docker compose up -d             # Start without rebuilding
+docker compose restart           # Restart without rebuilding
 ```
 
-### Complete Reset
+> **Note:** `just start` always rebuilds Docker images. Use `docker compose` directly to skip rebuilds.
+
+---
+
+## Troubleshooting
+
+**Test failed?**
 ```bash
-just clean              # Remove all data and volumes
-just quickstart         # Start fresh from scratch
-```
-**⚠️ IMPORTANT:** After `just clean`, peer IDs are regenerated automatically on next start.
-
-## Essential Commands
-
-**Getting Started:**
-- `just quickstart` - Complete end-to-end setup and test (recommended for first-time users)
-- `just validate-prereqs` - Check all prerequisites before running
-- `just start` - Start 6 nodes (interactive mode: prompts if rebuild needed)
-- `just start-ci` - Start nodes (CI mode: non-interactive, always rebuilds from clean state)
-
-**Testing & Monitoring:**
-- `just test-pubsub-propagation` - Test end-to-end message propagation
-- `just logs` - View all logs
-- `just status` - Show node endpoints
-
-**Troubleshooting:**
-- `just troubleshoot` - Generate full diagnostics report (saves to file)
-- `just check-connectivity` - Check P2P connectivity
-- `just init-bootstrap` - Reset bootstrap configuration (auto-runs on first start)
-
-**Management:**
-- `just stop` - Stop nodes (preserves data)
-- `just restart` - Restart all nodes
-- `just clean` - Stop and remove all data (**deletes peer IDs**)
-
-Run `just` or `just help` to see all available commands.
-
-## CI/CD Pipeline
-
-**Complete CI workflow:**
-```bash
-just start-ci && just test-ci && just clean
+sleep 30 && just test-pubsub-propagation    # Wait for mesh, retry
+just troubleshoot                            # Full diagnostics report
 ```
 
-- `start-ci` - Always rebuilds Docker images from clean state (no prompts)
-- `test-ci` - Runs full validation suite (status + connectivity + pubsub)
-- `clean` - Removes all containers and volumes
+**Need detailed help?** See [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)
 
-**Note:** CI mode always starts from a clean state to ensure reproducibility.
+---
+
+## How It Works
+
+**Why 6 nodes?**
+Gossipsub uses `mesh_n=6` by default. With fewer nodes, you get "Mesh low" warnings and incomplete propagation. With 6 nodes, each connects to 5 others forming a complete mesh.
+
+**Network Topology:**
+- 6 nodes in full mesh (15 bidirectional connections)
+- IPs: 172.20.0.10 through 172.20.0.15
+- HTTP ports: 5000, 5002, 5004, 5006, 5008, 5010
+- Persistent peer IDs stored in Docker volumes
+
+**What happens in a test:**
+1. Node 1 receives HTTP POST → publishes to PubSub topic "doc-sync"
+2. Gossipsub propagates message through mesh
+3. All other nodes (2-6) receive and validate the message
+
+---
 
 ## Prerequisites
 
 - Docker & Docker Compose
 - [Just](https://just.systems)
-- [Earthly](https://earthly.dev)
+- Rust toolchain (for building Hermes)
 
-## What to Do If Tests Fail
+Check prerequisites: `just validate-prereqs`
 
-If `just test-pubsub-propagation` fails, follow these steps:
+---
 
-### 1. Quick Diagnostic
-Run the test again with fresh nodes or after waiting for mesh formation.
+## All Commands
 
-### 2. Common Fixes
+Run `just` to see all available commands, or:
 
-**Mesh Still Forming** (most common issue):
+**Setup & Start:**
+- `just quickstart` - Complete setup and test (first-time users)
+- `just start` - Start nodes (prompts for rebuild)
+- `just start-ci` - Start nodes (CI mode: always rebuilds)
+
+**Testing:**
+- `just test-pubsub-propagation` - Test message propagation (interactive)
+- `just test-ci` - Full CI test suite
+
+**Monitoring:**
+- `just logs` - All node logs
+- `just status` - Node endpoints
+- `just check-connectivity` - P2P connectivity report
+
+**Management:**
+- `just stop` - Stop nodes (preserves data)
+- `just restart` - Restart nodes
+- `just clean` - Delete everything (⚠️ deletes peer IDs)
+
+**Troubleshooting:**
+- `just troubleshoot` - Generate diagnostics report
+- `just init-bootstrap` - Reset bootstrap config (auto-runs after clean)
+
+---
+
+## CI/CD Pipeline
+
 ```bash
-# Wait for mesh to fully form
-sleep 30 && just test-pubsub-propagation
+just start-ci && just test-ci && just clean
 ```
 
-**Port Conflicts:**
-```bash
-just stop
-# Check what's using ports: lsof -i :5000
-just start
-```
+- Always starts from clean state
+- Runs full validation suite
+- Cleans up after completion
 
-**Complete Reset:**
-```bash
-just clean && just quickstart
-```
+> **TODO:** Integrate this CI workflow into GitHub Actions runners for automated testing on PRs
 
-### 3. Generate Full Diagnostics
-```bash
-just troubleshoot  # Creates p2p-troubleshoot-TIMESTAMP.txt
-```
-
-### 4. View Detailed Logs
-```bash
-just logs | grep -E '(RECEIVED|gossipsub|bootstrap)'
-```
-
-### 5. Still Stuck?
-See `TROUBLESHOOTING.md` for comprehensive debugging guide with solutions for:
-- Nodes won't start
-- Partial propagation
-- Docker build failures
-- Bootstrap initialization issues
-- Performance problems
+---
 
 ## Files
 
-- `justfile` - All commands (READ THIS for full documentation)
+- `justfile` - All commands and documentation
 - `docker-compose.yml` - 6-node configuration
 - `Dockerfile` - Container image
-- `TROUBLESHOOTING.md` - Comprehensive debugging guide
+- `TROUBLESHOOTING.md` - Detailed debugging guide
 
-## Features
+---
 
+## Architecture Details
+
+<details>
+<summary>Click to expand network topology</summary>
+
+```
+Full Mesh: Each node connects to all 5 others
+Total connections: 15 bidirectional links
+
+Node 1 (172.20.0.10) ←→ Node 2 (172.20.0.11)
+Node 1 (172.20.0.10) ←→ Node 3 (172.20.0.12)
+Node 1 (172.20.0.10) ←→ Node 4 (172.20.0.13)
+Node 1 (172.20.0.10) ←→ Node 5 (172.20.0.14)
+Node 1 (172.20.0.10) ←→ Node 6 (172.20.0.15)
+... (and so on for all node pairs)
+```
+
+**Features:**
 - Persistent IPFS keypairs (stable peer IDs)
 - Bootstrap retry logic (automatic reconnection)
 - Gossipsub v1.2 PubSub protocol
 - Full mesh connectivity (172.20.0.0/16 network)
 
-## Architecture
+</details>
 
-```
-        Node 1 (172.20.0.10)
-       /  |  \
-      /   |   \
-     /    |    \
-Node 2   Node 4  Node 6
-(.11)    (.13)   (.15)
-  \      |      /
-   \     |     /
-    \    |    /
-     Node 3  Node 5
-     (.12)   (.14)
-```
+---
 
-6 nodes in full mesh topology. Each node connects to all others.
-Each node has persistent peer ID stored in Docker volumes.
-
-**See `justfile` for detailed documentation, troubleshooting, and examples.**
+**For detailed documentation and troubleshooting, see [`justfile`](justfile) and [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)**
