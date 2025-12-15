@@ -7,7 +7,6 @@ members = [
     "bin/tests/integration/components/sleep_component",
     "bin/tests/integration/components/cron_callback",
     "bin/tests/integration/components/staked_ada_indexer_mock",
-    "bin/tests/integration/components/ipfs_subscribe",
     "bin/tests/integration/components/doc_sync_subscribe",
 ]
 default-members = [

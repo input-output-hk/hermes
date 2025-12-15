@@ -8,6 +8,5 @@ mod cron_callback;
 mod doc_sync_subscribe;
 mod failed_module_init;
 mod http_request_rte;
-mod ipfs_subscribe;
 mod parallel_module_execution;
 mod staked_ada;

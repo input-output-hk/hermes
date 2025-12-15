@@ -79,8 +79,7 @@ pub fn bootstrap(config: Config) -> anyhow::Result<()> {
 
 /// Hermes IPFS Internal Node
 pub(crate) struct HermesIpfsNode<N>
-where
-    N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send + Sync,
+where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send + Sync
 {
     /// Send events to the IPFS node.
     sender: Option<mpsc::Sender<IpfsCommand>>,
@@ -91,8 +90,7 @@ where
 }
 
 impl<N> HermesIpfsNode<N>
-where
-    N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send + Sync,
+where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send + Sync
 {
     /// Create, initialize, and bootstrap a new `HermesIpfsNode`
     pub(crate) fn init(
