@@ -153,10 +153,11 @@ async fn configure_listening_address(node: &hermes_ipfs::Ipfs) {
 /// They provide:
 /// - DHT entry points: Access to the distributed routing table for finding content/peers
 /// - Peer discovery: Learn about other nodes in the network through gossip protocols
-/// - Gossipsub mesh: Enable PubSub message propagation by connecting to topic subscribers
+/// - Gossipsub mesh: Enable `PubSub` message propagation by connecting to topic
+///   subscribers
 ///
 /// Without bootstrap peers, a node is isolated - it won't discover peers, can't query the
-/// DHT, and can't participate in PubSub topics.
+/// DHT, and can't participate in `PubSub` topics.
 ///
 /// ## Returns
 ///
@@ -274,23 +275,23 @@ async fn retry_bootstrap_connections(
 /// 3. Connecting to initial bootstrap peers (entry points to the network)
 /// 4. Auto-subscribing to a default topic for immediate mesh participation
 ///
-/// ## IMPORTANT: PubSub requires custom bootstrap peers
+/// ## IMPORTANT: `PubSub` requires custom bootstrap peers
 ///
-/// **TL;DR: Public IPFS nodes don't work for Hermes PubSub. Use custom Hermes bootstrap
+/// **TL;DR: Public IPFS nodes don't work for Hermes `PubSub`. Use custom Hermes bootstrap
 /// peers.**
 ///
-/// **Why public IPFS bootstrap nodes CANNOT be used for Hermes PubSub:**
+/// **Why public IPFS bootstrap nodes CANNOT be used for Hermes `PubSub`:**
 ///
-/// Gossipsub (the PubSub protocol) requires ALL peers in the mesh to:
+/// Gossipsub (the `PubSub` protocol) requires ALL peers in the mesh to:
 /// 1. Subscribe to the **same topic** (e.g., "documents.new")
 /// 2. Be connected to each other in mesh topology
 ///
 /// Public IPFS nodes:
 /// - Don't subscribe to Hermes-specific topics → can't propagate your messages
 /// - Only provide DHT routing and general peer discovery
-/// - Are useless for PubSub message exchange
+/// - Are useless for `PubSub` message exchange
 ///
-/// **For PubSub to work, you MUST:**
+/// **For `PubSub` to work, you MUST:**
 /// - Use `custom_peers` pointing to other Hermes nodes that subscribe to your topics
 /// - OR deploy dedicated Hermes bootstrap nodes configured to auto-subscribe
 ///
@@ -299,7 +300,7 @@ async fn retry_bootstrap_connections(
 /// - DHT queries (finding content providers)
 /// - General peer discovery
 ///
-/// It will NOT enable PubSub message propagation.
+/// It will NOT enable `PubSub` message propagation.
 ///
 /// ## Parameters
 ///

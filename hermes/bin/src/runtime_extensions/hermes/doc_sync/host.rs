@@ -17,12 +17,12 @@ use crate::{
     },
 };
 
-/// The number of steps in the "post document" workflow (see post() function):
-/// 1. add_file: Store document in IPFS, get CID
-/// 2. dht_provide: Announce to DHT that we have this content
-/// 3. get_peer_id: Retrieve our peer identity
-/// 4. ensure_provided: Wait for DHT propagation (backoff retries)
-/// 5. publish: Broadcast document via Gossipsub PubSub
+/// The number of steps in the "post document" workflow (see `post()` function):
+/// 1. `add_file`: Store document in IPFS, get CID
+/// 2. `dht_provide`: Announce to DHT that we have this content
+/// 3. `get_peer_id`: Retrieve our peer identity
+/// 4. `ensure_provided`: Wait for DHT propagation (backoff retries)
+/// 5. `publish`: Broadcast document via Gossipsub `PubSub`
 const POST_STEP_COUNT: u8 = 5;
 
 /// CBOR multicodec identifier.
@@ -358,14 +358,17 @@ fn ensure_provided(
             tracing::info!("✓ Step {STEP}/{POST_STEP_COUNT}: Other DHT providers found");
             return Ok(Ok(()));
         }
+        let waiting_for = if providers.contains(&peer_id.to_string()) {
+            "waiting for ourselves to appear in DHT query results"
+        } else if providers.is_empty() {
+            "waiting for at least 1 provider to appear"
+        } else {
+            "waiting for ourselves to appear (other providers exist)"
+        };
         tracing::info!(
-            "✓ Step {STEP}/{POST_STEP_COUNT}: Other DHT providers not found (got {} provider(s), need {}), sleeping...",
+            "✓ Step {STEP}/{POST_STEP_COUNT}: DHT not ready (found {} provider(s), {}), sleeping...",
             providers.len(),
-            if providers.contains(&peer_id.to_string()) {
-                "2+"
-            } else {
-                "1+"
-            }
+            waiting_for
         );
         let Some(sleep_duration) = sleep_iter.next() else {
             tracing::error!(
