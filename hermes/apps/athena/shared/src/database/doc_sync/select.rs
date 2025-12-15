@@ -1,7 +1,10 @@
 //! `SELECT` queries.
 
 use crate::{
-    database::{doc_sync::{DocumentRow, DocumentRowTuple}, sql},
+    database::{
+        doc_sync::{DocumentRow, DocumentRowTuple},
+        sql,
+    },
     utils::sqlite,
 };
 
