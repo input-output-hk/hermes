@@ -32,12 +32,8 @@
 #   just stop                     # Stop nodes (keeps data)
 #
 # AFTER CLEANING VOLUMES:
-#   just clean                    # Deletes volumes + peer identities
-#   just init-bootstrap           # REQUIRED: Rediscover peer IDs
-#   just start                    # Now safe to start with fresh peer IDs
-#
-# OR: Use quickstart which handles init-bootstrap automatically:
-#   just clean && just quickstart
+#   just clean && just quickstart        # Handles init-bootstrap automatically
+#   # OR manually: just clean → just init-bootstrap → just start
 #
 # CI/CD:
 #   just start-ci && just test-ci && just clean
@@ -50,10 +46,9 @@
 #   Node 5: http://localhost:5008 (IPFS: 4005, API: 5009) [172.20.0.14]
 #   Node 6: http://localhost:5010 (IPFS: 4006, API: 5011) [172.20.0.15]
 #
-# PEER IDS (example - generated on first run, persist in Docker volumes):
-#   Each node generates a unique peer ID on first startup
-#   IDs remain stable across restarts (stored in Docker volumes)
-#   After 'just clean', new IDs are auto-generated
+# PEER IDS:
+#   Auto-generated on first run, persist in volumes, stable across restarts
+#   'just clean' deletes volumes → new IDs generated → 'just init-bootstrap' required
 #
 # PREREQUISITES:
 #   - Docker & Docker Compose
@@ -69,22 +64,9 @@ default:
 # ==============================================================================
 # HELPER FUNCTIONS & UTILITIES
 # ==============================================================================
-# Internal helpers used by other commands. These start with _ and are not meant
-# to be called directly by users.
+# Internal helpers (prefix: _) - not meant to be called directly by users
 
-# Common bash functions template (copy into recipes that need them)
-# Usage: Copy the setup_colors function into your recipe's bash script
-#
-# setup_colors() {
-#     GREEN='\033[32m'
-#     RED='\033[31m'
-#     YELLOW='\033[33m'
-#     BLUE='\033[34m'
-#     BOLD='\033[1m'
-#     RESET='\033[0m'
-# }
-
-# Helper: Check if all 6 nodes are running (returns 0 if all running, 1 if not)
+# Check if all 6 nodes are running
 _check-nodes-running:
     #!/usr/bin/env bash
     RUNNING=$(docker compose ps | grep -c "Up" || echo "0")
@@ -198,19 +180,6 @@ _wait-for-mesh min_connections="25" max_wait="60":
 _extract-cid response:
     #!/usr/bin/env bash
     echo "{{response}}" | jq -r '.cid' 2>/dev/null || echo "unknown"
-
-# ------------------------------------------------------------------------------
-# Common Bash Patterns for Recipes
-# ------------------------------------------------------------------------------
-# Many recipes need color codes and common setup. Copy this snippet into recipes
-# that need formatting:
-#
-#   #!/usr/bin/env bash
-#   set -euo pipefail
-#   GREEN='\033[32m'; RED='\033[31m'; YELLOW='\033[33m'
-#   BLUE='\033[34m'; BOLD='\033[1m'; RESET='\033[0m'
-#
-# This provides consistent color formatting across all commands.
 
 # ==============================================================================
 # QUICK START
@@ -747,40 +716,50 @@ clean:
 # BOOTSTRAP PEER DISCOVERY
 # ==============================================================================
 #
-# BACKGROUND: Hermes persists IPFS keypairs in Docker volumes (PR#694)
+# BACKGROUND:
+#   Hermes persists IPFS keypairs in Docker volumes (PR#694)
 #   - Keypair location: /home/hermes/.hermes/ipfs/keypair (inside volume)
 #   - Peer IDs remain stable across stop/restart (volumes preserved)
-#   - This works great for normal operations!
+#   - This works great for normal operations
 #
-# THE PROBLEM: docker-compose.yml has HARDCODED bootstrap peer IDs
+# THE PROBLEM:
+#   docker-compose.yml has HARDCODED bootstrap peer IDs
 #   - Each node's IPFS_BOOTSTRAP_PEERS env var contains specific peer IDs
 #   - Example: /ip4/172.20.0.11/tcp/4001/p2p/12D3KooW... (hardcoded)
 #   - When 'just clean' deletes volumes, new keypairs = new peer IDs
 #   - Hardcoded IDs in docker-compose.yml become stale → mesh formation fails
 #   - Errors: "wrong peer id", "Unexpected peer ID", no PubSub propagation
 #
-# THE SOLUTION: init-bootstrap command (dynamic discovery)
-#   Phase 1: Start bootstrap nodes (1-3) to generate/load keypairs
-#   Phase 2: Extract actual peer IDs from logs
-#   Phase 3: Update docker-compose.yml with discovered IDs (creates backup)
-#   Phase 4: Restart all nodes with correct bootstrap configuration
+# THE SOLUTION:
+#   init-bootstrap command (dynamic discovery)
+#   1. Start bootstrap nodes (1-3) to generate/load keypairs
+#   2. Extract actual peer IDs from logs
+#   3. Update docker-compose.yml with discovered IDs (creates backup)
+#   4. Restart all nodes with correct bootstrap configuration
 #
-# WHEN NEEDED:
+# WHEN TO RUN:
 #   ✅ After 'just clean' (volumes deleted → new keypairs → new peer IDs)
 #   ✅ First time setup (no volumes exist yet)
 #   ❌ NOT after 'just stop/restart' (volumes preserved → peer IDs unchanged)
 #
-# FUTURE IMPROVEMENT: Pre-generated test keypairs (optional convenience)
-#   - Generate 6 test keypairs offline: p2p-testing/identities/node{1-6}.keypair
+# FUTURE IMPROVEMENT (Production Deployment):
+#   Pre-generated keypairs for bootstrap nodes
+#   - Generate stable keypairs: p2p-testing/identities/bootstrap-node{1-3}.keypair
 #   - Add to Dockerfile: COPY identities/*.keypair /home/hermes/.hermes/ipfs/
-#   - Benefit: Deterministic peer IDs documented in docker-compose.yml comments
-#   - Result: No init-bootstrap needed even after 'just clean'
-#   - Trade-off: Adds repo size, but eliminates manual step for test environment
+#   - Result: Deterministic, well-known bootstrap peer IDs
+#
+#   Why this matters for production:
+#   - Hermes nodes deployed across the internet need to find each other
+#   - GossipSub (PubSub) requires connected peers to exchange messages
+#   - Bootstrap nodes provide the initial entry point to the Hermes mesh
+#   - New Hermes deployments can hardcode stable bootstrap addresses:
+#     /dns4/bootstrap1.hermes.io/tcp/4001/p2p/12D3KooW...
+#   - No manual init-bootstrap needed, matches production operational model
 #
 # ==============================================================================
 
-# Initialize or reinitialize bootstrap configuration after volume changes
-# Run this after 'just clean' or when peer IDs change
+# Sync docker-compose.yml bootstrap peer IDs with actual keypairs
+# Required after 'just clean' or first setup
 init-bootstrap:
     #!/usr/bin/env bash
     set -euo pipefail
