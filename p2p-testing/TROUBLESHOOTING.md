@@ -289,20 +289,19 @@ When things go wrong, run through this checklist:
 
 ### Complete Reset
 ```bash
-# Stop everything
-just stop
-
-# Remove all data
+# Nuclear option: Remove EVERYTHING (p2p-testing + all unused Docker resources)
 docker compose down -v
-docker volume prune -f
-docker network prune -f
+docker volume prune -f   # Removes ALL unused volumes system-wide
+docker network prune -f  # Removes ALL unused networks system-wide
 
-# Rebuild from scratch
-just build-all
-just build-images
-
-# Start fresh
+# Rebuild and start fresh (handles build-all → build-images → start → test)
 just quickstart
+```
+
+**Less aggressive alternative:**
+```bash
+just clean       # Only removes p2p-testing volumes
+just quickstart  # Rebuilds and starts
 ```
 
 ### Verify Docker Setup

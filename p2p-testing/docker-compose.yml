@@ -54,7 +54,7 @@ services:
       # Format: /ip4/<ip>/tcp/<port>/p2p/<peer-id>
       # Node 1 connects to nodes 2 and 3 to form initial mesh
       # These peer IDs are synced by 'just init-bootstrap' after volume changes
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWQFfnXBktvcJhX7qsmgq2rp8XqGaRfK3eo3jBrarWD34S,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWLDmm3wuko2R6VMkmePzr6GJ5jwRsdGstTGAUoahWDjdb
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWGRWrroqqLYLCaQrWdah1rDFpRCGhxuKpTzrjugtWeK4y,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWJqEtQ5fP9EvEGY858896DbjRfvRAicyqycwUse4WADxs
 
     ports:
       # Format: "host:container"
@@ -90,7 +90,7 @@ services:
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
 
       # Node 2 connects to nodes 1 and 3
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWR3yegJbi3ACyfprXJDFveC7S8iAEyUsUK7wvwTpeCfYo,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWLDmm3wuko2R6VMkmePzr6GJ5jwRsdGstTGAUoahWDjdb
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWQx4BfZ26RcM3G2we2mXngnoo5Ec79GBj2fNG1X2Pvz7F,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWJqEtQ5fP9EvEGY858896DbjRfvRAicyqycwUse4WADxs
 
     ports:
       # Different host ports to avoid conflicts (all containers expose same internal ports)
@@ -159,7 +159,7 @@ services:
       # Bootstrap nodes: Initial entry points for P2P mesh formation
       # Node 4 connects to nodes 1, 2, and 3 → discovers other peers → Gossipsub forms full 6-node mesh
       # Peer IDs synced by 'just init-bootstrap' after volume changes
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWR3yegJbi3ACyfprXJDFveC7S8iAEyUsUK7wvwTpeCfYo,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWQFfnXBktvcJhX7qsmgq2rp8XqGaRfK3eo3jBrarWD34S,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWLDmm3wuko2R6VMkmePzr6GJ5jwRsdGstTGAUoahWDjdb
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWQx4BfZ26RcM3G2we2mXngnoo5Ec79GBj2fNG1X2Pvz7F,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWGRWrroqqLYLCaQrWdah1rDFpRCGhxuKpTzrjugtWeK4y,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWJqEtQ5fP9EvEGY858896DbjRfvRAicyqycwUse4WADxs
 
     ports:
       - "5006:5000"
@@ -192,7 +192,7 @@ services:
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
 
       # Node 5 connects to bootstrap nodes
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWR3yegJbi3ACyfprXJDFveC7S8iAEyUsUK7wvwTpeCfYo,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWQFfnXBktvcJhX7qsmgq2rp8XqGaRfK3eo3jBrarWD34S,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWLDmm3wuko2R6VMkmePzr6GJ5jwRsdGstTGAUoahWDjdb
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWQx4BfZ26RcM3G2we2mXngnoo5Ec79GBj2fNG1X2Pvz7F,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWGRWrroqqLYLCaQrWdah1rDFpRCGhxuKpTzrjugtWeK4y,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWJqEtQ5fP9EvEGY858896DbjRfvRAicyqycwUse4WADxs
 
     ports:
       - "5008:5000"
@@ -225,7 +225,7 @@ services:
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
 
       # Node 6 connects to bootstrap nodes
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWR3yegJbi3ACyfprXJDFveC7S8iAEyUsUK7wvwTpeCfYo,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWQFfnXBktvcJhX7qsmgq2rp8XqGaRfK3eo3jBrarWD34S,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWLDmm3wuko2R6VMkmePzr6GJ5jwRsdGstTGAUoahWDjdb
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWQx4BfZ26RcM3G2we2mXngnoo5Ec79GBj2fNG1X2Pvz7F,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWGRWrroqqLYLCaQrWdah1rDFpRCGhxuKpTzrjugtWeK4y,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWJqEtQ5fP9EvEGY858896DbjRfvRAicyqycwUse4WADxs
 
     ports:
       - "5010:5000"
