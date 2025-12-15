@@ -79,7 +79,8 @@ pub fn bootstrap(config: Config) -> anyhow::Result<()> {
 
 /// Hermes IPFS Internal Node
 pub(crate) struct HermesIpfsNode<N>
-where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send + Sync
+where
+    N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send + Sync,
 {
     /// Send events to the IPFS node.
     sender: Option<mpsc::Sender<IpfsCommand>>,
@@ -90,7 +91,8 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
 }
 
 impl<N> HermesIpfsNode<N>
-where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send + Sync
+where
+    N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send + Sync,
 {
     /// Create, initialize, and bootstrap a new `HermesIpfsNode`
     pub(crate) fn init(
@@ -326,11 +328,13 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         topic: &PubsubTopic,
     ) -> Result<JoinHandle<()>, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
+        dbg!();
         self.sender
             .as_ref()
             .ok_or(Errno::PubsubSubscribeError)?
-            .blocking_send(IpfsCommand::Subscribe(topic.clone(), kind, cmd_tx))
+            .blocking_send(IpfsCommand::Subscribe(dbg!(topic).clone(), kind, cmd_tx))
             .map_err(|_| Errno::PubsubSubscribeError)?;
+        dbg!();
         cmd_rx
             .blocking_recv()
             .map_err(|_| Errno::PubsubSubscribeError)?

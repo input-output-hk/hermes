@@ -115,7 +115,7 @@ fn init_ipfs(temp_dir: &TempDir) -> anyhow::Result<()> {
     ipfs::bootstrap(ipfs::Config {
         base_dir: ipfs_dir.as_path(),
         // enable bootstrapping the IPFS node to default addresses
-        default_bootstrap: true,
+        default_bootstrap: false,
     })
 }
 
