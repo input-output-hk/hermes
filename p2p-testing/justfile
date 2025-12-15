@@ -1188,7 +1188,7 @@ _test-pubsub-execute:
         echo "NODE_RECEIVE_TIME_$NODE=${NODE_RECEIVE_TIME[$NODE]}" >> "$RESULTS_FILE"
     done
 
-# Internal: Show detailed visualization and statistics
+# Internal: Show detailed visualization and statistics for PubSub test
 _test-pubsub-visualize:
     #!/usr/bin/env bash
     set -euo pipefail
