@@ -292,19 +292,19 @@ quickstart:
         echo "  • Node 6: http://localhost:5010"
         echo ""
         echo -e "${BOLD}Next Steps:${RESET}"
-        echo "  • View logs: ${BLUE}just logs${RESET}"
-        echo "  • Check status: ${BLUE}just test-pubsub-propagation${RESET}"
-        echo "  • Test again: ${BLUE}just test-pubsub-propagation${RESET}"
-        echo "  • Stop nodes: ${BLUE}just stop${RESET}"
+        echo -e "  • View logs: ${BLUE}just logs${RESET}"
+        echo -e "  • Check status: ${BLUE}just test-pubsub-propagation${RESET}"
+        echo -e "  • Test again: ${BLUE}just test-pubsub-propagation${RESET}"
+        echo -e "  • Stop nodes: ${BLUE}just stop${RESET}"
         echo ""
     else
         echo ""
         echo -e "${RED}❌ Propagation test failed${RESET}"
         echo ""
         echo "Troubleshooting:"
-        echo "  • Check logs: ${BLUE}just logs${RESET}"
-        echo "  • Run diagnostics: ${BLUE}just troubleshoot${RESET}"
-        echo "  • Try restarting: ${BLUE}just restart${RESET}"
+        echo -e "  • Check logs: ${BLUE}just logs${RESET}"
+        echo -e "  • Run diagnostics: ${BLUE}just troubleshoot${RESET}"
+        echo -e "  • Try restarting: ${BLUE}just restart${RESET}"
         exit 1
     fi
 
@@ -638,10 +638,10 @@ troubleshoot:
     echo "Review the report for detailed diagnostics."
     echo ""
     echo "Common solutions:"
-    echo "  • Peer ID issues: ${BLUE}just init-bootstrap${RESET}"
-    echo "  • Port conflicts: ${BLUE}just stop${RESET}"
-    echo "  • Full reset: ${BLUE}just clean && just start${RESET}"
-    echo "  • View logs: ${BLUE}just logs${RESET}"
+    echo -e "  • Peer ID issues: ${BLUE}just init-bootstrap${RESET}"
+    echo -e "  • Port conflicts: ${BLUE}just stop${RESET}"
+    echo -e "  • Full reset: ${BLUE}just clean && just start${RESET}"
+    echo -e "  • View logs: ${BLUE}just logs${RESET}"
     echo ""
 
 # ==============================================================================

@@ -68,9 +68,137 @@ Gossipsub uses `mesh_n=6` by default. With fewer nodes, you get "Mesh low" warni
 - Persistent peer IDs stored in Docker volumes
 
 **What happens in a test:**
-1. Node 1 receives HTTP POST → publishes to PubSub topic "doc-sync"
+1. Node 1 receives HTTP POST → publishes to PubSub topic "documents.new"
 2. Gossipsub propagates message through mesh
 3. All other nodes (2-6) receive and validate the message
+4. Test verifies propagation by checking logs
+
+**Behind `just quickstart`:**
+- Runs `just start-ci` to build and start the mesh
+- Runs `just test-pubsub-propagation` to verify propagation
+- Shows success/failure with diagnostics
+
+---
+
+## Writing Custom Tests
+
+> **Note:** These are basic bash/curl tests for initial validation. Once HTTP API endpoints are finalized, we'll add a proper API testing framework (e.g., Postman collections, REST-assured, or similar) for comprehensive integration testing.
+
+You can extend the justfile with custom test commands to validate different P2P behaviors:
+
+### Test Examples
+
+**Peer Connectivity:**
+```justfile
+# Verify all nodes are responding
+test-peer-connectivity:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Testing peer connectivity..."
+    for NODE in {1..6}; do
+      PORT=$((5000 + (NODE-1)*2))
+      if curl -s -f http://localhost:$PORT/health > /dev/null 2>&1; then
+        echo "✅ Node $NODE (port $PORT) responding"
+      else
+        echo "❌ Node $NODE not responding"
+        exit 1
+      fi
+    done
+    echo "✅ All nodes healthy"
+```
+
+**Mesh Resilience:**
+```justfile
+# Test mesh recovery when nodes restart
+test-mesh-resilience:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Testing mesh resilience..."
+
+    echo "  → Stopping node 3..."
+    docker compose stop hermes-node3
+    sleep 5
+
+    echo "  → Testing propagation with 5 nodes..."
+    just test-pubsub-propagation || echo "  (Expected: degraded)"
+
+    echo "  → Restarting node 3..."
+    docker compose start hermes-node3
+    sleep 10
+
+    echo "  → Verifying full mesh recovered..."
+    just test-pubsub-propagation
+    echo "✅ Mesh resilience validated"
+```
+
+**Message Throughput:**
+```justfile
+# Measure message throughput
+test-throughput COUNT="100":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Testing throughput with {{COUNT}} messages..."
+
+    START=$(date +%s)
+    for i in $(seq 1 {{COUNT}}); do
+      curl -s -X POST http://localhost:5000/api/doc-sync/post \
+        -H "Host: athena.hermes.local" \
+        -H "Content-Type: text/plain" \
+        -d "msg-$i" > /dev/null
+    done
+    END=$(date +%s)
+
+    DURATION=$((END - START))
+    RATE=$(({{COUNT}} / DURATION))
+    echo "✅ Sent {{COUNT}} messages in ${DURATION}s ($RATE msg/s)"
+```
+
+**Peer Discovery:**
+```justfile
+# Check peer discovery via logs
+test-peer-discovery:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Checking peer discovery..."
+
+    CONNECTED=$(docker logs hermes-node1 2>&1 | \
+      grep -c "Connected to bootstrap peer" || true)
+
+    if [ "$CONNECTED" -ge 2 ]; then
+      echo "✅ Node 1 discovered $CONNECTED peers"
+    else
+      echo "❌ Peer discovery incomplete ($CONNECTED/2)"
+      exit 1
+    fi
+```
+
+### Adding Your Own Tests
+
+1. Open `justfile` in your editor
+2. Add your test command after line 1400 (after existing tests)
+3. Use this template:
+
+```justfile
+# Description of what this tests
+test-your-feature:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    echo "Testing your feature..."
+
+    # Your test logic here
+
+    echo "✅ Test passed"
+```
+
+4. Run with: `just test-your-feature`
+
+**Best practices:**
+- Use `set -euo pipefail` for fail-fast behavior
+- Add descriptive echo statements for progress
+- Return non-zero exit code on failure
+- Add sleep delays for async operations (mesh formation, propagation)
+- Use `docker logs` or `docker compose logs` to verify behavior
 
 ---
 
