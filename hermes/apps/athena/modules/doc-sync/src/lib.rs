@@ -40,6 +40,22 @@ struct Component;
 /// Default channel name for doc-sync operations
 const DOC_SYNC_CHANNEL: &str = "documents";
 
+/// Maximum length for message previews in log messages
+const MESSAGE_PREVIEW_MAX_LEN: usize = 100;
+
+/// Format a message for logging with size information and truncation.
+///
+/// Messages longer than `MESSAGE_PREVIEW_MAX_LEN` are truncated with "..." suffix.
+fn format_message_preview(data: &[u8]) -> String {
+    let preview = String::from_utf8_lossy(data);
+    let size = data.len();
+    if preview.len() > MESSAGE_PREVIEW_MAX_LEN {
+        format!("{}... ({} bytes)", &preview[..MESSAGE_PREVIEW_MAX_LEN], size)
+    } else {
+        format!("{} ({} bytes)", preview, size)
+    }
+}
+
 impl exports::hermes::init::event::Guest for Component {
     /// Initialize the module.
     fn init() -> bool {
@@ -60,22 +76,11 @@ impl exports::hermes::ipfs::event::Guest for Component {
     fn on_topic(message: hermes::ipfs::api::PubsubMessage) -> bool {
         log::init(log::LevelFilter::Trace);
 
-        // Convert message bytes to string for logging
-        let msg_preview = String::from_utf8_lossy(&message.message);
-        let msg_size = message.message.len();
-
-        // Truncate long messages for logging
-        let preview = if msg_preview.len() > 100 {
-            format!("{}... ({} bytes)", &msg_preview[..100], msg_size)
-        } else {
-            format!("{} ({} bytes)", msg_preview, msg_size)
-        };
-
         info!(
             target: "doc_sync::receiver",
             "📨 RECEIVED PubSub message on topic '{}': {}",
             message.topic,
-            preview
+            format_message_preview(&message.message)
         );
 
         true // Return true to indicate message was handled
@@ -93,22 +98,11 @@ impl exports::hermes::doc_sync::event::Guest for Component {
     ) {
         log::init(log::LevelFilter::Trace);
 
-        // Convert document bytes to string for logging
-        let doc_preview = String::from_utf8_lossy(&doc);
-        let doc_size = doc.len();
-
-        // Truncate long messages for logging
-        let preview = if doc_preview.len() > 100 {
-            format!("{}... ({} bytes)", &doc_preview[..100], doc_size)
-        } else {
-            format!("{} ({} bytes)", doc_preview, doc_size)
-        };
-
         info!(
             target: "doc_sync::receiver",
             "📨 RECEIVED PubSub message on channel '{}': {}",
             channel,
-            preview
+            format_message_preview(&doc)
         );
     }
 }

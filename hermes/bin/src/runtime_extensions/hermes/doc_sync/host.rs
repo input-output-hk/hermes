@@ -325,7 +325,19 @@ fn ensure_provided(
     peer_id: &str,
 ) -> wasmtime::Result<Result<(), Errno>> {
     const STEP: u8 = 4;
+
+    /// Exponential backoff durations in milliseconds for DHT provider queries.
+    ///
+    /// Pattern: [100ms, 200ms, 400ms, 800ms, 1600ms] - each duration doubles
+    ///
+    /// Rationale:
+    /// - Start with fast retries (100ms) for local/fast networks
+    /// - Exponentially increase to avoid hammering DHT in slower networks
+    /// - Total initial backoff: ~3 seconds before switching to 2-second intervals
+    /// - After exhausting these, extends with 20x 2-second retries for P2P test environments
+    ///   where DHT propagation can be slower due to mesh formation delays
     const BACKOFF_DURATION: [u64; 5] = [100, 200, 400, 800, 1600];
+
     // Extend retries for P2P testing environments where DHT propagation may be slower
     let mut sleep_iter = BACKOFF_DURATION
         .into_iter()

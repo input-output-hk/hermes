@@ -6,6 +6,15 @@ use std::{
     collections::HashSet, convert::Infallible, marker::PhantomData, path::Path, str::FromStr,
 };
 
+/// Default IPFS listening port (configurable via IPFS_LISTEN_PORT env var)
+const DEFAULT_IPFS_LISTEN_PORT: u16 = 4001;
+
+/// Default retry interval in seconds for bootstrap connections (configurable via IPFS_RETRY_INTERVAL_SECS)
+const DEFAULT_RETRY_INTERVAL_SECS: u64 = 10;
+
+/// Default maximum retry attempts for bootstrap connections (configurable via IPFS_MAX_RETRIES)
+const DEFAULT_MAX_RETRIES: u32 = 10;
+
 pub(crate) use api::{
     hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_dht_get_providers,
     hermes_ipfs_dht_provide, hermes_ipfs_evict_peer, hermes_ipfs_get_dht_value,
@@ -95,16 +104,23 @@ async fn retry_bootstrap_connections(
     node: hermes_ipfs::Ipfs,
     mut failed_peers: Vec<(String, hermes_ipfs::Multiaddr)>,
 ) {
-    const RETRY_INTERVAL_SECS: u64 = 10;
-    const MAX_RETRIES: u32 = 10;
+    let retry_interval_secs = std::env::var("IPFS_RETRY_INTERVAL_SECS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(DEFAULT_RETRY_INTERVAL_SECS);
 
-    for attempt in 1..=MAX_RETRIES {
+    let max_retries = std::env::var("IPFS_MAX_RETRIES")
+        .ok()
+        .and_then(|v| v.parse::<u32>().ok())
+        .unwrap_or(DEFAULT_MAX_RETRIES);
+
+    for attempt in 1..=max_retries {
         if failed_peers.is_empty() {
             break;
         }
 
-        tokio::time::sleep(std::time::Duration::from_secs(RETRY_INTERVAL_SECS)).await;
-        tracing::debug!("Bootstrap retry {}/{}: attempting {} peer(s)", attempt, MAX_RETRIES, failed_peers.len());
+        tokio::time::sleep(std::time::Duration::from_secs(retry_interval_secs)).await;
+        tracing::debug!("Bootstrap retry {}/{}: attempting {} peer(s)", attempt, max_retries, failed_peers.len());
 
         let mut still_failed = Vec::new();
         for (addr, multiaddr) in failed_peers {
@@ -123,7 +139,7 @@ async fn retry_bootstrap_connections(
     if failed_peers.is_empty() {
         tracing::info!("✓ All bootstrap peers connected");
     } else {
-        tracing::warn!("⚠ {} bootstrap peer(s) still unreachable after {} retries", failed_peers.len(), MAX_RETRIES);
+        tracing::warn!("⚠ {} bootstrap peer(s) still unreachable after {} retries", failed_peers.len(), max_retries);
     }
 }
 
@@ -209,11 +225,17 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         let _handle = std::thread::spawn(move || {
             let result = runtime.block_on(async move {
                 // Configure listening address for P2P connections
-                match "/ip4/0.0.0.0/tcp/4001".parse() {
+                let listen_port = std::env::var("IPFS_LISTEN_PORT")
+                    .ok()
+                    .and_then(|v| v.parse::<u16>().ok())
+                    .unwrap_or(DEFAULT_IPFS_LISTEN_PORT);
+
+                let listen_addr = format!("/ip4/0.0.0.0/tcp/{}", listen_port);
+                match listen_addr.parse() {
                     Ok(multiaddr) => {
                         match node.add_listening_address(multiaddr).await {
                             Ok(addr) => tracing::info!("IPFS listening on: {}", addr),
-                            Err(e) => tracing::error!("Failed to listen on port 4001: {}", e),
+                            Err(e) => tracing::error!("Failed to listen on port {}: {}", listen_port, e),
                         }
                     },
                     Err(e) => tracing::error!("Invalid multiaddr format: {}", e),
