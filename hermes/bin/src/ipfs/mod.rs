@@ -135,7 +135,20 @@ async fn configure_listening_address(node: &hermes_ipfs::Ipfs) {
 
 /// Connect to custom bootstrap peers and retry failed connections in the background.
 ///
-/// Returns the number of successfully connected peers.
+/// ## What are bootstrap peers?
+///
+/// Bootstrap peers are the initial IPFS nodes that a new node connects to when joining
+/// the network. They provide:
+/// - Entry points to the distributed hash table (DHT)
+/// - Discovery of other peers in the network
+/// - Ability to participate in Gossipsub message propagation
+///
+/// Without bootstrap peers, an IPFS node would be isolated and unable to communicate
+/// with the rest of the network.
+///
+/// ## Returns
+///
+/// The number of successfully connected peers.
 async fn connect_to_bootstrap_peers(
     node: &hermes_ipfs::Ipfs,
     peers: Vec<String>,
@@ -177,6 +190,16 @@ async fn connect_to_bootstrap_peers(
 
 /// Retry bootstrap connections in the background.
 ///
+/// ## Retry Strategy
+///
+/// Uses a simple fixed-interval retry approach:
+/// - Waits `RETRY_INTERVAL_SECS` between attempts (configurable, default: 10s)
+/// - Retries up to `MAX_RETRIES` times (configurable, default: 10 attempts)
+/// - Stops early if all peers connect successfully
+///
+/// This ensures eventual connectivity even when peers are temporarily unreachable
+/// (e.g., network delays, node startup timing issues in test environments).
+///
 /// Periodically attempts to reconnect to failed peers until all are connected or max retries reached.
 async fn retry_bootstrap_connections(
     node: hermes_ipfs::Ipfs,
@@ -215,6 +238,30 @@ async fn retry_bootstrap_connections(
 }
 
 /// Bootstrap `HERMES_IPFS` node.
+///
+/// ## What is bootstrapping?
+///
+/// Bootstrapping connects an IPFS node to the network by:
+/// 1. Loading/generating a persistent keypair (stable peer identity)
+/// 2. Configuring network transports (TCP, QUIC, DNS)
+/// 3. Connecting to initial bootstrap peers (entry points to the network)
+/// 4. Auto-subscribing to a default topic for immediate mesh participation
+///
+/// ## IMPORTANT: PubSub requires custom bootstrap peers
+///
+/// **Public IPFS bootstrap nodes CANNOT be used for Hermes PubSub.**
+///
+/// Why? Gossipsub requires peers to be:
+/// - Subscribed to the **same topic** (e.g., "documents.new")
+/// - Connected to each other in a mesh topology
+///
+/// Public IPFS nodes don't subscribe to Hermes-specific topics, so they cannot
+/// participate in message propagation. For PubSub to work, you MUST:
+/// - Use `custom_peers` pointing to other Hermes nodes
+/// - OR deploy dedicated Hermes bootstrap nodes that auto-subscribe to your topics
+///
+/// The `default_bootstrap` option is only useful for general IPFS operations
+/// (file storage, DHT), NOT for PubSub message exchange.
 ///
 /// ## Parameters
 ///
@@ -256,8 +303,16 @@ pub fn bootstrap(
         .map_err(|_| anyhow::anyhow!("failed to start IPFS node"))?;
 
     // Auto-subscribe to default topic for P2P mesh formation
-    // This ensures all nodes are subscribed on startup, allowing the Gossipsub
-    // mesh to form immediately for the topic (requires mesh_n=6 peers)
+    //
+    // Why auto-subscribe at bootstrap time?
+    // - Gossipsub requires peers to be subscribed to the SAME topic to communicate
+    // - By auto-subscribing during bootstrap, all Hermes nodes immediately join the mesh
+    // - This avoids a "cold start" problem where the first node has no peers to talk to
+    // - With Gossipsub's default mesh_n=6, having 6+ nodes subscribed creates a full mesh
+    // - Without this, applications would need to manually subscribe before PubSub works
+    //
+    // Note: This ensures the mesh forms immediately on startup, allowing instant
+    // message propagation as soon as nodes connect to each other.
     let app_name = ApplicationName::new(DEFAULT_APP_NAME);
     let topic = PubsubTopic::from(DEFAULT_MESH_TOPIC.to_string());
     hermes_ipfs_subscribe(&app_name, topic)?;
@@ -309,6 +364,16 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
                 }
 
                 // Enable DHT server mode for PubSub support
+                //
+                // Why DHT Server Mode is Required:
+                // - DHT (Distributed Hash Table) server mode makes this node actively
+                //   participate in the DHT by storing and serving routing information
+                // - This is REQUIRED for Gossipsub PubSub to work properly because:
+                //   1. PubSub uses the DHT to discover which peers are subscribed to topics
+                //   2. Gossipsub builds mesh connections based on DHT peer discovery
+                //   3. Without server mode, the node would be a "leech" that can't help
+                //      other peers discover the network, weakening the mesh
+                // - All Hermes nodes should be DHT servers to form a robust P2P network
                 let hermes_node: HermesIpfs = node.into();
                 hermes_node.dht_mode(hermes_ipfs::rust_ipfs::DhtMode::Server).await?;
                 tracing::debug!("IPFS node set to DHT server mode");
