@@ -1,15 +1,26 @@
-# Dockerfile for Hermes P2P Testing
+# ==============================================================================
+# Hermes P2P Testing - Dockerfile
+# ==============================================================================
 #
-# Base image: Ubuntu 24.04 (GLIBC 2.39)
-# This allows using locally-built binaries from Fedora 40+ hosts (GLIBC 2.38+)
+# CROSS-PLATFORM SUPPORT:
+#   This Dockerfile copies pre-built Linux binaries from the host.
+#   Build commands automatically detect your OS and use the right method:
 #
-# Build artifacts with:
-#   just get-local-hermes-fast   # Local build (fast, compatible with Ubuntu 24.04)
-#   just get-local-athena-fast   # Local WASM build + packaging
+#   Linux:   Fast local cargo builds
+#   Mac/Win: Earthly containerized builds (produces Linux binaries)
 #
-# Or use Earthly for containerized builds (slower but more reproducible):
-#   just get-local-hermes        # Earthly containerized build
-#   just get-local-athena        # Earthly WASM build
+# USAGE:
+#   just quickstart              # Auto-detects platform, builds, starts, tests
+#   just build-all               # Auto-detects platform and builds
+#   just build-images            # Creates Docker images from built binaries
+#
+# TECHNICAL NOTES:
+#   - Base image: Ubuntu 24.04 (GLIBC 2.39)
+#   - Compatible with binaries from Fedora 40+ (GLIBC 2.38+)
+#   - Mac/Windows: Requires Earthly for containerized Linux builds
+#   - Linux: Uses local cargo for faster builds
+#
+# ==============================================================================
 
 FROM ubuntu:24.04
 

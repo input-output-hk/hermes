@@ -18,9 +18,12 @@
 #   just quickstart     # Does everything: build, start, test, verify
 #
 # MANUAL SETUP (if you prefer step-by-step):
-#   just build-all && just build-images  # Build everything
+#   just build-all && just build-images  # Build everything (auto-detects platform)
 #   just init-bootstrap                  # Discover peer IDs (REQUIRED after clean)
 #   just test-pubsub-propagation         # Test message propagation
+#
+# NOTE: Builds auto-detect your platform (Linux/Mac/Windows) and use the
+#       appropriate build method. Mac/Windows users need Earthly installed.
 #
 # DAILY WORKFLOW:
 #   just start                    # Start nodes (preserves peer IDs)
@@ -340,22 +343,42 @@ quickstart:
 # BUILD COMMANDS
 # ==============================================================================
 
-# Build Hermes binary only (fast local build, ~3-5 min)
+# Build Hermes binary (auto-detects platform and uses appropriate method)
 build:
     #!/usr/bin/env bash
     set -euo pipefail
     cd ..
-    echo "🔨 Building Hermes..."
-    just get-local-hermes-fast
 
-# Build Hermes + Athena WASM modules (fast local build, ~1-2 min)
+    # Auto-detect platform
+    OS=$(uname -s)
+    if [ "$OS" = "Linux" ]; then
+        echo "🔨 Building Hermes (fast local build for Linux)..."
+        just get-local-hermes-fast
+    else
+        echo "🔨 Building Hermes (cross-platform with Earthly for $OS)..."
+        echo "   ℹ️  Using containerized build to produce Linux binaries"
+        just get-local-hermes
+    fi
+
+# Build Hermes + Athena WASM modules (auto-detects platform)
 build-all:
     #!/usr/bin/env bash
     set -euo pipefail
     cd ..
-    echo "🚀 Building Hermes and Athena..."
-    just get-local-hermes-fast
-    just get-local-athena-fast
+
+    # Auto-detect platform
+    OS=$(uname -s)
+    if [ "$OS" = "Linux" ]; then
+        echo "🚀 Building Hermes and Athena (fast local build)..."
+        just get-local-hermes-fast
+        just get-local-athena-fast
+    else
+        echo "🚀 Building Hermes and Athena (cross-platform with Earthly for $OS)..."
+        echo "   ℹ️  Using containerized build to produce Linux binaries"
+        echo "   ⏱️  This may take longer than local builds but works on all platforms"
+        just get-local-hermes
+        just get-local-athena
+    fi
 
     echo "📦 Packaging modules..."
     cd hermes/apps/athena

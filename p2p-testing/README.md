@@ -79,6 +79,9 @@ Gossipsub uses `mesh_n=6` by default. With fewer nodes, you get "Mesh low" warni
 - Docker & Docker Compose
 - [Just](https://just.systems)
 - Rust toolchain (for building Hermes)
+- [Earthly](https://earthly.dev) (Mac/Windows only - auto-detected)
+
+**Platform support:** Builds automatically detect your OS and use the appropriate method. Mac/Windows users get containerized builds via Earthly (slower but works everywhere).
 
 Check prerequisites: `just validate-prereqs`
 

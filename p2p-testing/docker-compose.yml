@@ -1,171 +1,266 @@
-# Docker Compose for Hermes P2P Testing
-# Simulates multiple computers running Hermes with isolated networks
+# ==============================================================================
+# Hermes P2P Testing - Docker Compose Configuration
+# ==============================================================================
+#
+# PURPOSE:
+#   6-node test environment for P2P mesh networking and Gossipsub PubSub.
+#   Simulates multiple machines running Hermes with isolated networking.
+#
+# WHY 6 NODES:
+#   Gossipsub uses mesh_n=6 by default. With fewer nodes, you get "Mesh low"
+#   warnings and incomplete message propagation. 6 nodes = full mesh.
 #
 # QUICK START:
-#   just build-all && just build-images  # Build everything
-#   just init-bootstrap                  # Sync bootstrap peer IDs (required first time)
-#   just test-pubsub                     # Verify PubSub works
+#   just quickstart                      # Complete setup and test
+#   just start                           # Start nodes
+#   just test-pubsub-propagation         # Test message propagation
 #
-# BOOTSTRAP PEER IDs:
-#   IPFS_BOOTSTRAP_PEERS below contain hardcoded peer IDs that must match
-#   actual keypairs in Docker volumes. Run 'just init-bootstrap' to sync
-#   after 'just clean' or first setup. See justfile for details.
+# IMPORTANT - BOOTSTRAP PEER IDs:
+#   Each node's IPFS_BOOTSTRAP_PEERS contains hardcoded peer IDs that MUST
+#   match the actual keypairs stored in Docker volumes. After 'just clean',
+#   volumes are deleted and new peer IDs are generated.
+#
+#   Solution: Run 'just init-bootstrap' to auto-discover and sync peer IDs.
+#   (quickstart does this automatically)
+#
+# ==============================================================================
 
 services:
+  # ============================================================================
+  # Node 1 - Bootstrap node and PubSub test publisher
+  # ============================================================================
   hermes-node1:
     build:
-      context: ..
+      context: ..                        # Build from repo root
       dockerfile: p2p-testing/Dockerfile
+
     container_name: hermes-node1
     hostname: node1
+
     environment:
-      - HERMES_HTTP_PORT=5000
-      - HERMES_ACTIVATE_AUTH=true
+      # HTTP Gateway Configuration
+      - HERMES_HTTP_PORT=5000            # Internal port (mapped to 5000 on host)
+      - HERMES_ACTIVATE_AUTH=true        # Enable authentication
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
+
+      # Logging Configuration
+      # debug: IPFS/libp2p for P2P diagnostics, info: Hermes for general logs
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
+
+      # Bootstrap Peers (P2P Discovery)
+      # Format: /ip4/<ip>/tcp/<port>/p2p/<peer-id>
+      # Node 1 connects to nodes 2 and 3 to form initial mesh
+      # These peer IDs are synced by 'just init-bootstrap' after volume changes
       - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWE1gkZ7WrZpk9LcvZf4ntrkT5jWuca3sihxoCHwci7Xzg,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWRqQMHTp82HhR7ANEG2xdiRWbvYAioTVFBeqH1hAK34yP
+
     ports:
-      # HTTP Gateway
-      - "5000:5000"
-      # IPFS Swarm (P2P)
-      - "4001:4001"
-      # IPFS API
-      - "5001:5001"
+      # Format: "host:container"
+      - "5000:5000"  # HTTP Gateway - test messages via POST to this port
+      - "4001:4001"  # IPFS Swarm (P2P networking)
+      - "5001:5001"  # IPFS API (optional, for debugging)
+
     volumes:
+      # Persistent storage for IPFS keypair, maintains stable peer ID
+      # Deleted by 'just clean', preserved by 'just stop'
       - node1-data:/home/hermes
+
     networks:
       hermes-p2p:
-        ipv4_address: 172.20.0.10
+        ipv4_address: 172.20.0.10  # Static IP for predictable peer addressing
 
+  # ============================================================================
+  # Node 2 - Bootstrap node
+  # ============================================================================
   hermes-node2:
     build:
       context: ..
       dockerfile: p2p-testing/Dockerfile
+
     container_name: hermes-node2
     hostname: node2
+
     environment:
       - HERMES_HTTP_PORT=5000
       - HERMES_ACTIVATE_AUTH=true
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
+
+      # Node 2 connects to nodes 1 and 3
       - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWQj4bnGeWHEQ3D6Nu5vLNPH81nspejEH3YZMYafcSkdYf,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWRqQMHTp82HhR7ANEG2xdiRWbvYAioTVFBeqH1hAK34yP
+
     ports:
-      # HTTP Gateway (different host port)
-      - "5002:5000"
-      # IPFS Swarm
-      - "4002:4001"
-      # IPFS API
-      - "5003:5001"
+      # Different host ports to avoid conflicts (all containers expose same internal ports)
+      - "5002:5000"  # HTTP Gateway on host port 5002
+      - "4002:4001"  # IPFS Swarm
+      - "5003:5001"  # IPFS API
+
     volumes:
       - node2-data:/home/hermes
+
     networks:
       hermes-p2p:
         ipv4_address: 172.20.0.11
 
+  # ============================================================================
+  # Node 3 - Bootstrap node
+  # ============================================================================
   hermes-node3:
     build:
       context: ..
       dockerfile: p2p-testing/Dockerfile
+
     container_name: hermes-node3
     hostname: node3
+
     environment:
       - HERMES_HTTP_PORT=5000
       - HERMES_ACTIVATE_AUTH=true
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
+
+      # Node 3 connects to nodes 1 and 2
       - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWASCFfndfoG3CiQp15suXY47K2KgV3sm12Ed2T3QwGxnS,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooW9rXFf9Rq5SZgRDVFzGRX2pcuT4XC3HofntUNJ9whnpKw
+
     ports:
-      # HTTP Gateway (different host port)
       - "5004:5000"
-      # IPFS Swarm
       - "4003:4001"
-      # IPFS API
       - "5005:5001"
+
     volumes:
       - node3-data:/home/hermes
+
     networks:
       hermes-p2p:
         ipv4_address: 172.20.0.12
 
+  # ============================================================================
+  # Node 4 - Mesh participant
+  # ============================================================================
   hermes-node4:
     build:
       context: ..
       dockerfile: p2p-testing/Dockerfile
+
     container_name: hermes-node4
     hostname: node4
+
     environment:
       - HERMES_HTTP_PORT=5000
       - HERMES_ACTIVATE_AUTH=true
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
+
+      # Node 4 connects to nodes 1, 2, and 3 (bootstrap nodes)
+      # Once connected, Gossipsub will form full mesh with all 6 nodes
       - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWQj4bnGeWHEQ3D6Nu5vLNPH81nspejEH3YZMYafcSkdYf,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWE1gkZ7WrZpk9LcvZf4ntrkT5jWuca3sihxoCHwci7Xzg,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWRqQMHTp82HhR7ANEG2xdiRWbvYAioTVFBeqH1hAK34yP
+
     ports:
       - "5006:5000"
       - "4004:4001"
       - "5007:5001"
+
     volumes:
       - node4-data:/home/hermes
+
     networks:
       hermes-p2p:
         ipv4_address: 172.20.0.13
 
+  # ============================================================================
+  # Node 5 - Mesh participant
+  # ============================================================================
   hermes-node5:
     build:
       context: ..
       dockerfile: p2p-testing/Dockerfile
+
     container_name: hermes-node5
     hostname: node5
+
     environment:
       - HERMES_HTTP_PORT=5000
       - HERMES_ACTIVATE_AUTH=true
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
+
+      # Node 5 connects to bootstrap nodes
       - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWQj4bnGeWHEQ3D6Nu5vLNPH81nspejEH3YZMYafcSkdYf,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWE1gkZ7WrZpk9LcvZf4ntrkT5jWuca3sihxoCHwci7Xzg,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWRqQMHTp82HhR7ANEG2xdiRWbvYAioTVFBeqH1hAK34yP
+
     ports:
       - "5008:5000"
       - "4005:4001"
       - "5009:5001"
+
     volumes:
       - node5-data:/home/hermes
+
     networks:
       hermes-p2p:
         ipv4_address: 172.20.0.14
 
+  # ============================================================================
+  # Node 6 - Mesh participant
+  # ============================================================================
   hermes-node6:
     build:
       context: ..
       dockerfile: p2p-testing/Dockerfile
+
     container_name: hermes-node6
     hostname: node6
+
     environment:
       - HERMES_HTTP_PORT=5000
       - HERMES_ACTIVATE_AUTH=true
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
+
+      # Node 6 connects to bootstrap nodes
       - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWQj4bnGeWHEQ3D6Nu5vLNPH81nspejEH3YZMYafcSkdYf,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWE1gkZ7WrZpk9LcvZf4ntrkT5jWuca3sihxoCHwci7Xzg,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWRqQMHTp82HhR7ANEG2xdiRWbvYAioTVFBeqH1hAK34yP
+
     ports:
       - "5010:5000"
       - "4006:4001"
       - "5011:5001"
+
     volumes:
       - node6-data:/home/hermes
+
     networks:
       hermes-p2p:
         ipv4_address: 172.20.0.15
 
+# ==============================================================================
+# NETWORK CONFIGURATION
+# ==============================================================================
 networks:
   hermes-p2p:
-    driver: bridge
+    driver: bridge                # Bridge network for container isolation
     ipam:
       config:
-        - subnet: 172.20.0.0/16
+        - subnet: 172.20.0.0/16   # Private subnet for P2P mesh
+                                  # Nodes: .10 through .15
+                                  # Large subnet provides room for expansion
 
+# ==============================================================================
+# PERSISTENT VOLUMES
+# ==============================================================================
+# Each node gets a dedicated volume for:
+#   - IPFS keypair (generates peer ID, stored at /home/hermes/.hermes/ipfs/keypair)
+#   - Hermes data
+#
+# Volumes persist across 'docker compose down' and 'just stop'
+# Volumes are DELETED by 'docker compose down -v' and 'just clean'
+#
+# After volume deletion, new peer IDs are generated on next startup
+# Run 'just init-bootstrap' to sync new peer IDs to docker-compose.yml
+# ==============================================================================
 volumes:
   node1-data:
   node2-data:
