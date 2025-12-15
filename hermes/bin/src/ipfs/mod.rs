@@ -6,14 +6,26 @@ use std::{
     collections::HashSet, convert::Infallible, marker::PhantomData, path::Path, str::FromStr,
 };
 
-/// Default IPFS listening port (configurable via IPFS_LISTEN_PORT env var)
+/// Default IPFS listening port (configurable via `IPFS_LISTEN_PORT` env var)
 const DEFAULT_IPFS_LISTEN_PORT: u16 = 4001;
 
-/// Default retry interval in seconds for bootstrap connections (configurable via IPFS_RETRY_INTERVAL_SECS)
+/// Default retry interval in seconds for bootstrap connections (configurable via `IPFS_RETRY_INTERVAL_SECS`)
 const DEFAULT_RETRY_INTERVAL_SECS: u64 = 10;
 
-/// Default maximum retry attempts for bootstrap connections (configurable via IPFS_MAX_RETRIES)
+/// Default maximum retry attempts for bootstrap connections (configurable via `IPFS_MAX_RETRIES`)
 const DEFAULT_MAX_RETRIES: u32 = 10;
+
+/// IPFS data subdirectory name within the base directory
+const IPFS_DATA_DIR: &str = "ipfs";
+
+/// Keypair filename for persistent IPFS identity
+const KEYPAIR_FILENAME: &str = "keypair";
+
+/// Default application name for auto-subscription
+const DEFAULT_APP_NAME: &str = "athena";
+
+/// Default `PubSub` topic for P2P mesh formation
+const DEFAULT_MESH_TOPIC: &str = "documents.new";
 
 pub(crate) use api::{
     hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_dht_get_providers,
@@ -72,7 +84,7 @@ fn load_or_generate_keypair(keypair_path: &Path) -> anyhow::Result<Keypair> {
         tracing::info!("Loading existing IPFS keypair from: {}", keypair_path.display());
         let bytes = std::fs::read(keypair_path)?;
         let keypair = Keypair::from_protobuf_encoding(&bytes)
-            .map_err(|e| anyhow::anyhow!("Failed to decode keypair: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to decode keypair: {e}"))?;
 
         // Log the peer ID for debugging
         let peer_id = keypair.public().to_peer_id();
@@ -89,12 +101,78 @@ fn load_or_generate_keypair(keypair_path: &Path) -> anyhow::Result<Keypair> {
 
         // Save the keypair for future use
         let bytes = keypair.to_protobuf_encoding()
-            .map_err(|e| anyhow::anyhow!("Failed to encode keypair: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("Failed to encode keypair: {e}"))?;
         std::fs::write(keypair_path, bytes)?;
         tracing::info!("Saved keypair to: {}", keypair_path.display());
 
         Ok(keypair)
     }
+}
+
+/// Parse environment variable with fallback to default value.
+fn env_var_or<T: std::str::FromStr>(key: &str, default: T) -> T {
+    std::env::var(key)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
+}
+
+/// Configure IPFS node to listen on the specified port.
+async fn configure_listening_address(node: &hermes_ipfs::Ipfs) {
+    let listen_port = env_var_or("IPFS_LISTEN_PORT", DEFAULT_IPFS_LISTEN_PORT);
+    let listen_addr = format!("/ip4/0.0.0.0/tcp/{listen_port}");
+
+    match listen_addr.parse() {
+        Ok(multiaddr) => {
+            match node.add_listening_address(multiaddr).await {
+                Ok(addr) => tracing::info!("IPFS listening on: {}", addr),
+                Err(e) => tracing::error!("Failed to listen on port {}: {}", listen_port, e),
+            }
+        },
+        Err(e) => tracing::error!("Invalid multiaddr format: {}", e),
+    }
+}
+
+/// Connect to custom bootstrap peers and retry failed connections in the background.
+///
+/// Returns the number of successfully connected peers.
+async fn connect_to_bootstrap_peers(
+    node: &hermes_ipfs::Ipfs,
+    peers: Vec<String>,
+) -> usize {
+    tracing::info!("Connecting to {} custom bootstrap peer(s)", peers.len());
+
+    let mut connected: usize = 0;
+    let mut failed = Vec::new();
+
+    for peer_addr in &peers {
+        match peer_addr.parse::<hermes_ipfs::Multiaddr>() {
+            Ok(multiaddr) => {
+                match node.connect(multiaddr.clone()).await {
+                    Ok(_) => {
+                        tracing::info!("✓ Connected to bootstrap peer: {}", peer_addr);
+                        connected = connected.saturating_add(1);
+                    },
+                    Err(e) => {
+                        tracing::warn!("⚠ Initial connection failed for {}: {}", peer_addr, e);
+                        failed.push((peer_addr.clone(), multiaddr));
+                    },
+                }
+            },
+            Err(e) => {
+                tracing::warn!("⚠ Invalid multiaddr {}: {}", peer_addr, e);
+            },
+        }
+    }
+
+    tracing::info!("Custom bootstrap: connected to {}/{} peers", connected, peers.len());
+
+    // Spawn retry task for failed peers
+    if !failed.is_empty() {
+        tokio::spawn(retry_bootstrap_connections(node.clone(), failed));
+    }
+
+    connected
 }
 
 /// Retry bootstrap connections in the background.
@@ -104,43 +182,36 @@ async fn retry_bootstrap_connections(
     node: hermes_ipfs::Ipfs,
     mut failed_peers: Vec<(String, hermes_ipfs::Multiaddr)>,
 ) {
-    let retry_interval_secs = std::env::var("IPFS_RETRY_INTERVAL_SECS")
-        .ok()
-        .and_then(|v| v.parse::<u64>().ok())
-        .unwrap_or(DEFAULT_RETRY_INTERVAL_SECS);
+    if failed_peers.is_empty() {
+        return;
+    }
 
-    let max_retries = std::env::var("IPFS_MAX_RETRIES")
-        .ok()
-        .and_then(|v| v.parse::<u32>().ok())
-        .unwrap_or(DEFAULT_MAX_RETRIES);
+    let retry_interval = std::time::Duration::from_secs(
+        env_var_or("IPFS_RETRY_INTERVAL_SECS", DEFAULT_RETRY_INTERVAL_SECS)
+    );
+    let max_retries = env_var_or("IPFS_MAX_RETRIES", DEFAULT_MAX_RETRIES);
 
     for attempt in 1..=max_retries {
-        if failed_peers.is_empty() {
-            break;
-        }
-
-        tokio::time::sleep(std::time::Duration::from_secs(retry_interval_secs)).await;
+        tokio::time::sleep(retry_interval).await;
         tracing::debug!("Bootstrap retry {}/{}: attempting {} peer(s)", attempt, max_retries, failed_peers.len());
 
         let mut still_failed = Vec::new();
         for (addr, multiaddr) in failed_peers {
-            match node.connect(multiaddr.clone()).await {
-                Ok(_) => {
-                    tracing::info!("✓ Bootstrap retry succeeded: {}", addr);
-                },
-                Err(_) => {
-                    still_failed.push((addr, multiaddr));
-                },
+            if node.connect(multiaddr.clone()).await.is_err() {
+                still_failed.push((addr, multiaddr));
+            } else {
+                tracing::info!("✓ Bootstrap retry succeeded: {}", addr);
             }
         }
         failed_peers = still_failed;
+
+        if failed_peers.is_empty() {
+            tracing::info!("✓ All bootstrap peers connected");
+            return;
+        }
     }
 
-    if failed_peers.is_empty() {
-        tracing::info!("✓ All bootstrap peers connected");
-    } else {
-        tracing::warn!("⚠ {} bootstrap peer(s) still unreachable after {} retries", failed_peers.len(), max_retries);
-    }
+    tracing::warn!("⚠ {} bootstrap peer(s) still unreachable after {} retries", failed_peers.len(), max_retries);
 }
 
 /// Bootstrap `HERMES_IPFS` node.
@@ -159,19 +230,19 @@ pub fn bootstrap(
     default_bootstrap: bool,
     custom_peers: Option<Vec<String>>,
 ) -> anyhow::Result<()> {
-    let ipfs_data_path = base_dir.join("ipfs");
+    let ipfs_data_path = base_dir.join(IPFS_DATA_DIR);
     if !ipfs_data_path.exists() {
         tracing::info!("creating IPFS repo directory: {}", ipfs_data_path.display());
         std::fs::create_dir_all(&ipfs_data_path)?;
     }
 
     // Load or generate persistent keypair
-    let keypair_path = ipfs_data_path.join("keypair");
+    let keypair_path = ipfs_data_path.join(KEYPAIR_FILENAME);
     let keypair = load_or_generate_keypair(&keypair_path)?;
 
     let ipfs_node = HermesIpfsNode::init(
         HermesIpfsBuilder::with_keypair(keypair)
-            .map_err(|e| anyhow::anyhow!("Failed to create IPFS builder with keypair: {}", e))?
+            .map_err(|e| anyhow::anyhow!("Failed to create IPFS builder with keypair: {e}"))?
             .enable_tcp()
             .enable_quic()
             .enable_dns()
@@ -184,13 +255,13 @@ pub fn bootstrap(
         .set(ipfs_node)
         .map_err(|_| anyhow::anyhow!("failed to start IPFS node"))?;
 
-    // Auto-subscribe to documents.new for P2P mesh formation
+    // Auto-subscribe to default topic for P2P mesh formation
     // This ensures all nodes are subscribed on startup, allowing the Gossipsub
-    // mesh to form immediately for the documents.new topic (requires mesh_n=6 peers)
-    let app_name = ApplicationName::new("athena");
-    let topic = PubsubTopic::from("documents.new".to_string());
+    // mesh to form immediately for the topic (requires mesh_n=6 peers)
+    let app_name = ApplicationName::new(DEFAULT_APP_NAME);
+    let topic = PubsubTopic::from(DEFAULT_MESH_TOPIC.to_string());
     hermes_ipfs_subscribe(&app_name, topic)?;
-    tracing::info!("Auto-subscribed to documents.new topic for P2P mesh formation");
+    tracing::info!("Auto-subscribed to {} topic for P2P mesh formation", DEFAULT_MESH_TOPIC);
 
     Ok(())
 }
@@ -225,77 +296,29 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         let _handle = std::thread::spawn(move || {
             let result = runtime.block_on(async move {
                 // Configure listening address for P2P connections
-                let listen_port = std::env::var("IPFS_LISTEN_PORT")
-                    .ok()
-                    .and_then(|v| v.parse::<u16>().ok())
-                    .unwrap_or(DEFAULT_IPFS_LISTEN_PORT);
+                configure_listening_address(&node).await;
 
-                let listen_addr = format!("/ip4/0.0.0.0/tcp/{}", listen_port);
-                match listen_addr.parse() {
-                    Ok(multiaddr) => {
-                        match node.add_listening_address(multiaddr).await {
-                            Ok(addr) => tracing::info!("IPFS listening on: {}", addr),
-                            Err(e) => tracing::error!("Failed to listen on port {}: {}", listen_port, e),
-                        }
-                    },
-                    Err(e) => tracing::error!("Invalid multiaddr format: {}", e),
-                }
-
-                // Connect to custom bootstrap peers if provided
+                // Connect to bootstrap peers
                 if let Some(peers) = custom_peers {
-                    tracing::info!("Connecting to {} custom bootstrap peer(s)", peers.len());
-
-                    let mut connected = 0;
-                    let mut failed = Vec::new();
-
-                    for peer_addr in &peers {
-                        match peer_addr.parse::<hermes_ipfs::Multiaddr>() {
-                            Ok(multiaddr) => {
-                                match node.connect(multiaddr.clone()).await {
-                                    Ok(_) => {
-                                        tracing::info!("✓ Connected to bootstrap peer: {}", peer_addr);
-                                        connected += 1;
-                                    },
-                                    Err(e) => {
-                                        tracing::warn!("⚠ Initial connection failed for {}: {}", peer_addr, e);
-                                        failed.push((peer_addr.clone(), multiaddr));
-                                    },
-                                }
-                            },
-                            Err(e) => {
-                                tracing::warn!("⚠ Invalid multiaddr {}: {}", peer_addr, e);
-                            },
-                        }
-                    }
-
-                    tracing::info!("Custom bootstrap: connected to {}/{} peers", connected, peers.len());
-
-                    // Spawn retry task for failed peers
-                    if !failed.is_empty() {
-                        tokio::spawn(retry_bootstrap_connections(node.clone(), failed));
-                    }
-                }
-                // Only use public bootstrap if no custom peers provided
-                else if default_bootstrap {
-                    // Add default addresses for bootstrapping
+                    connect_to_bootstrap_peers(&node, peers).await;
+                } else if default_bootstrap {
+                    // Use public IPFS bootstrap nodes
                     let addresses = node.default_bootstrap().await?;
-                    // Connect to bootstrap nodes.
                     node.bootstrap().await?;
-                    tracing::debug!(
-                        "Bootstrapped IPFS node with default addresses: {:?}",
-                        addresses
-                    );
+                    tracing::debug!("Bootstrapped IPFS node with default addresses: {:?}", addresses);
                 }
-                let hermes_node: HermesIpfs = node.into();
+
                 // Enable DHT server mode for PubSub support
-                hermes_node
-                    .dht_mode(hermes_ipfs::rust_ipfs::DhtMode::Server)
-                    .await?;
+                let hermes_node: HermesIpfs = node.into();
+                hermes_node.dht_mode(hermes_ipfs::rust_ipfs::DhtMode::Server).await?;
                 tracing::debug!("IPFS node set to DHT server mode");
+
+                // Start command handler
                 let h = tokio::spawn(ipfs_command_handler(hermes_node, receiver));
                 let (..) = tokio::join!(h);
                 Ok::<(), anyhow::Error>(())
             });
+
             if let Err(e) = result {
                 tracing::error!("IPFS thread error: {}", e);
             }
