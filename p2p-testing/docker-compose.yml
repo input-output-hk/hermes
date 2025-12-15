@@ -7,8 +7,9 @@
 #   Simulates multiple machines running Hermes with isolated networking.
 #
 # WHY 6 NODES:
-#   Gossipsub uses mesh_n=6 by default. With fewer nodes, you get "Mesh low"
-#   warnings and incomplete message propagation. 6 nodes = full mesh.
+#   Gossipsub's mesh_n parameter (default: 6) defines how many peers each node
+#   maintains in its PubSub mesh. With fewer than 6 nodes, publish operations
+#   stall waiting for mesh formation. 6 nodes = full mesh without delays.
 #
 # QUICK START:
 #   just quickstart                      # Complete setup and test
@@ -45,14 +46,15 @@ services:
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
 
       # Logging Configuration
-      # debug: IPFS/libp2p for P2P diagnostics, info: Hermes for general logs
+      # debug: Verbose P2P diagnostics (connection attempts, peer discovery, mesh formation)
+      # info: General application events (startup, HTTP requests, module lifecycle)
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
 
       # Bootstrap Peers (P2P Discovery)
       # Format: /ip4/<ip>/tcp/<port>/p2p/<peer-id>
       # Node 1 connects to nodes 2 and 3 to form initial mesh
       # These peer IDs are synced by 'just init-bootstrap' after volume changes
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWE1gkZ7WrZpk9LcvZf4ntrkT5jWuca3sihxoCHwci7Xzg,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWRqQMHTp82HhR7ANEG2xdiRWbvYAioTVFBeqH1hAK34yP
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWQFfnXBktvcJhX7qsmgq2rp8XqGaRfK3eo3jBrarWD34S,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWLDmm3wuko2R6VMkmePzr6GJ5jwRsdGstTGAUoahWDjdb
 
     ports:
       # Format: "host:container"
@@ -88,7 +90,7 @@ services:
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
 
       # Node 2 connects to nodes 1 and 3
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWQj4bnGeWHEQ3D6Nu5vLNPH81nspejEH3YZMYafcSkdYf,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWRqQMHTp82HhR7ANEG2xdiRWbvYAioTVFBeqH1hAK34yP
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWR3yegJbi3ACyfprXJDFveC7S8iAEyUsUK7wvwTpeCfYo,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWLDmm3wuko2R6VMkmePzr6GJ5jwRsdGstTGAUoahWDjdb
 
     ports:
       # Different host ports to avoid conflicts (all containers expose same internal ports)
@@ -154,9 +156,10 @@ services:
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
 
-      # Node 4 connects to nodes 1, 2, and 3 (bootstrap nodes)
-      # Once connected, Gossipsub will form full mesh with all 6 nodes
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWQj4bnGeWHEQ3D6Nu5vLNPH81nspejEH3YZMYafcSkdYf,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWE1gkZ7WrZpk9LcvZf4ntrkT5jWuca3sihxoCHwci7Xzg,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWRqQMHTp82HhR7ANEG2xdiRWbvYAioTVFBeqH1hAK34yP
+      # Bootstrap nodes: Initial entry points for P2P mesh formation
+      # Node 4 connects to nodes 1, 2, and 3 → discovers other peers → Gossipsub forms full 6-node mesh
+      # Peer IDs synced by 'just init-bootstrap' after volume changes
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWR3yegJbi3ACyfprXJDFveC7S8iAEyUsUK7wvwTpeCfYo,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWQFfnXBktvcJhX7qsmgq2rp8XqGaRfK3eo3jBrarWD34S,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWLDmm3wuko2R6VMkmePzr6GJ5jwRsdGstTGAUoahWDjdb
 
     ports:
       - "5006:5000"
@@ -189,7 +192,7 @@ services:
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
 
       # Node 5 connects to bootstrap nodes
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWQj4bnGeWHEQ3D6Nu5vLNPH81nspejEH3YZMYafcSkdYf,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWE1gkZ7WrZpk9LcvZf4ntrkT5jWuca3sihxoCHwci7Xzg,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWRqQMHTp82HhR7ANEG2xdiRWbvYAioTVFBeqH1hAK34yP
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWR3yegJbi3ACyfprXJDFveC7S8iAEyUsUK7wvwTpeCfYo,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWQFfnXBktvcJhX7qsmgq2rp8XqGaRfK3eo3jBrarWD34S,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWLDmm3wuko2R6VMkmePzr6GJ5jwRsdGstTGAUoahWDjdb
 
     ports:
       - "5008:5000"
@@ -222,7 +225,7 @@ services:
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
 
       # Node 6 connects to bootstrap nodes
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWQj4bnGeWHEQ3D6Nu5vLNPH81nspejEH3YZMYafcSkdYf,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWE1gkZ7WrZpk9LcvZf4ntrkT5jWuca3sihxoCHwci7Xzg,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWRqQMHTp82HhR7ANEG2xdiRWbvYAioTVFBeqH1hAK34yP
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWR3yegJbi3ACyfprXJDFveC7S8iAEyUsUK7wvwTpeCfYo,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWQFfnXBktvcJhX7qsmgq2rp8XqGaRfK3eo3jBrarWD34S,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWLDmm3wuko2R6VMkmePzr6GJ5jwRsdGstTGAUoahWDjdb
 
     ports:
       - "5010:5000"

@@ -3,22 +3,22 @@
 # ==============================================================================
 #
 # CROSS-PLATFORM SUPPORT:
-#   This Dockerfile copies pre-built Linux binaries from the host.
-#   Build commands automatically detect your OS and use the right method:
+#   This Dockerfile copies pre-built Linux binaries from ../hermes/target/release/.
+#   The justfile detects your OS and builds appropriately:
 #
-#   Linux:   Fast local cargo builds
-#   Mac/Win: Earthly containerized builds (produces Linux binaries)
+#   Linux:   Uses cargo directly (fast, native)
+#   Mac/Win: Uses Earthly to build inside Linux containers (produces compatible binaries)
 #
 # USAGE:
 #   just quickstart              # Auto-detects platform, builds, starts, tests
 #   just build-all               # Auto-detects platform and builds
 #   just build-images            # Creates Docker images from built binaries
 #
-# TECHNICAL NOTES:
-#   - Base image: Ubuntu 24.04 (GLIBC 2.39)
-#   - Compatible with binaries from Fedora 40+ (GLIBC 2.38+)
-#   - Mac/Windows: Requires Earthly for containerized Linux builds
-#   - Linux: Uses local cargo for faster builds
+# RUNTIME COMPATIBILITY:
+#   - Base image: Ubuntu 24.04 (provides GLIBC 2.39)
+#   - Supports binaries built on Fedora 40+ or any distro with GLIBC 2.38+
+#   - GLIBC versions must match: build host ≤ runtime container for C library calls
+#   - Earthly builds use consistent Linux environment → guaranteed compatibility
 #
 # ==============================================================================
 

@@ -17,7 +17,12 @@ use crate::{
     },
 };
 
-/// The number of steps in the "post document" workflow
+/// The number of steps in the "post document" workflow (see post() function):
+/// 1. add_file: Store document in IPFS, get CID
+/// 2. dht_provide: Announce to DHT that we have this content
+/// 3. get_peer_id: Retrieve our peer identity
+/// 4. ensure_provided: Wait for DHT propagation (backoff retries)
+/// 5. publish: Broadcast document via Gossipsub PubSub
 const POST_STEP_COUNT: u8 = 5;
 
 /// CBOR multicodec identifier.
@@ -460,7 +465,7 @@ fn is_pre_publish_completed(
 ) -> bool {
     // If we find ourselves as a provider, DHT propagation worked
     if current_providers.contains(&our_peer_id.to_string()) {
-        true // Changed from: current_providers.len() > 1
+        true
     } else {
         // If we're not in the list yet, at least one provider should exist
         !current_providers.is_empty()

@@ -33,58 +33,15 @@ just stop                        # Stop nodes (preserves data)
 just clean                       # Stop and delete everything
 ```
 
-### Fast Restart (When Binary Unchanged)
-
-```bash
-docker compose up -d             # Start without rebuilding
-docker compose restart           # Restart without rebuilding
-```
-
-> **Note:** `just start` always rebuilds Docker images. Use `docker compose` directly to skip rebuilds.
-
----
-
-## Troubleshooting
-
-**Test failed?**
-```bash
-sleep 30 && just test-pubsub-propagation    # Wait for mesh, retry
-just troubleshoot                            # Full diagnostics report
-```
-
-**Need detailed help?** See [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)
-
----
-
-## How It Works
-
-**Why 6 nodes?**
-Gossipsub uses `mesh_n=6` by default. With fewer nodes, you get "Mesh low" warnings and incomplete propagation. With 6 nodes, each connects to 5 others forming a complete mesh.
-
-**Network Topology:**
-- 6 nodes in full mesh (15 bidirectional connections)
-- IPs: 172.20.0.10 through 172.20.0.15
-- HTTP ports: 5000, 5002, 5004, 5006, 5008, 5010
-- Persistent peer IDs stored in Docker volumes
-
-**What happens in a test:**
-1. Node 1 receives HTTP POST → publishes to PubSub topic "documents.new"
-2. Gossipsub propagates message through mesh
-3. All other nodes (2-6) receive and validate the message
-4. Test verifies propagation by checking logs
-
-**Behind `just quickstart`:**
-- Runs `just start-ci` to build and start the mesh
-- Runs `just test-pubsub-propagation` to verify propagation
-- Shows success/failure with diagnostics
-
 ---
 
 ## Writing Custom Tests
 
+The `test-pubsub-propagation` command is just one test we wrote to ensure PubSub works in a Hermes mesh. **You can add your own tests** to validate whatever aspects of the P2P infrastructure matter to your use case.
+
 > **Note:** These are basic bash/curl tests for initial validation. Once HTTP API endpoints are finalized, we'll add a proper API testing framework (e.g., Postman collections, REST-assured, or similar) for comprehensive integration testing.
 
-You can extend the justfile with custom test commands to validate different P2P behaviors:
+Extend the justfile with custom test commands to validate different P2P behaviors:
 
 ### Test Examples
 
@@ -199,6 +156,53 @@ test-your-feature:
 - Return non-zero exit code on failure
 - Add sleep delays for async operations (mesh formation, propagation)
 - Use `docker logs` or `docker compose logs` to verify behavior
+
+---
+
+### Fast Restart (When Binary Unchanged)
+
+```bash
+docker compose up -d             # Start without rebuilding
+docker compose restart           # Restart without rebuilding
+```
+
+> **Note:** `just start` always rebuilds Docker images. Use `docker compose` directly to skip rebuilds.
+
+---
+
+## Troubleshooting
+
+**Test failed?**
+```bash
+sleep 30 && just test-pubsub-propagation    # Wait for mesh, retry
+just troubleshoot                            # Full diagnostics report
+```
+
+**Need detailed help?** See [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)
+
+---
+
+## How It Works
+
+**Why 6 nodes?**
+Gossipsub uses `mesh_n=6` by default. With fewer nodes, you get "Mesh low" warnings and incomplete propagation. With 6 nodes, each connects to 5 others forming a complete mesh.
+
+**Network Topology:**
+- 6 nodes in full mesh (15 bidirectional connections)
+- IPs: 172.20.0.10 through 172.20.0.15
+- HTTP ports: 5000, 5002, 5004, 5006, 5008, 5010
+- Persistent peer IDs stored in Docker volumes
+
+**What happens in a test:**
+1. Node 1 receives HTTP POST → publishes to PubSub topic "documents.new"
+2. Gossipsub propagates message through mesh
+3. All other nodes (2-6) receive and validate the message
+4. Test verifies propagation by checking logs
+
+**Behind `just quickstart`:**
+- Runs `just start-ci` to build and start the mesh
+- Runs `just test-pubsub-propagation` to verify propagation
+- Shows success/failure with diagnostics
 
 ---
 
