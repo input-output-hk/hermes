@@ -138,18 +138,15 @@ pub(crate) async fn ipfs_command_handler(
                 send_response(result, tx);
             },
             IpfsCommand::Subscribe(topic, kind, tx) => {
-                dbg!();
                 let stream = hermes_node
                     .pubsub_subscribe(&topic)
                     .await
                     .map_err(|_| Errno::PubsubSubscribeError)?;
-                dbg!();
 
                 let message_handler = TopicMessageHandler::new(&topic, match kind {
                     SubscriptionKind::Default => topic_message_handler,
                     SubscriptionKind::DocSync => doc_sync_topic_message_handler,
                 });
-                dbg!();
 
                 let subscription_handler =
                     TopicSubscriptionStatusHandler::new(&topic, topic_subscription_handler);

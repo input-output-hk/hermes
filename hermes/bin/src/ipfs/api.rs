@@ -153,19 +153,14 @@ pub(crate) fn hermes_ipfs_subscribe(
     app_name: &ApplicationName,
     topic: PubsubTopic,
 ) -> Result<bool, Errno> {
-    dbg!();
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "subscribing to PubSub topic");
-    dbg!();
     if ipfs.apps.topic_subscriptions_contains(kind, &topic) {
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription stream already exists");
     } else {
-        dbg!();
         let handle = ipfs.pubsub_subscribe(kind, &topic)?;
-        dbg!();
         ipfs.apps.added_topic_stream(kind, topic.clone(), handle);
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "added subscription topic stream");
-        dbg!();
     }
     ipfs.apps
         .added_app_topic_subscription(kind, app_name.clone(), topic);
