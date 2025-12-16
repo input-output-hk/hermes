@@ -466,13 +466,8 @@ fn is_pre_publish_completed(
     our_peer_id: &str,
     current_providers: &[String],
 ) -> bool {
-    // If we find ourselves as a provider, DHT propagation worked
-    if current_providers.contains(&our_peer_id.to_string()) {
-        true
-    } else {
-        // If we're not in the list yet, at least one provider should exist
-        !current_providers.is_empty()
-    }
+    // Pre-publish is completed if at least one provider other than ourselves exists
+    current_providers.iter().any(|p| p != our_peer_id)
 }
 
 #[cfg(test)]
