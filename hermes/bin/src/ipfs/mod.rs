@@ -390,6 +390,9 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         // Build and start IPFS node, before moving into the thread
         let node = runtime.block_on(async move { builder.start().await })?;
 
+        // Create a oneshot channel to signal when the command handler is ready
+        let (ready_tx, ready_rx) = oneshot::channel();
+
         let _handle = std::thread::spawn(move || {
             let result = runtime.block_on(async move {
                 // Configure listening address for P2P connections
@@ -425,6 +428,10 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
                     .await?;
                 tracing::debug!("IPFS node set to DHT server mode");
 
+                // Signal that the command handler is about to start
+                // Ignore the error if the receiver was dropped
+                let _ = ready_tx.send(());
+
                 // Start command handler
                 let h = tokio::spawn(ipfs_command_handler(hermes_node, receiver));
                 let (..) = tokio::join!(h);
@@ -435,6 +442,16 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
                 tracing::error!("IPFS thread error: {}", e);
             }
         });
+
+        // Wait for the command handler to be ready before returning
+        // This prevents the race condition where auto-subscribe happens before
+        // the command handler is ready to process commands
+        ready_rx.blocking_recv().map_err(|_| {
+            anyhow::anyhow!("IPFS initialization failed: command handler thread died")
+        })?;
+
+        tracing::debug!("IPFS command handler is ready");
+
         Ok(Self {
             sender: Some(sender),
             apps: AppIpfsState::new(),
