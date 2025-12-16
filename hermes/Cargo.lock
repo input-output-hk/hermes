@@ -3238,8 +3238,8 @@ dependencies = [
 
 [[package]]
 name = "hermes-ipfs"
-version = "0.0.8"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=hermes-ipfs%2Fv0.0.8#dceedfe859247bce62d485e48fca305583ef34b0"
+version = "0.0.9"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=hermes-ipfs%2Fv0.0.9#27b852f6e22db951f907bc7f85ab3aef30c90c2e"
 dependencies = [
  "anyhow",
  "bytemuck",
