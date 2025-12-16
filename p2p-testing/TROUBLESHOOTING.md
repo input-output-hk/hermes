@@ -18,11 +18,13 @@ just troubleshoot               # Generate full diagnostic report
 ### 1. Test Fails: "No nodes received the message"
 
 **Symptoms:**
-- `just test-pubsub-propagation` fails
-- No nodes show RECEIVED status
-- Mesh appears broken
+
+* `just test-pubsub-propagation` fails
+* No nodes show RECEIVED status
+* Mesh appears broken
 
 **Diagnosis:**
+
 ```bash
 just test-pubsub-propagation
 just logs | grep -E '(gossipsub|bootstrap|RECEIVED)'
@@ -30,7 +32,8 @@ just logs | grep -E '(gossipsub|bootstrap|RECEIVED)'
 
 **Common Causes & Solutions:**
 
-**A. Mesh Not Formed**
+#### A. Mesh Not Formed
+
 ```bash
 # Check if peers are connected
 just check-connectivity
@@ -42,7 +45,8 @@ sleep 30 && just test-pubsub-propagation
 just restart
 ```
 
-**B. Bootstrap Issues (Peer ID Mismatch)**
+#### B. Bootstrap Issues (Peer ID Mismatch)
+
 ```bash
 # Check for "wrong peer id" errors
 just logs | grep -i "wrong peer id"
@@ -51,7 +55,8 @@ just logs | grep -i "wrong peer id"
 just init-bootstrap
 ```
 
-**C. Nodes Not Subscribed to Topic**
+#### C. Nodes Not Subscribed to Topic
+
 ```bash
 # Check logs for PubSub subscription messages
 just logs | grep -i "subscribed"
@@ -65,11 +70,13 @@ just restart
 ### 2. Nodes Won't Start
 
 **Symptoms:**
-- `just start` fails
-- Docker containers exit immediately
-- Port conflicts
+
+* `just start` fails
+* Docker containers exit immediately
+* Port conflicts
 
 **Diagnosis:**
+
 ```bash
 just validate-prereqs
 docker compose ps
@@ -78,7 +85,8 @@ docker compose logs --tail=50
 
 **Common Causes & Solutions:**
 
-**A. Missing Build Artifacts**
+#### A. Missing Build Artifacts
+
 ```bash
 # Error: "Binary not found"
 just build-all
@@ -86,7 +94,8 @@ just build-images
 just start
 ```
 
-**B. Port Already in Use**
+#### B. Port Already in Use
+
 ```bash
 # Check what's using ports
 lsof -i :5000
@@ -97,14 +106,16 @@ just stop
 # Or kill other processes using the ports
 ```
 
-**C. Docker Not Running**
+#### C. Docker Not Running
+
 ```bash
 # Error: "Cannot connect to the Docker daemon"
 sudo systemctl start docker
 # Or start Docker Desktop
 ```
 
-**D. Old Containers Still Running**
+#### D. Old Containers Still Running
+
 ```bash
 # Check for stale containers
 docker ps -a | grep hermes
@@ -119,10 +130,12 @@ just start
 ### 3. Partial Propagation (Some Nodes Don't Receive)
 
 **Symptoms:**
-- 1-3 nodes receive messages, but not all
-- Intermittent failures
+
+* 1-3 nodes receive messages, but not all
+* Intermittent failures
 
 **Diagnosis:**
+
 ```bash
 just test-pubsub-propagation
 just logs | grep "peer connected" | wc -l  # Should be 30 for full mesh
@@ -130,7 +143,8 @@ just logs | grep "peer connected" | wc -l  # Should be 30 for full mesh
 
 **Common Causes & Solutions:**
 
-**A. Mesh Still Forming**
+#### A. Mesh Still Forming
+
 ```bash
 # Wait longer for mesh to stabilize
 sleep 30
@@ -141,7 +155,8 @@ just check-connectivity
 # Should see "30 peer connections" for full mesh
 ```
 
-**B. Network Latency**
+#### B. Network Latency
+
 ```bash
 # Wait longer before checking reception
 sleep 10 && just test-pubsub-propagation
@@ -151,7 +166,8 @@ sleep 10 && just test-pubsub-propagation
 # in the _test-pubsub-execute recipe (currently 5s total)
 ```
 
-**C. Gossipsub Configuration**
+#### C. Gossipsub Configuration
+
 ```bash
 # Check if Gossipsub is active
 just logs | grep -i gossipsub | wc -l
@@ -166,12 +182,14 @@ just restart
 ### 4. Docker Build Failures
 
 **Symptoms:**
-- `just build-images` fails
-- COPY errors in Dockerfile
+
+* `just build-images` fails
+* COPY errors in Dockerfile
 
 **Common Causes & Solutions:**
 
-**A. Artifacts Not Built**
+#### A. Artifacts Not Built
+
 ```bash
 # Ensure binaries exist before building images
 ls -lh ../hermes/target/release/hermes
@@ -182,7 +200,8 @@ just build-all
 just build-images
 ```
 
-**B. Docker Disk Space**
+#### B. Docker Disk Space
+
 ```bash
 # Check disk space
 df -h
@@ -200,17 +219,20 @@ just build-images
 ### 5. Bootstrap Initialization Fails
 
 **Symptoms:**
-- `just init-bootstrap` fails to discover peer IDs
-- "Failed to discover peer IDs from logs"
+
+* `just init-bootstrap` fails to discover peer IDs
+* "Failed to discover peer IDs from logs"
 
 **Diagnosis:**
+
 ```bash
 docker compose logs hermes-node1 hermes-node2 hermes-node3 | grep "Peer ID"
 ```
 
 **Common Causes & Solutions:**
 
-**A. Nodes Not Starting Fast Enough**
+#### A. Nodes Not Starting Fast Enough
+
 ```bash
 # Wait longer for nodes to fully start, then retry
 sleep 30 && just init-bootstrap
@@ -219,7 +241,8 @@ sleep 30 && just init-bootstrap
 # If nodes consistently need more time, wait before running it
 ```
 
-**B. Volumes Corrupted**
+#### B. Volumes Corrupted
+
 ```bash
 # Nuclear option: Complete clean reset
 just clean
@@ -234,11 +257,13 @@ just init-bootstrap
 ### 6. Performance Issues / Slow Propagation
 
 **Symptoms:**
-- Messages take >10s to propagate
-- High CPU usage
-- Slow logs
+
+* Messages take >10s to propagate
+* High CPU usage
+* Slow logs
 
 **Diagnosis:**
+
 ```bash
 docker stats
 just logs | tail -100 | grep -E 'slow|timeout|latency'
@@ -246,14 +271,16 @@ just logs | tail -100 | grep -E 'slow|timeout|latency'
 
 **Solutions:**
 
-**A. Too Much Logging**
+#### A. Too Much Logging
+
 ```bash
 # Reduce log verbosity in docker-compose.yml
 # Change RUST_LOG from debug to info
 # Then restart: just restart
 ```
 
-**B. System Resources**
+#### B. System Resources
+
 ```bash
 # Check system load
 top
@@ -272,22 +299,23 @@ docker stop <other-containers>
 
 When things go wrong, run through this checklist:
 
-- [ ] **Prerequisites OK?** → `just validate-prereqs`
-- [ ] **Docker running?** → `docker info`
-- [ ] **Nodes running?** → `docker compose ps`
-- [ ] **All 6 nodes up?** → Should show 6 containers "Up"
-- [ ] **Ports available?** → `lsof -i :5000` (should be empty or show our containers)
-- [ ] **Peer connections?** → `just check-connectivity` (should see 30 connections)
-- [ ] **Gossipsub active?** → `just logs | grep -i gossipsub` (should see many entries)
-- [ ] **Bootstrap OK?** → `just logs | grep "All bootstrap peers connected"`
-- [ ] **Disk space OK?** → `df -h` (need >5GB)
-- [ ] **Artifacts exist?** → `ls -lh ../hermes/target/release/hermes`
+* [ ] **Prerequisites OK?** → `just validate-prereqs`
+* [ ] **Docker running?** → `docker info`
+* [ ] **Nodes running?** → `docker compose ps`
+* [ ] **All 6 nodes up?** → Should show 6 containers "Up"
+* [ ] **Ports available?** → `lsof -i :5000` (should be empty or show our containers)
+* [ ] **Peer connections?** → `just check-connectivity` (should see 30 connections)
+* [ ] **Gossipsub active?** → `just logs | grep -i gossipsub` (should see many entries)
+* [ ] **Bootstrap OK?** → `just logs | grep "All bootstrap peers connected"`
+* [ ] **Disk space OK?** → `df -h` (need >5GB)
+* [ ] **Artifacts exist?** → `ls -lh ../hermes/target/release/hermes`
 
 ---
 
 ## Nuclear Options (When All Else Fails)
 
 ### Complete Reset
+
 ```bash
 # Nuclear option: Remove EVERYTHING (p2p-testing + all unused Docker resources)
 docker compose down -v
@@ -299,12 +327,14 @@ just quickstart
 ```
 
 **Less aggressive alternative:**
+
 ```bash
 just clean       # Only removes p2p-testing volumes
 just quickstart  # Rebuilds and starts
 ```
 
 ### Verify Docker Setup
+
 ```bash
 # Test basic Docker functionality
 docker run hello-world
@@ -322,6 +352,7 @@ sudo systemctl restart docker
 ## Getting More Help
 
 ### Collect Diagnostics
+
 ```bash
 # Generate comprehensive report
 just troubleshoot
@@ -331,6 +362,7 @@ just troubleshoot
 ```
 
 ### Useful Log Commands
+
 ```bash
 # View all logs
 just logs
@@ -352,6 +384,7 @@ just logs | grep "peer connected"
 ```
 
 ### Debug Mode
+
 ```bash
 # Enable more verbose logging in docker-compose.yml
 # Change RUST_LOG to:
@@ -366,51 +399,61 @@ just restart
 ## Understanding Error Messages
 
 ### "wrong peer id"
-- **Meaning:** Bootstrap configuration has stale peer IDs
-- **Fix:** `just init-bootstrap`
+
+* **Meaning:** Bootstrap configuration has stale peer IDs
+* **Fix:** `just init-bootstrap`
 
 ### "Failed to post message"
-- **Meaning:** HTTP API not responding or Athena app not loaded
-- **Fix:** Check node 1 logs, ensure app loaded
+
+* **Meaning:** HTTP API not responding or Athena app not loaded
+* **Fix:** Check node 1 logs, ensure app loaded
 
 ### "Mesh not formed"
-- **Meaning:** Nodes haven't connected to each other
-- **Fix:** Wait longer, check bootstrap, verify network
+
+* **Meaning:** Nodes haven't connected to each other
+* **Fix:** Wait longer, check bootstrap, verify network
 
 ### "Port already in use"
-- **Meaning:** Another process is using required ports
-- **Fix:** `just stop` or kill conflicting process
+
+* **Meaning:** Another process is using required ports
+* **Fix:** `just stop` or kill conflicting process
 
 ### "Permission denied" (Docker)
-- **Meaning:** User not in docker group
-- **Fix:** `sudo usermod -aG docker $USER` then logout/login
+
+* **Meaning:** User not in docker group
+* **Fix:** `sudo usermod -aG docker $USER` then logout/login
 
 ---
 
 ## Prevention Tips
 
 1. **Always validate before starting:**
+
    ```bash
    just validate-prereqs
    ```
 
-2. **Use quickstart for first-time setup:**
+1. **Use quickstart for first-time setup:**
+
    ```bash
    just quickstart
    ```
 
-3. **Don't run `just clean` unless you want to delete everything**
-   - `just stop` preserves data
-   - `just clean` deletes volumes and peer identities
+1. **Don't run `just clean` unless you want to delete everything**
 
-4. **Wait for mesh to form before testing:**
+   * `just stop` preserves data
+   * `just clean` deletes volumes and peer identities
+
+1. **Wait for mesh to form before testing:**
+
    ```bash
    just start
    sleep 30  # Give it time
    just test-pubsub-propagation
    ```
 
-5. **Check health regularly:**
+1. **Check health regularly:**
+
    ```bash
    just test-pubsub-propagation
    just status
