@@ -469,7 +469,7 @@ If none of these solutions work:
 2. Check the justfile comments for detailed documentation
 3. Review Docker logs: `docker compose logs > full-logs.txt`
 4. Report the issue with:
-   - Output of `just troubleshoot`
-   - Output of `just test-pubsub-propagation`
-   - Steps to reproduce the problem
-   - Your system info (OS, Docker version)
+   * Output of `just troubleshoot`
+   * Output of `just test-pubsub-propagation`
+   * Steps to reproduce the problem
+   * Your system info (OS, Docker version)

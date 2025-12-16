@@ -211,6 +211,7 @@ With 6 nodes, each connects to 5 others forming a complete mesh.
 * Persistent peer IDs stored in Docker volumes
 
 **What happens in a test:**
+
 1. Node 1 receives HTTP POST → publishes to PubSub topic "documents.new"
 2. Gossipsub propagates message through mesh
 3. All other nodes (2-6) receive and validate the message
@@ -297,8 +298,7 @@ just start-ci && just test-ci && just clean
 
 ## Architecture Details
 
-<details>
-<summary>Click to expand network topology</summary>
+**Network Topology:**
 
 ```text
 Full Mesh: Each node connects to all 5 others
@@ -318,8 +318,6 @@ Node 1 (172.20.0.10) ←→ Node 6 (172.20.0.15)
 * Bootstrap retry logic (automatic reconnection)
 * Gossipsub v1.2 PubSub protocol
 * Full mesh connectivity (172.20.0.0/16 network)
-
-</details>
 
 ---
 
