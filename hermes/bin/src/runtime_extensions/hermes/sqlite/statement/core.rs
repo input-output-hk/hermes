@@ -49,6 +49,32 @@ pub(crate) fn bind(
                     SQLITE_TRANSIENT(),
                 )
             },
+            Value::Datetime(value) => {
+                let dt = chrono::DateTime::from_timestamp(
+                    value
+                        .seconds
+                        .try_into()
+                        .map_err(|_| Errno::ConvertingNumeric)?,
+                    value.nanoseconds,
+                )
+                .ok_or(Errno::ConvertingNumeric)?;
+
+                let time_str = dt.format("%Y-%m-%d %H:%M:%S.%f").to_string();
+
+                let c_value =
+                    std::ffi::CString::new(time_str).map_err(|_| Errno::ConvertingCString)?;
+
+                let n_byte = c_value.as_bytes_with_nul().len();
+                let n_byte = i32::try_from(n_byte).map_err(|_| Errno::ConvertingNumeric)?;
+
+                sqlite3_bind_text(
+                    stmt_ptr,
+                    index,
+                    c_value.as_ptr(),
+                    n_byte,
+                    SQLITE_TRANSIENT(),
+                )
+            },
         }
     };
 

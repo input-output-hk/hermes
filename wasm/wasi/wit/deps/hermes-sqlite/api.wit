@@ -62,7 +62,7 @@ interface api {
         /// UTF-8 text.
         text(string),
         /// Timestamp.
-        timestamp(datetime)
+        datetime(datetime)
     }
 
     /// The result of advancing a prepared SQLite statement by one step.

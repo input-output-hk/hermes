@@ -31,7 +31,7 @@ impl TryFrom<DateTime<Utc>> for Value {
 
     fn try_from(v: DateTime<Utc>) -> Result<Self, Self::Error> {
         let seconds = u64::try_from(v.timestamp())?;
-        Ok(Value::Timestamp(Datetime {
+        Ok(Value::Datetime(Datetime {
             seconds,
             nanoseconds: v.timestamp_subsec_nanos(),
         }))
@@ -179,7 +179,7 @@ impl TryFrom<Value> for DateTime<Utc> {
 
     fn try_from(v: Value) -> Result<Self, Self::Error> {
         match v {
-            Value::Timestamp(Datetime {
+            Value::Datetime(Datetime {
                 seconds,
                 nanoseconds,
             }) => {
