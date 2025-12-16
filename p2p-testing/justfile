@@ -424,7 +424,6 @@ validate-prereqs:
     else
         echo -e "${RED}❌${RESET}"
         echo -e "    ${RED}Binary not found: ../hermes/target/release/hermes${RESET}"
-        echo -e "    ${YELLOW}→ Build: just build${RESET}"
         ERRORS=$((ERRORS + 1))
     fi
 
@@ -435,7 +434,6 @@ validate-prereqs:
     else
         echo -e "${RED}❌${RESET}"
         echo -e "    ${RED}App not found: ../hermes/apps/athena/athena.happ${RESET}"
-        echo -e "    ${YELLOW}→ Build: just build-all${RESET}"
         ERRORS=$((ERRORS + 1))
     fi
 
@@ -479,8 +477,23 @@ validate-prereqs:
         echo ""
         exit 0
     else
-        echo -e "${RED}❌ Found $ERRORS issue(s). Please fix them before continuing.${RESET}"
+        echo -e "${RED}❌ Found $ERRORS issue(s)${RESET}"
         echo ""
+
+        # Provide clear action based on what's missing
+        MISSING_HERMES=false
+        MISSING_ATHENA=false
+        [ ! -f "../hermes/target/release/hermes" ] && MISSING_HERMES=true
+        [ ! -f "../hermes/apps/athena/athena.happ" ] && MISSING_ATHENA=true
+
+        if [ "$MISSING_HERMES" = true ] || [ "$MISSING_ATHENA" = true ]; then
+            echo -e "${BOLD}Next step:${RESET} Build the missing artifacts"
+            echo -e "  ${YELLOW}→ Run: just build-all${RESET}"
+            echo ""
+            echo -e "  (This will build both Hermes binary and Athena app)"
+            echo ""
+        fi
+
         exit 1
     fi
 
