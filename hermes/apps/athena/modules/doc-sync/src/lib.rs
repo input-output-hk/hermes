@@ -50,13 +50,10 @@ fn format_message_preview(data: &[u8]) -> String {
     let preview = String::from_utf8_lossy(data);
     let size = data.len();
     if preview.len() > MESSAGE_PREVIEW_MAX_LEN {
-        format!(
-            "{}... ({} bytes)",
-            &preview[..MESSAGE_PREVIEW_MAX_LEN],
-            size
-        )
+        let truncated: String = preview.chars().take(MESSAGE_PREVIEW_MAX_LEN).collect();
+        format!("{truncated}... ({size} bytes)")
     } else {
-        format!("{} ({} bytes)", preview, size)
+        format!("{preview} ({size} bytes)")
     }
 }
 
