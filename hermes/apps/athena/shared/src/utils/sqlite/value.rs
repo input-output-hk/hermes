@@ -1,9 +1,10 @@
 //! Hermes `SQLite` value conversion.
 
 use cardano_blockchain_types;
+use chrono::{DateTime, Utc};
 use num_bigint::{BigInt, BigUint};
 
-use crate::bindings::hermes::sqlite::api::Value;
+use crate::bindings::hermes::sqlite::api::{Datetime, Value};
 
 // ------ Rust types to SQLite value conversion ------
 
@@ -22,6 +23,18 @@ impl From<String> for Value {
 impl From<Vec<u8>> for Value {
     fn from(v: Vec<u8>) -> Self {
         Value::Blob(v)
+    }
+}
+
+impl TryFrom<DateTime<Utc>> for Value {
+    type Error = anyhow::Error;
+
+    fn try_from(v: DateTime<Utc>) -> Result<Self, Self::Error> {
+        let seconds = u64::try_from(v.timestamp())?;
+        Ok(Value::Datetime(Datetime {
+            seconds,
+            nanoseconds: v.timestamp_subsec_nanos(),
+        }))
     }
 }
 
@@ -157,6 +170,25 @@ impl TryFrom<Value> for u16 {
                 u16::try_from(i).map_err(|_| anyhow::anyhow!("Cannot convert Int32 to u16"))
             },
             _ => Err(anyhow::anyhow!("Value is not an integer")),
+        }
+    }
+}
+
+impl TryFrom<Value> for DateTime<Utc> {
+    type Error = anyhow::Error;
+
+    fn try_from(v: Value) -> Result<Self, Self::Error> {
+        match v {
+            Value::Datetime(Datetime {
+                seconds,
+                nanoseconds,
+            }) => {
+                let seconds = i64::try_from(seconds)
+                    .map_err(|_| anyhow::anyhow!("Timestamp seconds exceed i64 range"))?;
+                DateTime::from_timestamp(seconds, nanoseconds)
+                    .ok_or_else(|| anyhow::anyhow!("Invalid timestamp components"))
+            },
+            _ => Err(anyhow::anyhow!("Value is not a Timestamp")),
         }
     }
 }

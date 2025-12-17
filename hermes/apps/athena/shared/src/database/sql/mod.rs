@@ -2,50 +2,58 @@
 
 /// Shortcut for including SQL in an organized way.
 macro_rules! include_sql {
-    (#[dir = $dir:literal] pub const $const:ident: _ = $struct:ident {$($rel_stem:ident),* $(,)?};) => {
-        #[doc = concat!("Shared SQL included from shared \"sql/", $dir, "\" directory")]
-        #[derive(Debug)]
-        pub struct $struct {
-            $(
-                #[doc = "```text"]
-                #[doc = include_str!(concat!($dir, '/', stringify!($rel_stem), ".sql"))]
-                #[doc = "```"]
-                pub $rel_stem: &'static str,
-            )*
-        }
-
-        #[doc = concat!("See [`", stringify!($struct), "`] documentation")]
-        pub const $const: $struct = $struct {
-            $($rel_stem: include_str!(concat!($dir, '/', stringify!($rel_stem), ".sql")),)*
-        };
-
-        impl $struct {
-            /// Iterates over `<raw-sql-content>` of each field.
-            pub fn iter() -> impl Iterator<Item = &'static str> {
-                Self::iter_named().map(|(_, sql)| sql)
+    (
+        $(
+            #[dir = $dir:literal]
+            pub const $const:ident: _ = $struct:ident {
+                $($rel_stem:ident),* $(,)?
+            };
+        )*
+    ) => {
+        $(
+            #[doc = concat!("Shared SQL included from shared \"sql/", $dir, "\" directory")]
+            #[derive(Debug)]
+            pub struct $struct {
+                $(
+                    #[doc = "```text"]
+                    #[doc = include_str!(concat!($dir, '/', stringify!($rel_stem), ".sql"))]
+                    #[doc = "```"]
+                    pub $rel_stem: &'static str,
+                )*
             }
 
-            /// Iterates over (`<raw-sql-name>`, `<raw-sql-content>`).
-            pub fn iter_named() -> impl Iterator<Item = (&'static str, &'static str)> {
-                [$((stringify!($rel_stem), $const.$rel_stem),)*].into_iter()
+            #[doc = concat!("See [`", stringify!($struct), "`] documentation")]
+            pub const $const: $struct = $struct {
+                $($rel_stem: include_str!(concat!($dir, '/', stringify!($rel_stem), ".sql")),)*
+            };
+
+            impl $struct {
+                /// Iterates over `<raw-sql-content>` of each field.
+                pub fn iter() -> impl Iterator<Item = &'static str> {
+                    Self::iter_named().map(|(_, sql)| sql)
+                }
+
+                /// Iterates over (`<raw-sql-name>`, `<raw-sql-content>`).
+                pub fn iter_named() -> impl Iterator<Item = (&'static str, &'static str)> {
+                    [$((stringify!($rel_stem), $const.$rel_stem),)*].into_iter()
+                }
             }
-        }
+        )*
     };
 }
 
-// SQL included from sql/schema directory.
 include_sql! {
+    // SQL included from sql/schema directory.
     #[dir = "schema"]
     pub const SCHEMA: _ = Schema {
         stake_registration,
         txi_by_txn_id,
         txo_assets_by_stake,
         txo_by_stake,
+        doc_sync
     };
-}
 
-// SQL queries included from sql/staked_ada directory.
-include_sql! {
+    // SQL queries included from sql/staked_ada directory.
     #[dir = "staked_ada"]
     pub const STAKED_ADA: _ = StakedAda {
         delete_stake_registration_before_slot,
@@ -65,6 +73,14 @@ include_sql! {
         select_txo_assets_by_stake,
         select_txo_by_stake,
         update_txo_spent,
+    };
+
+    // SQL queries included from sql/doc_sync directory.
+    #[dir = "doc_sync"]
+    pub const DOC_SYNC: _ = DocSync {
+        delete_document_by_cid,
+        insert_document,
+        select_document_by_cid
     };
 }
 
@@ -96,5 +112,12 @@ mod tests {
         let conn = Connection::open_in_memory()?;
         execute_schema_sql(&conn)?;
         validate_raw_sql(&conn, StakedAda::iter_named())
+    }
+
+    #[test]
+    fn validate_doc_sync_sql() -> anyhow::Result<()> {
+        let conn = Connection::open_in_memory()?;
+        execute_schema_sql(&conn)?;
+        validate_raw_sql(&conn, DocSync::iter_named())
     }
 }
