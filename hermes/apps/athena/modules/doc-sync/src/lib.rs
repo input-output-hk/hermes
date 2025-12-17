@@ -25,13 +25,20 @@ shared::bindings_generate!({
 
 export!(Component);
 
+use cardano_blockchain_types::pallas_codec::minicbor::{self, Encoder, data::Tag};
+use cid::{Cid, multihash::Multihash};
 use hermes::{
     doc_sync::api::{DocData, SyncChannel},
     http_gateway::api::{Bstr, Headers, HttpGatewayResponse, HttpResponse},
 };
+use sha2::{Digest as _, Sha256};
 use shared::{
     bindings::hermes::doc_sync::api::ChannelName,
-    utils::log::{self, error, info},
+    database::doc_sync::InsertDocumentRow,
+    utils::{
+        log::{self, error, info},
+        sqlite,
+    },
 };
 
 /// Doc Sync component - thin wrapper calling host-side implementation.
@@ -57,11 +64,32 @@ fn format_message_preview(data: &[u8]) -> String {
     }
 }
 
+/// Initialize the doc-sync database schema.
+///
+/// Creates the `document` table for either the persistent or in-memory database
+/// depending on the `in_memory` flag.
+///
+/// # Errors
+///
+/// Returns any `SQLite` error that occurs while opening the connection,
+/// beginning the transaction, creating tables, or committing the transaction.
+fn init_db(in_memory: bool) -> anyhow::Result<()> {
+    let mut conn = sqlite::Connection::open(in_memory)?;
+    let mut tx = conn.begin()?;
+    shared::database::doc_sync::create_tables(&mut tx)?;
+    tx.commit()
+}
+
 impl exports::hermes::init::event::Guest for Component {
     /// Initialize the module.
     fn init() -> bool {
         log::init(log::LevelFilter::Trace);
         info!(target: "doc_sync::init", "Doc sync module initialized");
+        if let Err(err) = init_db(false) {
+            error!(target: "doc_sync::init", "Failed to initialize database: {err:?}");
+            return false;
+        }
+
         // Create the channel during initialization
         SyncChannel::new(DOC_SYNC_CHANNEL);
         true
@@ -105,6 +133,10 @@ impl exports::hermes::doc_sync::event::Guest for Component {
             channel,
             format_message_preview(&doc)
         );
+
+        if let Err(err) = store_in_db(&doc) {
+            error!(target: "doc_sync::on_new_doc", "Failed to store doc from channel {channel}: {err:?}");
+        }
     }
 }
 
@@ -194,4 +226,40 @@ pub mod channel {
         // Post document via host (executes 4-step workflow in host)
         channel.post(document_bytes)
     }
+}
+
+/// Stores the document in local `SQLite`: computes CID, stamps current time, and inserts
+/// into `document` table.
+fn store_in_db(doc: &DocData) -> anyhow::Result<()> {
+    let cid = compute_cid(doc)?;
+    let now = chrono::Utc::now();
+    let row = InsertDocumentRow {
+        cid,
+        document: doc.clone(),
+        inserted_at: now,
+        metadata: None,
+    };
+
+    let mut conn = sqlite::Connection::open(false)?;
+    shared::database::doc_sync::insert_document(&mut conn, [row]).map_err(|(_, err)| err)?;
+    Ok(())
+}
+
+/// Computes a `CIDv1` (CBOR codec, sha2-256 multihash) for the document bytes,
+/// wraps it in the IPLD CID CBOR tag (42) and returns the tagged bytes.
+fn compute_cid(doc: &DocData) -> anyhow::Result<Vec<u8>> {
+    const CBOR_CODEC: u64 = 0x51;
+    const CID_CBOR_TAG: u64 = 42;
+    const SHA2_256_CODE: u64 = 0x12;
+
+    let doc_bytes = minicbor::to_vec(doc)?;
+    let hash = Sha256::digest(&doc_bytes);
+    let digest = Multihash::wrap(SHA2_256_CODE, &hash)?;
+    let cid = Cid::new_v1(CBOR_CODEC, digest);
+
+    let mut encoder = Encoder::new(Vec::new());
+    encoder.tag(Tag::new(CID_CBOR_TAG))?;
+    encoder.bytes(&cid.to_bytes())?;
+
+    Ok(encoder.into_writer())
 }

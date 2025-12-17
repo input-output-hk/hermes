@@ -46,7 +46,6 @@ cat-gateway-types = [
     "rbac-registration",
     "regex",
     "serde",
-    "chrono",
     "hex",
     "ed25519-dalek",
     "utoipa",
@@ -67,7 +66,7 @@ num-bigint = "0.4.6"
 
 regex = { version = "1.12.2", optional = true }
 serde = { version = "1.0.228", optional = true }
-chrono = { version = "0.4.42", optional = true }
+chrono = { version = "0.4.42" }
 hex = { version = "0.4.3", optional = true }
 ed25519-dalek = { version = "2.2.0", optional = true }
 utoipa = { version = "5.4.0", features = ["uuid", "url"], optional = true }
