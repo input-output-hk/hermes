@@ -6,6 +6,9 @@ bindings.rs
 plot-git.py
 stub.wasm
 
+# Multi-node testing
+.hermes-nodes
+
 ### Linux ###
 *~
 

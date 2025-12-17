@@ -49,7 +49,7 @@ fn init_ipfs() -> anyhow::Result<()> {
     let base_dir = temp_dir::TempDir::new()?;
     // disable bootstrapping the IPFS node to default addresses for testing
     let default_bootstrap = false;
-    hermes::ipfs::bootstrap(base_dir.path(), default_bootstrap)
+    hermes::ipfs::bootstrap(base_dir.path(), default_bootstrap, None)
 }
 
 fn main() -> Result<(), Box<dyn Error>> {

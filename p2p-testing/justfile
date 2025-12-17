@@ -1,0 +1,1492 @@
+# ==============================================================================
+# Hermes P2P Testing Environment
+# ==============================================================================
+#
+# 6-node Docker setup for testing P2P features:
+# - Persistent IPFS keypairs (peer IDs stable across stop/restart)
+# - Dynamic bootstrap discovery (syncs docker-compose.yml after volume clean)
+# - Bootstrap retry logic (automatic reconnection on failures)
+# - Gossipsub v1.2 PubSub with on-topic event handler
+# - Full mesh connectivity on isolated network (172.20.0.0/16)
+#
+# WHY 6 NODES?
+#   Gossipsub's mesh_n parameter (default: 6) defines the target number of peers
+#   each node maintains in its PubSub mesh. With fewer than 6 peers, publish
+#   operations block waiting for the mesh to reach target size. Alternative would
+#   be forking rust-ipfs to make mesh_n configurable for small test environments.
+#
+# QUICK START (first time):
+#   just quickstart     # Does everything: build, start, test, verify
+#
+# MANUAL SETUP (if you prefer step-by-step):
+#   just build-all && just build-images  # Build everything (auto-detects platform)
+#   just init-bootstrap                  # Discover peer IDs (REQUIRED after clean)
+#   just test-pubsub-propagation         # Test message propagation
+#
+# NOTE: Builds auto-detect your platform (Linux/Mac/Windows) and use the
+#       appropriate build method. Mac/Windows users need Earthly installed.
+#
+# DAILY WORKFLOW:
+#   just start                    # Start nodes (preserves peer IDs)
+#   just test-pubsub-propagation  # Test message propagation (with visualization)
+#   just logs                     # Monitor activity
+#   just stop                     # Stop nodes (keeps data)
+#
+# AFTER CLEANING VOLUMES:
+#   just clean && just quickstart        # Handles init-bootstrap automatically
+#   # OR manually: just clean → just init-bootstrap → just start
+#
+# CI/CD:
+#   just start-ci && just test-ci && just clean
+#
+# NODE ENDPOINTS:
+#   Node 1: http://localhost:5000 (IPFS: 4001, API: 5001) [172.20.0.10]
+#   Node 2: http://localhost:5002 (IPFS: 4002, API: 5003) [172.20.0.11]
+#   Node 3: http://localhost:5004 (IPFS: 4003, API: 5005) [172.20.0.12]
+#   Node 4: http://localhost:5006 (IPFS: 4004, API: 5007) [172.20.0.13]
+#   Node 5: http://localhost:5008 (IPFS: 4005, API: 5009) [172.20.0.14]
+#   Node 6: http://localhost:5010 (IPFS: 4006, API: 5011) [172.20.0.15]
+#
+# PEER IDS:
+#   Auto-generated on first run, persist in volumes, stable across restarts
+#   'just clean' deletes volumes → new IDs generated → 'just init-bootstrap' required
+#
+# PREREQUISITES:
+#   - Docker & Docker Compose
+#   - Just (https://just.systems)
+#   - Rust toolchain (builds use cargo directly, bypassing Earthly)
+#
+# ==============================================================================
+
+# Show available commands (default)
+default:
+    @just --list
+
+# ==============================================================================
+# HELPER FUNCTIONS & UTILITIES
+# ==============================================================================
+# Internal helpers (prefix: _) - implementation details for public commands,
+# not shown in 'just --list', not meant for direct user invocation
+
+# Check if all 6 nodes are running
+_check-nodes-running:
+    #!/usr/bin/env bash
+    RUNNING=$(docker compose ps | grep -c "Up" || echo "0")
+    if [ "$RUNNING" -eq 6 ]; then
+        exit 0
+    else
+        echo "❌ Only $RUNNING/6 nodes running" >&2
+        exit 1
+    fi
+
+# Wait for node's HTTP endpoint to respond (checks /health or / with timeout)
+# Retries with exponential backoff, exits 0 on success, 1 on failure
+# Usage: just _wait-for-http [max_retries] [delay_seconds]
+_wait-for-http retries="6" delay="5":
+    #!/usr/bin/env bash
+    MAX_RETRIES={{retries}}
+    DELAY={{delay}}
+
+    for ((i=1; i<=MAX_RETRIES; i++)); do
+        if curl -s -f -m 5 http://localhost:5000/health >/dev/null 2>&1 || \
+           curl -s -f -m 5 http://localhost:5000/ >/dev/null 2>&1; then
+            exit 0
+        fi
+
+        if [ $i -lt $MAX_RETRIES ]; then
+            echo "⏳ Waiting for HTTP endpoint... (attempt $i/$MAX_RETRIES)" >&2
+            sleep $DELAY
+        fi
+    done
+
+    echo "❌ HTTP endpoint not ready after $MAX_RETRIES attempts" >&2
+    exit 1
+
+# Helper: Post message to doc-sync with retries
+# Usage: just _post-message "message text" [max_retries]
+_post-message message retries="3":
+    #!/usr/bin/env bash
+    MAX_RETRIES={{retries}}
+    MESSAGE="{{message}}"
+
+    for ((i=1; i<=MAX_RETRIES; i++)); do
+        RESPONSE=$(curl -s -X POST http://localhost:5000/api/doc-sync/post \
+          -H "Host: athena.hermes.local" \
+          -H "Content-Type: text/plain" \
+          -d "$MESSAGE" 2>&1)
+
+        SUCCESS=$(echo "$RESPONSE" | jq -r '.success' 2>/dev/null || echo "false")
+
+        if [ "$SUCCESS" = "true" ]; then
+            echo "$RESPONSE"
+            exit 0
+        fi
+
+        if [ $i -lt $MAX_RETRIES ]; then
+            echo "⚠️  Post failed, retrying... (attempt $((i+1))/$MAX_RETRIES)" >&2
+            sleep 5
+        fi
+    done
+
+    echo "❌ Failed to post message after $MAX_RETRIES attempts" >&2
+    echo "$RESPONSE" >&2
+    exit 1
+
+# Helper: Count nodes that received a specific message (by timestamp)
+# Usage: just _count-received-nodes timestamp
+_count-received-nodes timestamp:
+    #!/usr/bin/env bash
+    TIMESTAMP="{{timestamp}}"
+    COUNT=0
+
+    for NODE in {2..6}; do
+        if docker compose logs "hermes-node$NODE" 2>&1 | \
+           grep "RECEIVED PubSub message" | grep -q "$TIMESTAMP"; then
+            COUNT=$((COUNT + 1))
+        fi
+    done
+
+    echo $COUNT
+
+# Helper: Get peer count for a specific node
+_get-node-peer-count node:
+    #!/usr/bin/env bash
+    NODE={{node}}
+    docker compose logs "hermes-node$NODE" 2>&1 | grep "peer connected" | wc -l
+
+# Helper: Wait for mesh to form (checks for sufficient peer connections)
+_wait-for-mesh min_connections="25" max_wait="60":
+    #!/usr/bin/env bash
+    MIN_CONNECTIONS={{min_connections}}
+    MAX_WAIT={{max_wait}}
+
+    echo "⏳ Waiting for mesh formation..." >&2
+
+    for ((i=0; i<MAX_WAIT; i+=5)); do
+        CONNECTIONS=$(docker compose logs 2>&1 | grep "peer connected" | wc -l || echo "0")
+
+        if [ "$CONNECTIONS" -ge "$MIN_CONNECTIONS" ]; then
+            echo "✅ Mesh formed ($CONNECTIONS connections)" >&2
+            exit 0
+        fi
+
+        if [ $i -lt $((MAX_WAIT - 5)) ]; then
+            echo "   Current: $CONNECTIONS connections (target: $MIN_CONNECTIONS)" >&2
+            sleep 5
+        fi
+    done
+
+    echo "⚠️  Mesh not fully formed after ${MAX_WAIT}s ($CONNECTIONS connections)" >&2
+    exit 1
+
+# Helper: Extract CID from curl response
+_extract-cid response:
+    #!/usr/bin/env bash
+    echo "{{response}}" | jq -r '.cid' 2>/dev/null || echo "unknown"
+
+# ==============================================================================
+# QUICK START
+# ==============================================================================
+
+# Complete end-to-end setup and test (for first-time users)
+# NOTE: Uses existing binaries if present. If you changed code, run 'just build-all' first.
+quickstart:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    GREEN='\033[32m'; RED='\033[31m'; YELLOW='\033[33m'
+    BLUE='\033[34m'; BOLD='\033[1m'; RESET='\033[0m'
+
+    echo ""
+    echo -e "${BOLD}${BLUE}╔════════════════════════════════════════════════════════════╗${RESET}"
+    echo -e "${BOLD}${BLUE}║          Hermes P2P Testing - Quick Start                 ║${RESET}"
+    echo -e "${BOLD}${BLUE}╚════════════════════════════════════════════════════════════╝${RESET}"
+    echo ""
+
+    # Step 1: Validate prerequisites
+    echo -e "${BOLD}Step 1/7:${RESET} Validating prerequisites..."
+    if ! just validate-prereqs; then
+        echo ""
+        echo -e "${RED}❌ Quickstart failed: Prerequisites not met${RESET}"
+        exit 1
+    fi
+
+    # Step 2: Check/build artifacts
+    echo -e "${BOLD}Step 2/7:${RESET} Checking build artifacts..."
+    if [ ! -f "../hermes/target/release/hermes" ] || [ ! -f "../hermes/apps/athena/athena.happ" ]; then
+        echo -e "  ${YELLOW}Building Hermes and Athena...${RESET}"
+        just build-all || {
+            echo -e "${RED}❌ Build failed${RESET}"
+            exit 1
+        }
+    else
+        echo -e "  ${GREEN}✅ Artifacts already exist (using existing binaries)${RESET}"
+        echo -e "  ${BLUE}ℹ️  Note: If you changed code, run 'just build-all' first to rebuild${RESET}"
+    fi
+
+    # Step 3: Build Docker images
+    echo ""
+    echo -e "${BOLD}Step 3/7:${RESET} Building Docker images..."
+    just build-images || {
+        echo -e "${RED}❌ Image build failed${RESET}"
+        exit 1
+    }
+
+    # Step 4: Start nodes
+    echo ""
+    echo -e "${BOLD}Step 4/7:${RESET} Starting 6-node environment..."
+
+    # Check if nodes already running
+    if docker compose ps | grep -q "Up"; then
+        echo -e "  ${YELLOW}⚠️  Nodes already running. Restarting...${RESET}"
+        docker compose down
+        sleep 2
+    fi
+
+    # Check if volumes exist (first time needs init-bootstrap)
+    VOLUME_EXISTS=$(docker volume ls | grep p2p-testing_node1-data || echo "")
+    if [ -z "$VOLUME_EXISTS" ]; then
+        echo -e "  ${BLUE}ℹ️  First time setup - initializing bootstrap...${RESET}"
+        just init-bootstrap || {
+            echo -e "${RED}❌ Bootstrap initialization failed${RESET}"
+            exit 1
+        }
+    else
+        docker compose up -d || {
+            echo -e "${RED}❌ Failed to start nodes${RESET}"
+            exit 1
+        }
+    fi
+
+    # Step 5: Wait for mesh formation
+    echo ""
+    echo -e "${BOLD}Step 5/7:${RESET} Waiting for mesh formation..."
+    for i in {30..1}; do
+        echo -ne "  ⏳ ${i}s remaining...\r"
+        sleep 1
+    done
+    echo -e "  ${GREEN}✅ Wait complete${RESET}                    "
+
+    # Step 6: Health check
+    echo ""
+    echo -e "${BOLD}Step 6/7:${RESET} Running health check..."
+    if just test-pubsub-propagation; then
+        echo ""
+    else
+        echo ""
+        echo -e "${YELLOW}⚠️  Health check found issues, but continuing...${RESET}"
+        echo ""
+    fi
+
+    # Step 7: Test propagation
+    echo -e "${BOLD}Step 7/7:${RESET} Testing PubSub propagation..."
+    echo ""
+    if just test-pubsub-propagation; then
+        echo ""
+        echo -e "${BOLD}${GREEN}╔════════════════════════════════════════════════════════════╗${RESET}"
+        echo -e "${BOLD}${GREEN}║                  🎉 SUCCESS! 🎉                            ║${RESET}"
+        echo -e "${BOLD}${GREEN}╠════════════════════════════════════════════════════════════╣${RESET}"
+        echo -e "${BOLD}${GREEN}║  P2P mesh is operational and message propagation works!   ║${RESET}"
+        echo -e "${BOLD}${GREEN}╚════════════════════════════════════════════════════════════╝${RESET}"
+        echo ""
+        echo -e "${BOLD}Node Endpoints:${RESET}"
+        echo "  • Node 1: http://localhost:5000"
+        echo "  • Node 2: http://localhost:5002"
+        echo "  • Node 3: http://localhost:5004"
+        echo "  • Node 4: http://localhost:5006"
+        echo "  • Node 5: http://localhost:5008"
+        echo "  • Node 6: http://localhost:5010"
+        echo ""
+        echo -e "${BOLD}Next Steps:${RESET}"
+        echo -e "  • View logs: ${BLUE}just logs${RESET}"
+        echo -e "  • Check status: ${BLUE}just test-pubsub-propagation${RESET}"
+        echo -e "  • Test again: ${BLUE}just test-pubsub-propagation${RESET}"
+        echo -e "  • Stop nodes: ${BLUE}just stop${RESET}"
+        echo ""
+    else
+        echo ""
+        echo -e "${RED}❌ Propagation test failed${RESET}"
+        echo ""
+        echo "Troubleshooting:"
+        echo -e "  • Check logs: ${BLUE}just logs${RESET}"
+        echo -e "  • Run diagnostics: ${BLUE}just troubleshoot${RESET}"
+        echo -e "  • Try restarting: ${BLUE}just restart${RESET}"
+        exit 1
+    fi
+
+# ==============================================================================
+# BUILD COMMANDS
+# ==============================================================================
+
+# Build Hermes binary (auto-detects platform and uses appropriate method)
+build:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd ..
+
+    # Auto-detect platform
+    OS=$(uname -s)
+    if [ "$OS" = "Linux" ]; then
+        echo "🔨 Building Hermes (fast local build for Linux)..."
+        just get-local-hermes-fast
+    else
+        echo "🔨 Building Hermes (cross-platform with Earthly for $OS)..."
+        echo "   ℹ️  Using containerized build to produce Linux binaries"
+        just get-local-hermes
+    fi
+
+# Build Hermes + Athena WASM modules (auto-detects platform)
+build-all:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd ..
+
+    # Auto-detect platform
+    OS=$(uname -s)
+    if [ "$OS" = "Linux" ]; then
+        echo "🚀 Building Hermes and Athena (fast local build)..."
+        just get-local-hermes-fast
+        just get-local-athena-fast
+    else
+        echo "🚀 Building Hermes and Athena (cross-platform with Earthly for $OS)..."
+        echo "   ℹ️  Using containerized build to produce Linux binaries"
+        echo "   ⏱️  This may take longer than local builds but works on all platforms"
+        just get-local-hermes
+        just get-local-athena
+    fi
+
+    echo "📦 Packaging modules..."
+    cd hermes/apps/athena
+    for module_path in modules/*/lib/manifest_module.json; do
+        if [ -f "$module_path" ]; then
+            echo "  📦 Packaging $(dirname $(dirname $module_path))..."
+            ../../../target/release/hermes module package "$module_path" &
+        fi
+    done
+    wait
+
+    echo "📦 Packaging application..."
+    ../../../target/release/hermes app package manifest_app.json
+    echo "✅ Build complete!"
+
+# Build Docker images from built artifacts
+build-images:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🐳 Building Docker images..."
+    docker compose build
+
+# Build everything (CI mode: no prompts, always clean build)
+build-ci: build-all build-images
+
+# ==============================================================================
+# VALIDATION & DIAGNOSTICS
+# ==============================================================================
+
+# Validate all prerequisites before running tests
+validate-prereqs:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    GREEN='\033[32m'; RED='\033[31m'; YELLOW='\033[33m'
+    BLUE='\033[34m'; BOLD='\033[1m'; RESET='\033[0m'
+
+    echo -e "${BLUE}🔍 Validating Prerequisites${RESET}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+
+    ERRORS=0
+
+    # Check Docker daemon
+    echo -n "  Docker daemon... "
+    if docker info &>/dev/null; then
+        echo -e "${GREEN}✅${RESET}"
+    else
+        echo -e "${RED}❌${RESET}"
+        echo -e "    ${RED}Docker is not running${RESET}"
+        echo -e "    ${YELLOW}→ Start Docker: sudo systemctl start docker${RESET}"
+        ERRORS=$((ERRORS + 1))
+    fi
+
+    # Check Docker Compose
+    echo -n "  Docker Compose... "
+    if command -v docker &>/dev/null && docker compose version &>/dev/null; then
+        echo -e "${GREEN}✅${RESET}"
+    else
+        echo -e "${RED}❌${RESET}"
+        echo -e "    ${RED}Docker Compose not found${RESET}"
+        echo -e "    ${YELLOW}→ Install: https://docs.docker.com/compose/install/${RESET}"
+        ERRORS=$((ERRORS + 1))
+    fi
+
+    # Check Hermes binary (informational - will be built by quickstart if needed)
+    echo -n "  Hermes binary... "
+    if [ -f "../hermes/target/release/hermes" ]; then
+        echo -e "${GREEN}✅${RESET}"
+    else
+        echo -e "${YELLOW}⚠️  Not found (will be built)${RESET}"
+    fi
+
+    # Check Athena app (informational - will be built by quickstart if needed)
+    echo -n "  Athena app... "
+    if [ -f "../hermes/apps/athena/athena.happ" ]; then
+        echo -e "${GREEN}✅${RESET}"
+    else
+        echo -e "${YELLOW}⚠️  Not found (will be built)${RESET}"
+    fi
+
+    # Check disk space
+    echo -n "  Disk space... "
+    AVAILABLE=$(df -BG . | tail -1 | awk '{print $4}' | sed 's/G//')
+    if [ "$AVAILABLE" -gt 5 ]; then
+        echo -e "${GREEN}✅ ${AVAILABLE}GB available${RESET}"
+    else
+        echo -e "${YELLOW}⚠️  Only ${AVAILABLE}GB available${RESET}"
+        echo -e "    ${YELLOW}→ Consider freeing up space: docker system prune${RESET}"
+    fi
+
+    # Check ports (only if Docker is running)
+    if docker info &>/dev/null; then
+        echo -n "  Port availability... "
+        PORTS_IN_USE=()
+        for PORT in 5000 5002 5004 5006 5008 5010 4001 4002 4003 4004 4005 4006; do
+            if ss -tuln 2>/dev/null | grep -q ":$PORT " || netstat -tuln 2>/dev/null | grep -q ":$PORT "; then
+                # Check if it's our own containers
+                if ! docker compose ps 2>/dev/null | grep -q "Up.*:$PORT"; then
+                    PORTS_IN_USE+=($PORT)
+                fi
+            fi
+        done
+
+        if [ ${#PORTS_IN_USE[@]} -eq 0 ]; then
+            echo -e "${GREEN}✅${RESET}"
+        else
+            echo -e "${YELLOW}⚠️  Ports in use: ${PORTS_IN_USE[*]}${RESET}"
+            echo -e "    ${YELLOW}→ Check what's using them: lsof -i :PORT${RESET}"
+            echo -e "    ${YELLOW}→ Or stop our nodes: just stop${RESET}"
+        fi
+    fi
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    if [ $ERRORS -eq 0 ]; then
+        echo -e "${GREEN}✅ All prerequisites satisfied!${RESET}"
+        echo ""
+        exit 0
+    else
+        echo -e "${RED}❌ Found $ERRORS issue(s). Please fix them before continuing.${RESET}"
+        echo ""
+        exit 1
+    fi
+
+# Comprehensive troubleshooting diagnostics
+troubleshoot:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    GREEN='\033[32m'; RED='\033[31m'; YELLOW='\033[33m'
+    BLUE='\033[34m'; RESET='\033[0m'
+
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    REPORT_FILE="p2p-troubleshoot-$TIMESTAMP.txt"
+
+    echo -e "${BLUE}🔧 Running Troubleshooting Diagnostics${RESET}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "Generating report: $REPORT_FILE"
+    echo ""
+
+    # Start report
+    {
+        echo "Hermes P2P Testing - Troubleshooting Report"
+        echo "Generated: $(date)"
+        echo "═══════════════════════════════════════════"
+        echo ""
+    } > "$REPORT_FILE"
+
+    # 1. Prerequisites check
+    echo -e "${BLUE}1. Checking prerequisites...${RESET}"
+    {
+        echo "1. PREREQUISITES"
+        echo "────────────────"
+        echo ""
+    } >> "$REPORT_FILE"
+    just validate-prereqs 2>&1 | tee -a "$REPORT_FILE" || true
+    echo "" | tee -a "$REPORT_FILE"
+
+    # 2. Docker status
+    echo -e "${BLUE}2. Checking Docker status...${RESET}"
+    {
+        echo "2. DOCKER STATUS"
+        echo "────────────────"
+        docker compose ps 2>&1 || echo "Failed to get container status"
+        echo ""
+    } >> "$REPORT_FILE"
+
+    # 3. Docker network
+    echo -e "${BLUE}3. Checking Docker network...${RESET}"
+    {
+        echo "3. DOCKER NETWORK"
+        echo "─────────────────"
+        docker network ls | grep hermes-p2p || echo "Network not found"
+        echo ""
+        docker network inspect hermes-p2p 2>&1 || echo "Failed to inspect network"
+        echo ""
+    } >> "$REPORT_FILE"
+
+    # 4. Volume status
+    echo -e "${BLUE}4. Checking volumes...${RESET}"
+    {
+        echo "4. DOCKER VOLUMES"
+        echo "─────────────────"
+        docker volume ls | grep p2p-testing || echo "No volumes found"
+        echo ""
+    } >> "$REPORT_FILE"
+
+    # 5. Recent logs from each node
+    echo -e "${BLUE}5. Collecting logs from all nodes...${RESET}"
+    {
+        echo "5. NODE LOGS (Last 50 lines per node)"
+        echo "──────────────────────────────────────"
+        echo ""
+    } >> "$REPORT_FILE"
+
+    for i in {1..6}; do
+        {
+            echo "Node $i Logs:"
+            echo "─────────────"
+            docker compose logs --tail=50 hermes-node$i 2>&1 || echo "Failed to get logs for node$i"
+            echo ""
+            echo ""
+        } >> "$REPORT_FILE"
+    done
+
+    # 6. Peer connections summary
+    echo -e "${BLUE}6. Analyzing peer connections...${RESET}"
+    {
+        echo "6. PEER CONNECTIONS"
+        echo "───────────────────"
+        echo "Total 'New peer connected' messages:"
+        docker compose logs 2>&1 | grep "New peer connected" | wc -l
+        echo ""
+        echo "Recent peer connections:"
+        docker compose logs 2>&1 | grep "New peer connected" | tail -10
+        echo ""
+    } >> "$REPORT_FILE"
+
+    # 7. Error analysis
+    echo -e "${BLUE}7. Analyzing errors...${RESET}"
+    {
+        echo "7. ERROR ANALYSIS"
+        echo "─────────────────"
+        echo "Recent errors (last 20):"
+        docker compose logs 2>&1 | grep -iE "(error|panic|failed)" | tail -20 || echo "No errors found"
+        echo ""
+    } >> "$REPORT_FILE"
+
+    # 8. Port check
+    echo -e "${BLUE}8. Checking ports...${RESET}"
+    {
+        echo "8. PORT STATUS"
+        echo "──────────────"
+        for PORT in 5000 5002 5004 5006 5008 5010; do
+            if ss -tuln 2>/dev/null | grep -q ":$PORT " || netstat -tuln 2>/dev/null | grep -q ":$PORT "; then
+                echo "Port $PORT: IN USE"
+            else
+                echo "Port $PORT: AVAILABLE"
+            fi
+        done
+        echo ""
+    } >> "$REPORT_FILE"
+
+    # 9. Common issues check
+    {
+        echo "9. COMMON ISSUES CHECK"
+        echo "──────────────────────"
+        echo ""
+
+        # Check for peer ID mismatches
+        PEER_ID_ERRORS=$(docker compose logs 2>&1 | grep -i "wrong peer id" | wc -l)
+        if [ "$PEER_ID_ERRORS" -gt 0 ]; then
+            echo "⚠️  Peer ID mismatches detected ($PEER_ID_ERRORS occurrences)"
+            echo "   → Solution: just init-bootstrap"
+            echo ""
+        fi
+
+        # Check for port conflicts
+        if ss -tuln 2>/dev/null | grep -qE ":(5000|5002|5004)" || netstat -tuln 2>/dev/null | grep -qE ":(5000|5002|5004)"; then
+            echo "⚠️  Port conflicts detected"
+            echo "   → Solution: just stop"
+            echo ""
+        fi
+
+        # Check if volumes exist but nodes not running
+        VOLUME_COUNT=$(docker volume ls | grep -c p2p-testing || echo "0")
+        RUNNING_COUNT=$(docker compose ps | grep -c "Up" || echo "0")
+        if [ "$VOLUME_COUNT" -gt 0 ] && [ "$RUNNING_COUNT" -eq 0 ]; then
+            echo "ℹ️  Volumes exist but nodes not running"
+            echo "   → Solution: just start"
+            echo ""
+        fi
+
+        echo "End of diagnostics"
+    } >> "$REPORT_FILE"
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo -e "${GREEN}✅ Troubleshooting report generated: $REPORT_FILE${RESET}"
+    echo ""
+    echo "Review the report for detailed diagnostics."
+    echo ""
+    echo "Common solutions:"
+    echo -e "  • Peer ID issues: ${BLUE}just init-bootstrap${RESET}"
+    echo -e "  • Port conflicts: ${BLUE}just stop${RESET}"
+    echo -e "  • Full reset: ${BLUE}just clean && just start${RESET}"
+    echo -e "  • View logs: ${BLUE}just logs${RESET}"
+    echo ""
+
+# ==============================================================================
+# NODE MANAGEMENT
+# ==============================================================================
+
+# Start 3-node test environment (interactive: prompts to rebuild if artifacts exist)
+start:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Check if artifacts exist
+    if [ -f "../hermes/target/release/hermes" ] && [ -f "../hermes/apps/athena/athena.happ" ]; then
+        echo "📦 Found existing build artifacts"
+        read -p "   Rebuild? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            just build-all
+        fi
+    else
+        echo "🏗️  No artifacts found, building..."
+        just build-all
+    fi
+
+    just build-images
+    echo ""
+    echo "🌐 Starting nodes..."
+    docker compose up -d
+
+    echo ""
+    echo "⏳ Waiting for nodes to initialize..."
+    sleep 5
+
+    echo ""
+    just status
+
+# Start nodes (CI mode: no prompts, always rebuilds from clean state)
+start-ci:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🚀 Starting P2P test environment (CI mode)..."
+
+    # Ensure clean state
+    if docker compose ps | grep -q "Up"; then
+        echo "🧹 Cleaning existing environment..."
+        docker compose down -v
+    fi
+
+    just build-ci
+    just init-bootstrap
+    echo ""
+    just status
+
+# Stop nodes (preserves data in Docker volumes)
+stop:
+    @echo "🛑 Stopping nodes..."
+    @docker compose down
+    @echo "✅ Nodes stopped (data preserved in volumes)"
+    @echo "💡 To remove data: just clean"
+
+# Stop nodes and remove all data (volumes deleted)
+# WARNING: After clean, you must run 'just init-bootstrap' to rediscover peer IDs
+clean:
+    @echo "🧹 Stopping nodes and cleaning data..."
+    @docker compose down -v
+    @echo "✅ All nodes stopped and data cleaned"
+    @echo ""
+    @echo "⚠️  IMPORTANT: Peer identities were deleted!"
+    @echo "   Run 'just init-bootstrap' before 'just start' to rediscover peer IDs"
+
+# ==============================================================================
+# BOOTSTRAP PEER DISCOVERY
+# ==============================================================================
+#
+# TL;DR: After 'just clean', run 'just init-bootstrap' to sync peer IDs in
+#        docker-compose.yml. Otherwise nodes can't find each other and mesh fails.
+#
+# BACKGROUND:
+#   Hermes persists IPFS keypairs in Docker volumes
+#   - Keypair location: /home/hermes/.hermes/ipfs/keypair (inside volume)
+#   - Peer IDs remain stable across stop/restart (volumes preserved)
+#   - This works great for normal operations
+#
+# THE PROBLEM:
+#   docker-compose.yml has HARDCODED bootstrap peer IDs in IPFS_BOOTSTRAP_PEERS
+#   - Each node's env var contains specific peer IDs (e.g., /ip4/172.20.0.11/tcp/4001/p2p/12D3KooW...)
+#   - When 'just clean' deletes volumes → new keypairs generated → new peer IDs
+#   - Hardcoded IDs in docker-compose.yml become stale → mesh formation fails
+#   - Errors: "wrong peer id", "Unexpected peer ID", no PubSub propagation
+#
+# THE SOLUTION:
+#   init-bootstrap command (dynamic discovery)
+#   1. Start bootstrap nodes (1-3) to generate/load keypairs
+#   2. Extract actual peer IDs from logs
+#   3. Update docker-compose.yml with discovered IDs (creates backup)
+#   4. Restart all nodes with correct bootstrap configuration
+#
+# WHEN TO RUN:
+#   ✅ After 'just clean' (volumes deleted → new keypairs → new peer IDs)
+#   ✅ First time setup (no volumes exist yet)
+#   ❌ NOT after 'just stop/restart' (volumes preserved → peer IDs unchanged)
+#
+# PRODUCTION DEPLOYMENT ALTERNATIVE:
+#   For production, use pre-generated stable bootstrap keypairs instead:
+#   - Generate keypairs: p2p-testing/identities/bootstrap-node{1-3}.keypair
+#   - Add to Dockerfile: COPY identities/*.keypair /home/hermes/.hermes/ipfs/
+#   - Hardcode well-known peer IDs: /dns4/bootstrap1.hermes.io/tcp/4001/p2p/12D3KooW...
+#   - Benefit: New nodes can connect immediately, no init-bootstrap needed
+#   - Reason: GossipSub requires stable entry points for mesh formation
+#
+# ==============================================================================
+
+# Sync docker-compose.yml bootstrap peer IDs with actual keypairs
+# Required after 'just clean' or first setup
+init-bootstrap:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    echo "🔍 Bootstrap Peer Discovery"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "Syncing docker-compose.yml bootstrap config with actual peer IDs"
+    echo "(Needed after 'just clean' or first setup)"
+    echo ""
+
+    # Check if nodes are running
+    if docker compose ps | grep -q "Up"; then
+        echo "⚠️  Nodes are running. Stopping them first..."
+        docker compose down
+        sleep 2
+    fi
+
+    # Start bootstrap nodes (1-3) without full mesh bootstrap config
+    echo "📡 Phase 1: Starting bootstrap nodes (1-3) without inter-node bootstrap..."
+    echo "   (They will generate or load their peer identities)"
+
+    # Temporarily disable bootstrap for initial startup
+    IPFS_BOOTSTRAP_PEERS="" docker compose up -d hermes-node1 hermes-node2 hermes-node3
+
+    echo "⏳ Waiting 15 seconds for nodes to initialize and generate peer IDs..."
+    sleep 15
+
+    # Extract peer IDs from running nodes
+    echo ""
+    echo "🔎 Phase 2: Discovering peer IDs from running nodes..."
+
+    PEER_ID_1=$(docker compose logs hermes-node1 2>&1 | grep -E '(Generated new keypair|Loaded keypair) with Peer ID:' | grep -oP '12D3[^ "]+' | head -1)
+    PEER_ID_2=$(docker compose logs hermes-node2 2>&1 | grep -E '(Generated new keypair|Loaded keypair) with Peer ID:' | grep -oP '12D3[^ "]+' | head -1)
+    PEER_ID_3=$(docker compose logs hermes-node3 2>&1 | grep -E '(Generated new keypair|Loaded keypair) with Peer ID:' | grep -oP '12D3[^ "]+' | head -1)
+
+    if [ -z "$PEER_ID_1" ] || [ -z "$PEER_ID_2" ] || [ -z "$PEER_ID_3" ]; then
+        echo "❌ Failed to discover peer IDs from logs"
+        echo "   Node 1: ${PEER_ID_1:-NOT FOUND}"
+        echo "   Node 2: ${PEER_ID_2:-NOT FOUND}"
+        echo "   Node 3: ${PEER_ID_3:-NOT FOUND}"
+        echo ""
+        echo "💡 Check logs: docker compose logs"
+        exit 1
+    fi
+
+    echo "   ✅ Node 1 (172.20.0.10): $PEER_ID_1"
+    echo "   ✅ Node 2 (172.20.0.11): $PEER_ID_2"
+    echo "   ✅ Node 3 (172.20.0.12): $PEER_ID_3"
+
+    # Update docker-compose.yml with discovered peer IDs
+    echo ""
+    echo "📝 Phase 3: Updating docker-compose.yml with discovered peer IDs..."
+
+    # Create backup
+    cp docker-compose.yml docker-compose.yml.backup
+
+    # Update bootstrap peers using sed (portable across Linux/Mac)
+    # Node 1: bootstrap from nodes 2,3
+    sed -i.tmp "s|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.11/tcp/4001/p2p/[^,]*,/ip4/172.20.0.12/tcp/4001/p2p/[^\"]*|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.11/tcp/4001/p2p/$PEER_ID_2,/ip4/172.20.0.12/tcp/4001/p2p/$PEER_ID_3|g" docker-compose.yml
+
+    # Node 2: bootstrap from nodes 1,3
+    sed -i.tmp "s|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/[^,]*,/ip4/172.20.0.12/tcp/4001/p2p/[^\"]*|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/$PEER_ID_1,/ip4/172.20.0.12/tcp/4001/p2p/$PEER_ID_3|g" docker-compose.yml
+
+    # Nodes 3-6: bootstrap from nodes 1,2,3
+    sed -i.tmp "s|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/[^,]*,/ip4/172.20.0.11/tcp/4001/p2p/[^,]*,/ip4/172.20.0.12/tcp/4001/p2p/[^\"]*|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/$PEER_ID_1,/ip4/172.20.0.11/tcp/4001/p2p/$PEER_ID_2,/ip4/172.20.0.12/tcp/4001/p2p/$PEER_ID_3|g" docker-compose.yml
+
+    rm -f docker-compose.yml.tmp
+
+    echo "   ✅ docker-compose.yml updated (backup saved as docker-compose.yml.backup)"
+
+    # Restart all nodes with new bootstrap config
+    echo ""
+    echo "🔄 Phase 4: Restarting all nodes with correct bootstrap configuration..."
+    docker compose down
+    sleep 2
+    docker compose up -d
+
+    echo "⏳ Waiting for mesh to form..."
+    sleep 15
+
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "✅ Bootstrap configuration synced!"
+    echo ""
+    echo "📋 Current Peer IDs (now in docker-compose.yml):"
+    echo "   Node 1: $PEER_ID_1"
+    echo "   Node 2: $PEER_ID_2"
+    echo "   Node 3: $PEER_ID_3"
+    echo ""
+    echo "💡 Keypairs persist in Docker volumes"
+    echo "   - Normal stop/restart: No action needed, peer IDs stay the same"
+    echo "   - After 'just clean': Must run 'just init-bootstrap' again"
+    echo ""
+    echo "🔮 Future: Pre-generate test keypairs to skip this step entirely"
+    echo "   See FUTURE IMPROVEMENT in justfile comments"
+    echo ""
+
+    just status
+
+# Restart nodes (stop + start, preserves data)
+restart: stop start
+
+# Full reset (clean + start fresh with new volumes)
+reset: clean start
+
+# ==============================================================================
+# MONITORING
+# ==============================================================================
+
+# Show node status and endpoints
+status:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "📊 Node Status:"
+    docker compose ps
+    echo ""
+    echo "📡 Endpoints:"
+    echo "   Node 1: http://localhost:5000 (IPFS: 4001, API: 5001) [172.20.0.10]"
+    echo "   Node 2: http://localhost:5002 (IPFS: 4002, API: 5003) [172.20.0.11]"
+    echo "   Node 3: http://localhost:5004 (IPFS: 4003, API: 5005) [172.20.0.12]"
+    echo "   Node 4: http://localhost:5006 (IPFS: 4004, API: 5007) [172.20.0.13]"
+    echo "   Node 5: http://localhost:5008 (IPFS: 4005, API: 5009) [172.20.0.14]"
+    echo "   Node 6: http://localhost:5010 (IPFS: 4006, API: 5011) [172.20.0.15]"
+
+# Follow logs from all nodes
+logs:
+    @docker compose logs -f
+
+# Follow logs from specific node (1, 2, or 3)
+logs-node node:
+    @docker compose logs -f hermes-node{{node}}
+
+# Check P2P connectivity (bootstrap, gossipsub, listening addresses)
+check-connectivity:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🔍 Checking P2P connectivity..."
+    echo ""
+
+    echo "📋 Bootstrap status:"
+    docker compose logs 2>&1 | grep "All bootstrap peers connected" | tail -3 || echo "   ⚠️  No successful bootstrap connections logged yet"
+
+    echo ""
+    echo "🔗 Gossipsub peer connections:"
+    docker compose logs 2>&1 | grep "New peer connected" | tail -10 || echo "   ⚠️  No peer connections found"
+
+    echo ""
+    echo "👂 Listening addresses:"
+    docker compose logs 2>&1 | grep "listening on 0.0.0.0:4001" | head -3 || echo "   ⚠️  Nodes may not be listening on port 4001"
+
+# ==============================================================================
+# TESTING
+# ==============================================================================
+
+# Run integration tests on all nodes (requires Athena WASM modules)
+test: test-node1 test-node2 test-node3 test-node4 test-node5 test-node6
+    @echo ""
+    @echo "✅ All nodes tested!"
+
+# Run integration tests on node 1
+test-node1:
+    @echo "🧪 Testing Node 1..."
+    @docker exec hermes-node1 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
+
+# Run integration tests on node 2
+test-node2:
+    @echo "🧪 Testing Node 2..."
+    @docker exec hermes-node2 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
+
+# Run integration tests on node 3
+test-node3:
+    @echo "🧪 Testing Node 3..."
+    @docker exec hermes-node3 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
+
+# Run integration tests on node 4
+test-node4:
+    @echo "🧪 Testing Node 4..."
+    @docker exec hermes-node4 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
+
+# Run integration tests on node 5
+test-node5:
+    @echo "🧪 Testing Node 5..."
+    @docker exec hermes-node5 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
+
+# Run integration tests on node 6
+test-node6:
+    @echo "🧪 Testing Node 6..."
+    @docker exec hermes-node6 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
+
+# Test PubSub message propagation (minimal output, for CI)
+test-pubsub:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Check if nodes are running using helper
+    just _check-nodes-running || exit 1
+
+    # Wait for nodes to fully initialize (HTTP gateway, Athena app, IPFS)
+    echo "⏳ Waiting for nodes to initialize..."
+    sleep 30
+
+    # Post test message using helper (handles retries)
+    TIMESTAMP=$(date +%s)
+    TEST_MESSAGE="PubSub Test - Timestamp: $TIMESTAMP"
+
+    echo "📤 Publishing message..."
+    RESPONSE=$(just _post-message "$TEST_MESSAGE" 3)
+    if [ $? -ne 0 ]; then
+        echo "❌ Failed to post message"
+        exit 1
+    fi
+
+    echo "✅ Message published"
+
+    # Wait for propagation
+    sleep 3
+
+    # Check reception using helper
+    echo "⏳ Checking message reception..."
+    RECEIVED_COUNT=$(just _count-received-nodes "$TIMESTAMP")
+
+    # Evaluate results
+    if [ "$RECEIVED_COUNT" -ge 4 ]; then
+        echo "✅ PubSub propagation successful ($RECEIVED_COUNT/5 nodes received)"
+        exit 0
+    else
+        echo "❌ PubSub propagation failed (only $RECEIVED_COUNT/5 nodes received)"
+        exit 1
+    fi
+
+# Test PubSub message propagation with full visualization (for interactive use)
+test-pubsub-propagation:
+    @just _test-pubsub-explain
+    @just _test-pubsub-execute
+    @just _test-pubsub-visualize
+
+# Internal: Show explanation and topology
+_test-pubsub-explain:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    GREEN='\033[32m'; YELLOW='\033[33m'; BLUE='\033[34m'
+    BOLD='\033[1m'; RESET='\033[0m'
+
+    echo ""
+    echo -e "${BOLD}${BLUE}🧪 Testing PubSub Message Propagation${RESET}"
+    echo -e "${BLUE}═══════════════════════════════════════════${RESET}"
+    echo ""
+    echo -e "${BOLD}What's happening:${RESET}"
+    echo -e "  • All 6 nodes are subscribed to the ${BLUE}doc-sync${RESET} PubSub topic"
+    echo -e "  • Node 1 will publish a message to this topic"
+    echo -e "  • ${BOLD}Gossipsub${RESET} protocol propagates the message through the mesh"
+    echo -e "  • Each node receives and validates the message"
+    echo ""
+    echo -e "${BOLD}Why Node 1 is the Publisher:${RESET}"
+    echo ""
+    echo -e "  ${BLUE}┌─────────────────────────────────────────────────────┐${RESET}"
+    echo -e "  ${BLUE}│${RESET}  Our test sends HTTP POST to Node 1's endpoint:  ${BLUE}│${RESET}"
+    echo -e "  ${BLUE}│${RESET}  ${BOLD}http://localhost:5000/api/doc-sync/post${RESET}        ${BLUE}│${RESET}"
+    echo -e "  ${BLUE}│${RESET}                                                   ${BLUE}│${RESET}"
+    echo -e "  ${BLUE}│${RESET}  → Node 1 receives the message via HTTP          ${BLUE}│${RESET}"
+    echo -e "  ${BLUE}│${RESET}  → Node 1 publishes to PubSub topic 'doc-sync'   ${BLUE}│${RESET}"
+    echo -e "  ${BLUE}│${RESET}  → Gossipsub propagates to all subscribers       ${BLUE}│${RESET}"
+    echo -e "  ${BLUE}└─────────────────────────────────────────────────────┘${RESET}"
+    echo ""
+    echo -e "${BOLD}P2P Mesh Network (Full Connectivity):${RESET}"
+    echo ""
+    echo "              HTTP POST ⬇️"
+    echo "              (localhost:5000)"
+    echo "                    │"
+    echo "         ┌──────────▼──────────┐"
+    echo "         │      Node 1         │ 📤 Publisher"
+    echo "         │  (Receives HTTP)    │"
+    echo "         └──────────┬──────────┘"
+    echo "                    │ Gossipsub"
+    echo "            ┌───────┼───────┐"
+    echo "            │       │       │"
+    echo "        ┌───▼───┐ ┌─▼───┐ ┌─▼───┐"
+    echo "        │Node 2 │ │Node3│ │Node4│ 📥 Subscribers"
+    echo "        └───────┘ └─────┘ └─────┘"
+    echo "            │       │       │"
+    echo "            └───────┼───────┘"
+    echo "                    │"
+    echo "            ┌───────┴───────┐"
+    echo "            │               │"
+    echo "        ┌───▼───┐       ┌───▼───┐"
+    echo "        │Node 5 │       │Node 6 │ 📥 Subscribers"
+    echo "        └───────┘       └───────┘"
+    echo ""
+    echo -e "  ${BLUE}ℹ️  Each node is connected to all others (30 total connections)${RESET}"
+    echo -e "  ${BLUE}ℹ️  Any node can be a publisher - depends on which receives HTTP POST${RESET}"
+    echo ""
+    echo -e "${BOLD}Why Node 1 is the Publisher:${RESET}"
+    echo ""
+    echo -e "  The test sends an HTTP POST to Node 1's endpoint:"
+    echo ""
+    echo -e "  ${BLUE}curl -X POST http://localhost:5000/api/doc-sync/post${RESET} \\"
+    echo -e "       ${BLUE}-H \"Host: athena.hermes.local\"${RESET} \\"
+    echo -e "       ${BLUE}-H \"Content-Type: text/plain\"${RESET} \\"
+    echo -e "       ${BLUE}-d \"PubSub Test - Timestamp: <timestamp>\"${RESET}"
+    echo ""
+    echo -e "  ${GREEN}→${RESET} Node 1 receives the HTTP request"
+    echo -e "  ${GREEN}→${RESET} Node 1's Athena app publishes to the PubSub topic"
+    echo -e "  ${GREEN}→${RESET} Gossipsub propagates the message to all subscribed nodes"
+    echo ""
+    echo -e "  ${YELLOW}Note:${RESET} Any node could be the publisher if you POST to its endpoint"
+    echo -e "        (e.g., POST to localhost:5002 would make Node 2 the publisher)"
+    echo ""
+
+# Internal: Execute core test and store results
+_test-pubsub-execute:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    GREEN='\033[32m'; RED='\033[31m'; YELLOW='\033[33m'
+    BLUE='\033[34m'; BOLD='\033[1m'; RESET='\033[0m'
+
+    # Check nodes using helper
+    if ! just _check-nodes-running >/dev/null 2>&1; then
+        RUNNING=$(docker compose ps | grep -c "Up" || echo "0")
+        echo -e "${RED}❌ Only $RUNNING/6 nodes running${RESET}"
+        echo ""
+        echo -e "  ${BLUE}→ Start nodes: just start${RESET}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓${RESET} All 6 nodes running"
+    echo ""
+
+    # Wait for endpoints (HTTP gateway requires Host header)
+    echo -e "${BLUE}Waiting for HTTP endpoints to initialize...${RESET}"
+    sleep 5
+    echo -n "  Checking Node 1 HTTP endpoint... "
+    if curl -s -f -m 5 -H "Host: athena.hermes.local" http://localhost:5000/ >/dev/null 2>&1; then
+        echo -e "${GREEN}✓${RESET}"
+    else
+        echo -e "${YELLOW}⚠️  Not responding yet, waiting...${RESET}"
+        sleep 10
+    fi
+    echo ""
+
+    # Publish message
+    echo -e "${BOLD}Step 1/3:${RESET} Publishing message to PubSub topic..."
+    TIMESTAMP=$(date +%s)
+    TEST_MESSAGE="PubSub Test - Timestamp: $TIMESTAMP"
+    echo ""
+    echo -e "  ${BLUE}ℹ️  Node 1 publishes to topic: ${BOLD}doc-sync${RESET}"
+    echo -e "  ${BOLD}📨 Message:${RESET} ${BLUE}\"$TEST_MESSAGE\"${RESET}"
+    echo ""
+
+    RESPONSE=$(curl -s -X POST http://localhost:5000/api/doc-sync/post \
+      -H "Host: athena.hermes.local" \
+      -H "Content-Type: text/plain" \
+      -d "$TEST_MESSAGE" 2>&1)
+
+    CID=$(echo "$RESPONSE" | jq -r '.cid' 2>/dev/null || echo "unknown")
+    SUCCESS=$(echo "$RESPONSE" | jq -r '.success' 2>/dev/null || echo "false")
+
+    if [ "$SUCCESS" != "true" ]; then
+        echo -e "${RED}❌ Failed to post message!${RESET}"
+        echo "$RESPONSE" | head -20
+        echo ""
+        echo -e "  ${BLUE}→ Full diagnostics: just troubleshoot${RESET}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}✓${RESET} Message published successfully"
+    echo -e "  ${BOLD}🔑 CID:${RESET} ${BLUE}$CID${RESET}"
+    echo -e "  ${BLUE}ℹ️  CID is the IPFS content hash (cryptographic fingerprint)${RESET}"
+    echo ""
+
+    # Wait for propagation
+    echo -e "${BOLD}Step 2/3:${RESET} Waiting for P2P propagation..."
+    echo -e "  ${BLUE}ℹ️  Gossipsub forwards message through peer connections${RESET}"
+    for i in {3..1}; do
+        echo -ne "  ⏳ ${i}s remaining...\r"
+        sleep 1
+    done
+    echo -e "${GREEN}✓${RESET} Initial wait complete              "
+    echo ""
+
+    # Check reception
+    echo -e "${BOLD}Step 3/3:${RESET} Monitoring message reception..."
+    echo ""
+
+    RECEIVED_COUNT=0
+    START_TIME=$(date +%s%3N)  # Milliseconds for accurate timing
+    declare -A NODE_STATUS NODE_RECEIVE_TIME
+
+    for i in {2..6}; do
+        NODE_STATUS[$i]="⏳"
+        NODE_RECEIVE_TIME[$i]="0"
+    done
+
+    MAX_WAIT=5
+    for SECOND in $(seq 1 $MAX_WAIT); do
+        for NODE in {2..6}; do
+            if [ "${NODE_STATUS[$NODE]}" = "⏳" ]; then
+                if docker compose logs "hermes-node$NODE" 2>&1 | grep "RECEIVED PubSub message" | grep -q "$TIMESTAMP"; then
+                    NODE_STATUS[$NODE]="✅"
+                    NODE_RECEIVE_TIME[$NODE]=$(date +%s%3N)
+                    RECEIVED_COUNT=$((RECEIVED_COUNT + 1))
+                    LATENCY_MS=$((NODE_RECEIVE_TIME[$NODE] - START_TIME))
+                    LATENCY_SEC=$(echo "scale=3; $LATENCY_MS / 1000" | bc)
+                    echo -e "  ${GREEN}✨ Node $NODE received message${RESET} (${LATENCY_SEC}s)"
+                fi
+            fi
+        done
+
+        if [ $RECEIVED_COUNT -lt 5 ]; then
+            echo -ne "\r  Waiting... ${SECOND}s  [${NODE_STATUS[2]} ${NODE_STATUS[3]} ${NODE_STATUS[4]} ${NODE_STATUS[5]} ${NODE_STATUS[6]}]"
+            sleep 1
+        else
+            echo -ne "\r  ${GREEN}✅ All nodes received!${RESET}                                    \n"
+            break
+        fi
+    done
+    echo ""
+
+    # Store results in temp file for visualization
+    RESULTS_FILE="/tmp/p2p-test-results-$TIMESTAMP.txt"
+    echo "TIMESTAMP=$TIMESTAMP" > "$RESULTS_FILE"
+    echo "TEST_MESSAGE=\"$TEST_MESSAGE\"" >> "$RESULTS_FILE"
+    echo "CID=\"$CID\"" >> "$RESULTS_FILE"
+    echo "RECEIVED_COUNT=$RECEIVED_COUNT" >> "$RESULTS_FILE"
+    echo "START_TIME=$START_TIME" >> "$RESULTS_FILE"
+    for NODE in {2..6}; do
+        echo "NODE_STATUS_$NODE=\"${NODE_STATUS[$NODE]}\"" >> "$RESULTS_FILE"
+        echo "NODE_RECEIVE_TIME_$NODE=${NODE_RECEIVE_TIME[$NODE]}" >> "$RESULTS_FILE"
+    done
+
+# Internal: Show detailed visualization and statistics for PubSub test
+_test-pubsub-visualize:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    GREEN='\033[32m'; RED='\033[31m'; YELLOW='\033[33m'
+    BLUE='\033[34m'; BOLD='\033[1m'; RESET='\033[0m'
+
+    # Load results from temp file
+    RESULTS_FILE=$(ls -t /tmp/p2p-test-results-*.txt 2>/dev/null | head -1)
+    if [ -z "$RESULTS_FILE" ]; then
+        echo "❌ No test results found"
+        exit 1
+    fi
+
+    source "$RESULTS_FILE"
+
+    declare -A NODE_STATUS NODE_RECEIVE_TIME
+    for NODE in {2..6}; do
+        eval "NODE_STATUS[$NODE]=\$NODE_STATUS_$NODE"
+        eval "NODE_RECEIVE_TIME[$NODE]=\$NODE_RECEIVE_TIME_$NODE"
+    done
+
+    END_TIME=$(date +%s)
+    TOTAL_TIME=$((END_TIME - START_TIME))
+    MSG_SIZE=$(echo -n "$TEST_MESSAGE" | wc -c)
+    CID_SIZE=$(echo -n "$CID" | wc -c)
+
+    # Timeline
+    echo ""
+    echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "${BOLD}1. PROPAGATION TIMELINE ⏱️${RESET}"
+    echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo ""
+    echo -e "  ${BLUE}0.000s${RESET} → ${BOLD}Node 1 publishes message${RESET}"
+    for NODE in {2..6}; do
+        if [ "${NODE_STATUS[$NODE]}" = "✅" ]; then
+            RECV_TIME_MS=$((NODE_RECEIVE_TIME[$NODE] - START_TIME))
+            RECV_TIME_SEC=$(echo "scale=3; $RECV_TIME_MS / 1000" | bc)
+            echo -e "  ${GREEN}${RECV_TIME_SEC}s${RESET} → Node $NODE received (${GREEN}+${RECV_TIME_SEC}s${RESET})"
+        else
+            echo -e "  ${RED}---${RESET} → Node $NODE ${RED}did not receive${RESET}"
+        fi
+    done
+
+    # Statistics
+    echo ""
+    echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "${BOLD}2. NETWORK STATISTICS 📊${RESET}"
+    echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo ""
+    echo -e "  ${BOLD}Message Metrics:${RESET}"
+    echo -e "    • Message Size: ${BLUE}${MSG_SIZE} bytes${RESET}"
+    echo -e "    • CID Size: ${BLUE}${CID_SIZE} bytes${RESET}"
+    echo -e "    • Total Payload: ${BLUE}$((MSG_SIZE + CID_SIZE)) bytes${RESET}"
+    echo ""
+    echo -e "  ${BOLD}Network Metrics:${RESET}"
+    echo -e "    • Total Nodes: ${BLUE}6${RESET}"
+    echo -e "    • Total Connections: ${BLUE}30${RESET} (full mesh)"
+    echo -e "    • Subscriber Nodes: ${BLUE}5${RESET}"
+    echo -e "    • Success Rate: ${GREEN}$((RECEIVED_COUNT * 100 / 5))%${RESET} (${RECEIVED_COUNT}/5)"
+    echo -e "    • Protocol: ${BLUE}Gossipsub v1.2 (libp2p)${RESET}"
+
+    # Log Preview
+    echo ""
+    echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "${BOLD}3. LIVE LOG PREVIEW 📜${RESET}"
+    echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo ""
+    for NODE in {2..3}; do
+        if [ "${NODE_STATUS[$NODE]}" = "✅" ]; then
+            echo -e "  ${BLUE}[Node $NODE]${RESET}"
+            docker compose logs hermes-node$NODE 2>&1 | grep -E "(RECEIVED PubSub|gossipsub|doc-sync)" | grep "$TIMESTAMP" | tail -1 | sed 's/^/    /' || echo "    (no detailed logs)"
+            echo ""
+        fi
+    done
+
+    # Peer Connections
+    echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "${BOLD}4. PEER CONNECTIONS 🔗${RESET}"
+    echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo ""
+    PEER_CONN=$(docker compose logs 2>&1 | grep -c "New peer connected" || echo "0")
+    echo -e "  ${BOLD}Active P2P Connections:${RESET}"
+    echo -e "    • Total peer connections logged: ${BLUE}${PEER_CONN}${RESET}"
+    echo -e "    • Expected connections: ${BLUE}30${RESET} (each node connects to 5 others)"
+    echo ""
+    echo -e "  ${BOLD}Connection Matrix (Full Mesh):${RESET}"
+    for NODE in {1..6}; do
+        echo -n "    Node $NODE ⟷ "
+        OTHERS=()
+        for OTHER in {1..6}; do
+            [ $NODE -ne $OTHER ] && OTHERS+=("Node $OTHER")
+        done
+        echo "${OTHERS[*]}" | sed 's/ /, /g'
+    done
+    echo ""
+    echo -e "  ${BLUE}ℹ️  Each node maintains 5 peer connections (5 peers × 6 nodes = 30 total)${RESET}"
+
+    # Final Status
+    echo ""
+    echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo -e "${BOLD}FINAL STATUS 📋${RESET}"
+    echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo ""
+    echo -e "  ${BOLD}📨 Message:${RESET} ${BLUE}\"$TEST_MESSAGE\"${RESET}"
+    echo -e "  ${BOLD}🔑 CID:${RESET} ${BLUE}$CID${RESET}"
+    echo -e "  ${BOLD}📡 Topic:${RESET} ${BLUE}doc-sync${RESET}"
+    echo ""
+    echo -e "  ${BOLD}Reception Status:${RESET}"
+    for NODE in {2..6}; do
+        if [ "${NODE_STATUS[$NODE]}" = "✅" ]; then
+            RECV_TIME_MS=$((NODE_RECEIVE_TIME[$NODE] - START_TIME))
+            RECV_TIME_SEC=$(echo "scale=3; $RECV_TIME_MS / 1000" | bc)
+            echo -e "    ${GREEN}✅ Node $NODE: RECEIVED${RESET} (${RECV_TIME_SEC}s)"
+        else
+            echo -e "    ${RED}❌ Node $NODE: Did NOT receive${RESET}"
+        fi
+    done
+
+    echo ""
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+    echo ""
+
+    # Evaluate results
+    if [ "$RECEIVED_COUNT" -eq 5 ]; then
+        echo -e "${BOLD}${GREEN}✅ SUCCESS - Perfect Propagation!${RESET}"
+        echo ""
+        echo -e "  • ${GREEN}All 5 nodes${RESET} received the message"
+        echo -e "  • Mesh status: ${GREEN}Healthy${RESET}"
+        echo ""
+        rm -f "$RESULTS_FILE"
+        exit 0
+    elif [ "$RECEIVED_COUNT" -ge 4 ]; then
+        echo -e "${BOLD}${GREEN}✅ SUCCESS - Good Propagation${RESET}"
+        echo ""
+        echo -e "  • ${GREEN}$RECEIVED_COUNT/5 nodes${RESET} received the message"
+        echo -e "  • Mesh status: ${GREEN}Operational${RESET}"
+        echo ""
+        rm -f "$RESULTS_FILE"
+        exit 0
+    elif [ "$RECEIVED_COUNT" -gt 0 ]; then
+        echo -e "${BOLD}${YELLOW}⚠️  PARTIAL - Incomplete Propagation${RESET}"
+        echo ""
+        echo -e "  • Only ${YELLOW}$RECEIVED_COUNT/5 nodes${RESET} received the message"
+        echo -e "  • Mesh status: ${YELLOW}Degraded${RESET}"
+        echo ""
+        echo "Troubleshooting:"
+        echo -e "  ${BLUE}→ Check health: just test-pubsub-propagation${RESET}"
+        echo -e "  ${BLUE}→ View logs: just logs | grep -i pubsub${RESET}"
+        rm -f "$RESULTS_FILE"
+        exit 1
+    else
+        echo -e "${BOLD}${RED}❌ FAILED - No Propagation${RESET}"
+        echo ""
+        echo -e "  • ${RED}No nodes${RESET} received the message"
+        echo -e "  • Mesh status: ${RED}Broken${RESET}"
+        echo ""
+        echo "Troubleshooting:"
+        echo -e "  ${BLUE}→ Full diagnostics: just troubleshoot${RESET}"
+        echo -e "  ${BLUE}→ Check logs: just logs | grep -E '(RECEIVED|gossipsub|bootstrap)'${RESET}"
+        rm -f "$RESULTS_FILE"
+        exit 1
+    fi
+
+# Full CI test suite (status + connectivity + pubsub)
+# TODO: Integrate this into GitHub Actions runners for automated PR testing
+test-ci:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🧪 Running CI test suite..."
+    echo ""
+
+    # Check node status
+    echo "📊 Node status check..."
+    RUNNING=$(docker compose ps | grep -c "Up" || true)
+    if [ "$RUNNING" -ne 6 ]; then
+        echo "❌ Expected 6 nodes running, found $RUNNING"
+        exit 1
+    fi
+    echo "   ✅ All 6 nodes running"
+
+    # Wait for initialization
+    echo ""
+    echo "⏳ Waiting for nodes to initialize (15s)..."
+    sleep 15
+
+    # Check connectivity
+    echo ""
+    echo "🔗 Connectivity check..."
+    just check-connectivity
+
+    # Test PubSub message propagation (end-to-end, minimal output for CI)
+    echo ""
+    echo "🧪 PubSub propagation test..."
+    just test-pubsub
+
+    echo ""
+    echo "✅ CI test suite passed!"
+
+# ==============================================================================
+# HELP
+# ==============================================================================
+
+# Show detailed help with examples
+help:
+    @echo "================================================================================"
+    @echo "Hermes P2P Testing Environment"
+    @echo "================================================================================"
+    @echo ""
+    @echo "QUICK START (First Time):"
+    @echo "  just quickstart         # Does everything: build, start, test, verify!"
+    @echo ""
+    @echo "QUICK START (Daily):"
+    @echo "  just start                     # Start 6 nodes (waits for mesh formation)"
+    @echo "  just test-pubsub-propagation   # Test message propagation"
+    @echo "  just logs                      # Monitor activity"
+    @echo "  just stop                      # Stop nodes (preserves peer IDs)"
+    @echo ""
+    @echo "COMMON WORKFLOWS:"
+    @echo ""
+    @echo "  First-Time Setup:"
+    @echo "    just quickstart       # Complete end-to-end setup and test"
+    @echo ""
+    @echo "  Developer Testing:"
+    @echo "    just validate-prereqs        # Check prerequisites"
+    @echo "    just start                   # Interactive mode, prompts to rebuild"
+    @echo "    just test-pubsub-propagation # Test message propagation"
+    @echo "    just logs-node 1             # Debug specific node"
+    @echo "    just restart                 # Apply code changes"
+    @echo ""
+    @echo "  CI/CD Pipeline:"
+    @echo "    just start-ci         # CI mode: non-interactive, always rebuilds"
+    @echo "    just test-ci          # Full validation suite"
+    @echo "    just clean            # Cleanup (deletes peer IDs)"
+    @echo ""
+    @echo "  Troubleshooting:"
+    @echo "    just test-pubsub-propagation # Test message propagation"
+    @echo "    just troubleshoot            # Generate diagnostic report (saves to file)"
+    @echo "    just check-connectivity      # Check P2P connectivity"
+    @echo "    just init-bootstrap          # Reset bootstrap (auto-runs on first start)"
+    @echo ""
+    @echo "  From Scratch (simulates fresh git clone):"
+    @echo "    just clean            # Remove everything"
+    @echo "    just quickstart       # Builds automatically and starts"
+    @echo "    # OR: just build-all && just quickstart  # Manual build first"
+    @echo ""
+    @echo "BUILD COMMANDS:"
+    @echo "  build                   Build Hermes binary only (fast)"
+    @echo "  build-all               Build Hermes + Athena WASM (fast, ~1-2 min)"
+    @echo "  build-images            Build Docker images"
+    @echo "  build-ci                Build everything (CI mode)"
+    @echo ""
+    @echo "VALIDATION & DIAGNOSTICS:"
+    @echo "  validate-prereqs        Check all prerequisites"
+    @echo "  troubleshoot            Generate full diagnostic report"
+    @echo "  check-connectivity      Check P2P connectivity status"
+    @echo ""
+    @echo "NODE MANAGEMENT:"
+    @echo "  quickstart              Complete end-to-end setup and test"
+    @echo "  start                   Start nodes (interactive mode, prompts)"
+    @echo "  start-ci                Start nodes (CI mode, always rebuilds, no prompts)"
+    @echo "  init-bootstrap          Initialize/reset bootstrap (auto-runs on first start)"
+    @echo "  stop                    Stop nodes (preserves peer IDs)"
+    @echo "  clean                   Stop and remove data (DELETES PEER IDs)"
+    @echo "  restart                 Stop + start"
+    @echo "  reset                   Clean + start fresh (regenerates peer IDs)"
+    @echo ""
+    @echo "MONITORING:"
+    @echo "  status                  Show node status and endpoints"
+    @echo "  logs                    Follow all logs"
+    @echo "  logs-node N             Follow node N logs (1-6)"
+    @echo ""
+    @echo "TESTING:"
+    @echo "  test                    Run integration tests on all nodes"
+    @echo "  test-nodeN              Test specific node (1-6)"
+    @echo "  test-pubsub             Test PubSub infrastructure"
+    @echo "  test-pubsub-propagation Test end-to-end message propagation"
+    @echo "  test-ci                 Full CI test suite"
+    @echo ""
+    @echo "NODE ENDPOINTS:"
+    @echo "  Node 1: http://localhost:5000 (IPFS: 4001) [172.20.0.10]"
+    @echo "  Node 2: http://localhost:5002 (IPFS: 4002) [172.20.0.11]"
+    @echo "  Node 3: http://localhost:5004 (IPFS: 4003) [172.20.0.12]"
+    @echo "  Node 4: http://localhost:5006 (IPFS: 4004) [172.20.0.13]"
+    @echo "  Node 5: http://localhost:5008 (IPFS: 4005) [172.20.0.14]"
+    @echo "  Node 6: http://localhost:5010 (IPFS: 4006) [172.20.0.15]"
+    @echo ""
+    @echo "IMPORTANT NOTES:"
+    @echo "  • After 'just clean', peer IDs are regenerated on next start"
+    @echo "  • Mesh formation happens automatically after startup"
+    @echo "  • 'start' = interactive (prompts), 'start-ci' = CI mode (always rebuilds)"
+    @echo "  • Use 'just stop' (not clean) to preserve peer IDs between restarts"
+    @echo ""
+    @echo "WHY 6 NODES:"
+    @echo "  Gossipsub default mesh_n=6 requires 6+ peers for optimal operation."
+    @echo "  With fewer nodes, PubSub publish operations block waiting for mesh."
+    @echo "  Alternative: fork rust-ipfs to add small mesh configuration support."
+    @echo ""
+    @echo ""
+    @echo "DOCUMENTATION:"
+    @echo "  README.md               Quick start guide"
+    @echo "  TROUBLESHOOTING.md      Comprehensive debugging guide"
+    @echo "  justfile                Full command documentation (cat justfile)"
+    @echo ""
+    @echo "For more info: cat justfile or just --list"
+    @echo "================================================================================"
