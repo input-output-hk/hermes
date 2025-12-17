@@ -62,7 +62,7 @@ dashmap = "6.1.0"
 once_cell = "1.21.3"
 clap = "4.5.46"
 ctrlc = "3.5.0"
-build-info = "0.0.39"
+build-info = "0.0.42"
 derive_more = "2.0.1"
 chrono = { version = "0.4.41", features = ["now"] }
 chrono-tz = "0.10.4"
@@ -109,7 +109,7 @@ multihash = { version = "0.19.3", features = ["serde-codec"] }
 minicbor = { version = "=0.25.1", features = ["std", "derive"] }
 
 [build-dependencies]
-build-info-build = "0.0.39"
+build-info-build = "0.0.42"
 
 [dev-dependencies]
 serial_test = { version = "3.2.0", features = ["file_locks"] }
