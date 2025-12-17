@@ -81,11 +81,11 @@ impl Run {
             );
         }
 
-        ipfs::bootstrap(
-            hermes_home_dir.as_path(),
+        ipfs::bootstrap(ipfs::Config {
+            base_dir: &hermes_home_dir,
             default_bootstrap,
-            custom_bootstrap_peers,
-        )?;
+            custom_peers: custom_bootstrap_peers,
+        })?;
         let app = build_app(&package, hermes_home_dir)?;
 
         if self.rt_config.serialize_sqlite {

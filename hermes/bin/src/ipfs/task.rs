@@ -1,7 +1,11 @@
 //! IPFS Task
 use std::{collections::HashSet, str::FromStr};
 
-use hermes_ipfs::{AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId};
+use hermes_ipfs::{
+    AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
+    doc_sync::payload::{self, DocumentDisseminationBody},
+    rust_ipfs::path::PathRoot,
+};
 use tokio::{
     sync::{mpsc, oneshot},
     task::JoinHandle,
@@ -14,9 +18,19 @@ use crate::{
         bindings::hermes::ipfs::api::{
             DhtKey, DhtValue, Errno, MessageData, PeerId, PubsubMessage, PubsubTopic,
         },
-        hermes::ipfs::event::OnTopicEvent,
+        hermes::{doc_sync::OnNewDocEvent, ipfs::event::OnTopicEvent},
     },
 };
+
+/// Chooses how subscription messages are handled.
+#[derive(Copy, Clone, Debug, Default)]
+pub(crate) enum SubscriptionKind {
+    /// Handle messages as regular ipfs messages.
+    #[default]
+    Default,
+    /// Handle messages as Doc Sync messages.
+    DocSync,
+}
 
 /// IPFS Command
 pub(crate) enum IpfsCommand {
@@ -42,7 +56,11 @@ pub(crate) enum IpfsCommand {
     /// Publish to a topic
     Publish(PubsubTopic, MessageData, oneshot::Sender<Result<(), Errno>>),
     /// Subscribe to a topic
-    Subscribe(PubsubTopic, oneshot::Sender<Result<JoinHandle<()>, Errno>>),
+    Subscribe(
+        PubsubTopic,
+        SubscriptionKind,
+        oneshot::Sender<Result<JoinHandle<()>, Errno>>,
+    ),
     /// Evict Peer from node
     EvictPeer(PeerId, oneshot::Sender<Result<bool, Errno>>),
     /// Gets the peer identity
@@ -119,12 +137,17 @@ pub(crate) async fn ipfs_command_handler(
                     });
                 send_response(result, tx);
             },
-            IpfsCommand::Subscribe(topic, tx) => {
+            IpfsCommand::Subscribe(topic, kind, tx) => {
                 let stream = hermes_node
                     .pubsub_subscribe(&topic)
                     .await
                     .map_err(|_| Errno::PubsubSubscribeError)?;
-                let message_handler = TopicMessageHandler::new(&topic, topic_message_handler);
+
+                let message_handler = TopicMessageHandler::new(&topic, match kind {
+                    SubscriptionKind::Default => topic_message_handler,
+                    SubscriptionKind::DocSync => doc_sync_topic_message_handler,
+                });
+
                 let subscription_handler =
                     TopicSubscriptionStatusHandler::new(&topic, topic_subscription_handler);
                 let handle = hermes_ipfs::subscription_stream_task(
@@ -185,7 +208,7 @@ pub(crate) async fn ipfs_command_handler(
 }
 
 /// A handler for messages from the IPFS pubsub topic
-struct TopicMessageHandler<T>
+pub(super) struct TopicMessageHandler<T>
 where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static
 {
     /// The topic.
@@ -219,7 +242,7 @@ where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 's
 }
 
 /// A handler for subscribe/unsubscribe events from the IPFS pubsub topic
-struct TopicSubscriptionStatusHandler<T>
+pub(super) struct TopicSubscriptionStatusHandler<T>
 where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static
 {
     /// The topic.
@@ -258,7 +281,7 @@ fn topic_message_handler(
     topic: String,
 ) {
     if let Some(ipfs) = HERMES_IPFS.get() {
-        let app_names = ipfs.apps.subscribed_apps(&topic);
+        let app_names = ipfs.apps.subscribed_apps(SubscriptionKind::Default, &topic);
         let on_topic_event = OnTopicEvent {
             message: PubsubMessage {
                 topic,
@@ -280,6 +303,91 @@ fn topic_message_handler(
         }
     } else {
         tracing::error!("Failed to send on_topic_event. IPFS is uninitialized");
+    }
+}
+
+/// Handler function for topic message streams (Doc Sync).
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "The event will be eventually consumed in the handler"
+)]
+fn doc_sync_topic_message_handler(
+    message: hermes_ipfs::rust_ipfs::GossipsubMessage,
+    topic: String,
+) {
+    let Some(ipfs) = HERMES_IPFS.get() else {
+        tracing::error!("IPFS global instance is uninitialized");
+        return;
+    };
+
+    // TODO: match the topic against a static list.
+    let Some(channel_name) = topic.strip_suffix(".new") else {
+        tracing::error!("Handling an IPFS message on a wrong channel.");
+        return;
+    };
+
+    let payload = match minicbor::decode::<payload::New>(&message.data) {
+        Ok(payload) => DocumentDisseminationBody::from(payload),
+        Err(err) => {
+            tracing::info!(%channel_name, %err, "Failed to decode .new payload from IPFS message");
+            return;
+        },
+    };
+
+    let new_cids = match payload {
+        DocumentDisseminationBody::Docs { docs, .. } => docs,
+        DocumentDisseminationBody::Manifest { .. } => {
+            tracing::error!("Manifest is not supported in a .new payload");
+            return;
+        },
+    };
+
+    let mut contents = Vec::with_capacity(new_cids.len());
+
+    for cid in new_cids {
+        let path = hermes_ipfs::IpfsPath::new(PathRoot::Ipld(cid)).to_string();
+
+        // Not tracking any app that pinned it (via `ipfs::api::hermes_ipfs_pin_file`),
+        // since the pin is re-used by all apps.
+        match ipfs.file_pin(&path) {
+            Err(err) => {
+                tracing::error!(%channel_name, %cid, %err, "Failed to pin a document");
+                continue;
+            },
+            Ok(false) => {
+                tracing::error!(%channel_name, %cid, "Failed to pin a document (unspecified error)");
+                continue;
+            },
+            Ok(true) => (),
+        }
+
+        let content = match ipfs.file_get(&path) {
+            Ok(ipfs_file) => ipfs_file,
+            Err(err) => {
+                tracing::error!(
+                    %channel_name, %cid, %err,
+                    "Failed to get content of the document after a successful IPFS pin"
+                );
+                continue;
+            },
+        };
+
+        contents.push(content);
+    }
+
+    let app_names = ipfs.apps.subscribed_apps(SubscriptionKind::DocSync, &topic);
+
+    for content in contents {
+        let event = HermesEvent::new(
+            OnNewDocEvent::new(channel_name, &content),
+            crate::event::TargetApp::List(app_names.clone()),
+            crate::event::TargetModule::All,
+        );
+
+        // Dispatch Hermes Event
+        if let Err(err) = send(event) {
+            tracing::error!(%channel_name, %err, "Failed to send `on_new_doc` event");
+        }
     }
 }
 

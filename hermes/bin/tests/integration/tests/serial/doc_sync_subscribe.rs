@@ -5,9 +5,9 @@ use crate::utils;
 
 #[test]
 #[serial]
-fn ipfs_subscribe() {
-    const COMPONENT: &str = "ipfs_subscribe";
-    const MODULE: &str = "ipfs_subscribe_module";
+fn doc_sync_subscribe() {
+    const COMPONENT: &str = "doc_sync_subscribe";
+    const MODULE: &str = "doc_sync_subscribe_module";
 
     let temp_dir = TempDir::new().unwrap();
     utils::component::build(COMPONENT, &temp_dir).expect("failed to build component");
@@ -22,12 +22,7 @@ fn ipfs_subscribe() {
 
     assert!(utils::assert::app_logs_contain(
         &temp_dir,
-        "added subscription topic stream"
-    ));
-
-    assert!(utils::assert::app_logs_contain(
-        &temp_dir,
-        "\"pubsub_topic\":\"ipfs_channel.new\""
+        "Created Doc Sync Channel: ipfs_channel"
     ));
 
     // Uncomment the line below if you want to inspect the details

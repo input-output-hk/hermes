@@ -1,5 +1,5 @@
 //! Hermes IPFS State API
-use super::{HERMES_IPFS, is_valid_dht_content, is_valid_pubsub_content};
+use super::{HERMES_IPFS, SubscriptionKind, is_valid_dht_content, is_valid_pubsub_content};
 use crate::{
     app::ApplicationName,
     runtime_extensions::bindings::hermes::ipfs::api::{
@@ -149,20 +149,21 @@ pub(crate) fn hermes_ipfs_get_peer_identity(
 
 /// Subscribe to a topic
 pub(crate) fn hermes_ipfs_subscribe(
+    kind: SubscriptionKind,
     app_name: &ApplicationName,
     topic: PubsubTopic,
 ) -> Result<bool, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "subscribing to PubSub topic");
-    if ipfs.apps.topic_subscriptions_contains(&topic) {
+    if ipfs.apps.topic_subscriptions_contains(kind, &topic) {
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription stream already exists");
     } else {
-        let handle = ipfs.pubsub_subscribe(&topic)?;
-        ipfs.apps.added_topic_stream(topic.clone(), handle);
-        tracing::info!(app_name = %app_name, pubsub_topic = %topic, "added subscription topic stream");
+        let handle = ipfs.pubsub_subscribe(kind, &topic)?;
+        ipfs.apps.added_topic_stream(kind, topic.clone(), handle);
+        tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "added subscription topic stream");
     }
     ipfs.apps
-        .added_app_topic_subscription(app_name.clone(), topic);
+        .added_app_topic_subscription(kind, app_name.clone(), topic);
     Ok(true)
 }
 
