@@ -316,7 +316,7 @@ fn doc_sync_topic_message_handler(
     topic: String,
 ) {
     let Some(ipfs) = HERMES_IPFS.get() else {
-        tracing::error!("Failed to send on_new_doc event. IPFS is uninitialized");
+        tracing::error!("IPFS global instance is uninitialized");
         return;
     };
 
@@ -329,7 +329,7 @@ fn doc_sync_topic_message_handler(
     let payload = match minicbor::decode::<payload::New>(&message.data) {
         Ok(payload) => DocumentDisseminationBody::from(payload),
         Err(err) => {
-            tracing::error!(%channel_name, %err, "Failed to decode .new payload from IPFS message");
+            tracing::info!(%channel_name, %err, "Failed to decode .new payload from IPFS message");
             return;
         },
     };
