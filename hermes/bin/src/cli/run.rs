@@ -53,11 +53,36 @@ impl Run {
 
         let hermes_home_dir = Cli::hermes_home()?;
 
-        tracing::info!("{} Bootstrapping IPFS node", console::Emoji::new("🖧", ""),);
+        // Read custom bootstrap peers from environment variable
+        // Format: comma-separated multiaddrs, e.g.:
+        // /ip4/172.20.0.11/tcp/4001/p2p/12D3KooW...,/dns4/seed.example.com/tcp/4001/p2p/12D3KooW.
+        // ..
+        let custom_bootstrap_peers = std::env::var("IPFS_BOOTSTRAP_PEERS").ok().map(|peers_str| {
+            peers_str
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<String>>()
+        });
+
+        if let Some(ref peers) = custom_bootstrap_peers {
+            tracing::info!(
+                "{} Bootstrapping IPFS node with {} custom peer(s)",
+                console::Emoji::new("🖧", ""),
+                peers.len()
+            );
+        } else {
+            tracing::info!(
+                "{} Bootstrapping IPFS node with default public peers",
+                console::Emoji::new("🖧", "")
+            );
+        }
+
         ipfs::bootstrap(ipfs::Config {
             base_dir: &hermes_home_dir,
             // enable bootstrapping the IPFS node to default addresses
             default_bootstrap: true,
+            custom_peers: custom_bootstrap_peers,
         })?;
         let app = build_app(&package, hermes_home_dir)?;
 

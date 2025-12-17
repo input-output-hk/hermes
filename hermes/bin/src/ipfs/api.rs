@@ -169,12 +169,41 @@ pub(crate) fn hermes_ipfs_subscribe(
 
 /// Publish message to a topic
 pub(crate) fn hermes_ipfs_publish(
-    _app_name: &ApplicationName,
+    app_name: &ApplicationName,
     topic: &PubsubTopic,
     message: MessageData,
 ) -> Result<(), Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
-    ipfs.pubsub_publish(topic.to_string(), message)
+
+    // Log publish attempt with message size
+    tracing::info!(
+        app_name = %app_name,
+        topic = %topic,
+        message_size = message.len(),
+        "📤 Publishing PubSub message"
+    );
+
+    let result = ipfs.pubsub_publish(topic.to_string(), message);
+
+    match &result {
+        Ok(()) => {
+            tracing::info!(
+                app_name = %app_name,
+                topic = %topic,
+                "✅ PubSub publish succeeded"
+            );
+        },
+        Err(e) => {
+            tracing::error!(
+                app_name = %app_name,
+                topic = %topic,
+                error = ?e,
+                "❌ PubSub publish failed"
+            );
+        },
+    }
+
+    result
 }
 
 /// Evict Peer from node

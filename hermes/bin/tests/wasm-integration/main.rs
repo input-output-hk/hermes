@@ -52,6 +52,7 @@ fn init_ipfs() -> anyhow::Result<()> {
         base_dir: base_dir.path(),
         // disable bootstrapping the IPFS node to default addresses for testing
         default_bootstrap: false,
+        custom_peers: None,
     })
 }
 

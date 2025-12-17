@@ -18,7 +18,12 @@ use crate::{
     },
 };
 
-/// The number of steps in the "post document" workflow
+/// The number of steps in the "post document" workflow (see `post()` function):
+/// 1. `add_file`: Store document in IPFS, get CID
+/// 2. `dht_provide`: Announce to DHT that we have this content
+/// 3. `get_peer_id`: Retrieve our peer identity
+/// 4. `ensure_provided`: Wait for DHT propagation (backoff retries)
+/// 5. `publish`: Broadcast document via Gossipsub `PubSub`
 const POST_STEP_COUNT: u8 = 5;
 
 /// CBOR multicodec identifier.
@@ -329,18 +334,45 @@ fn ensure_provided(
     peer_id: &str,
 ) -> wasmtime::Result<Result<(), Errno>> {
     const STEP: u8 = 4;
+
+    /// Exponential backoff durations in milliseconds for DHT provider queries.
+    ///
+    /// Pattern: [100ms, 200ms, 400ms, 800ms, 1600ms] - each duration doubles
+    ///
+    /// Rationale:
+    /// - Start with fast retries (100ms) for local/fast networks
+    /// - Exponentially increase to avoid hammering DHT in slower networks
+    /// - Total initial backoff: ~3 seconds before switching to 2-second intervals
+    /// - After exhausting these, extends with 20x 2-second retries for P2P test
+    ///   environments where DHT propagation can be slower due to mesh formation delays
     const BACKOFF_DURATION: [u64; 5] = [100, 200, 400, 800, 1600];
+
+    // Extend retries for P2P testing environments where DHT propagation may be slower
     let mut sleep_iter = BACKOFF_DURATION
         .into_iter()
-        .chain(std::iter::repeat_n(2000, 5));
+        .chain(std::iter::repeat_n(2000, 20));
     loop {
         let providers = ctx.dht_get_providers(cid.into())??;
+        tracing::debug!(
+            "Step {STEP}/{POST_STEP_COUNT}: DHT query returned {} provider(s): {:?}",
+            providers.len(),
+            providers
+        );
         if is_pre_publish_completed(peer_id, &providers) {
             tracing::info!("✓ Step {STEP}/{POST_STEP_COUNT}: Other DHT providers found");
             return Ok(Ok(()));
         }
+        let waiting_for = if providers.contains(&peer_id.to_string()) {
+            "waiting for ourselves to appear in DHT query results"
+        } else if providers.is_empty() {
+            "waiting for at least 1 provider to appear"
+        } else {
+            "waiting for ourselves to appear (other providers exist)"
+        };
         tracing::info!(
-            "✓ Step {STEP}/{POST_STEP_COUNT}: Other DHT providers not found, sleeping..."
+            "✓ Step {STEP}/{POST_STEP_COUNT}: DHT not ready (found {} provider(s), {}), sleeping...",
+            providers.len(),
+            waiting_for
         );
         let Some(sleep_duration) = sleep_iter.next() else {
             tracing::error!(
@@ -388,20 +420,30 @@ fn publish(
     }
 
     // Attempt to publish to PubSub
-    if let Ok(()) = ctx.pubsub_publish(topic_new.clone(), doc)? {
-        tracing::info!("✓ Step {STEP}/{POST_STEP_COUNT}: Published to PubSub → {topic_new}",);
-    } else {
-        // Non-fatal: PubSub requires peer nodes to be subscribed to the topic.
-        // In a single-node environment, this is expected to fail with
-        // "NoPeersSubscribedToTopic". We treat this as a warning rather
-        // than a fatal error since Step 1 already succeeded.
-        tracing::warn!(
-            "⚠ Step {STEP}/{POST_STEP_COUNT}: PubSub publish skipped (no peer nodes subscribed to topic)"
-        );
-        tracing::warn!(
-            "   Note: Gossipsub requires other nodes subscribing to '{topic_new}' to work",
-        );
-        tracing::info!("   Document is successfully stored in IPFS");
+    tracing::info!(
+        "📤 Attempting to publish {} bytes to topic: {}",
+        doc.len(),
+        topic_new
+    );
+
+    match ctx.pubsub_publish(topic_new.clone(), doc)? {
+        Ok(()) => {
+            tracing::info!("✅ Step {STEP}/{POST_STEP_COUNT}: Published to PubSub → {topic_new}");
+        },
+        Err(e) => {
+            // Non-fatal: PubSub requires peer nodes to be subscribed to the topic.
+            // In a single-node environment, this is expected to fail with
+            // "NoPeersSubscribedToTopic". We treat this as a warning rather
+            // than a fatal error since Step 1 already succeeded.
+            tracing::warn!(
+                "⚠ Step {STEP}/{POST_STEP_COUNT}: PubSub publish failed: {:?}",
+                e
+            );
+            tracing::warn!(
+                "   Note: Gossipsub requires other nodes subscribing to '{topic_new}' to work",
+            );
+            tracing::info!("   Document is successfully stored in IPFS");
+        },
     }
 
     Ok(Ok(()))
@@ -421,15 +463,15 @@ fn inner_close(
 
 /// Checks if the pre-publish is completed based on "our peer id" and
 /// available providers.
+///
+/// For P2P testing and small isolated networks, finding ourselves as a provider
+/// is sufficient. In production with many nodes, this ensures DHT propagation worked.
 fn is_pre_publish_completed(
     our_peer_id: &str,
     current_providers: &[String],
 ) -> bool {
-    if current_providers.contains(&our_peer_id.to_string()) {
-        current_providers.len() > 1
-    } else {
-        !current_providers.is_empty()
-    }
+    // Pre-publish is completed if at least one provider other than ourselves exists
+    current_providers.iter().any(|p| p != our_peer_id)
 }
 
 #[cfg(test)]

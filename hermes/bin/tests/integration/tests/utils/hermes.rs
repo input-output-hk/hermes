@@ -42,6 +42,9 @@ pub fn run_app(
         .arg("--untrusted")
         .arg(app_path)
         .env("HERMES_LOG_LEVEL", "trace")
+        // Disable IPFS bootstrap for integration tests to avoid timeouts
+        // connecting to public IPFS nodes
+        .env("IPFS_BOOTSTRAP_PEERS", "")
         .stdout(Stdio::from(log_file.try_clone()?))
         .stderr(Stdio::from(log_file))
         .spawn()?;
@@ -73,6 +76,9 @@ pub fn spawn_app(
         .env("HERMES_LOG_LEVEL", "trace")
         // Disable auth for integration test
         .env("HERMES_ACTIVATE_AUTH", "false")
+        // Disable IPFS bootstrap for integration tests to avoid timeouts
+        // connecting to public IPFS nodes
+        .env("IPFS_BOOTSTRAP_PEERS", "")
         .stdout(Stdio::from(log_file.try_clone()?))
         .stderr(Stdio::from(log_file))
         .spawn()?;

@@ -6,6 +6,29 @@ use std::{
     collections::HashSet, convert::Infallible, marker::PhantomData, path::Path, str::FromStr,
 };
 
+/// Default IPFS listening port (configurable via `IPFS_LISTEN_PORT` env var)
+const DEFAULT_IPFS_LISTEN_PORT: u16 = 4001;
+
+/// Default retry interval in seconds for bootstrap connections (configurable via
+/// `IPFS_RETRY_INTERVAL_SECS`)
+const DEFAULT_RETRY_INTERVAL_SECS: u64 = 10;
+
+/// Default maximum retry attempts for bootstrap connections (configurable via
+/// `IPFS_MAX_RETRIES`)
+const DEFAULT_MAX_RETRIES: u32 = 10;
+
+/// IPFS data subdirectory name within the base directory
+const IPFS_DATA_DIR: &str = "ipfs";
+
+/// Keypair filename for persistent IPFS identity
+const KEYPAIR_FILENAME: &str = "keypair";
+
+/// Default application name for auto-subscription
+const DEFAULT_APP_NAME: &str = "athena";
+
+/// Default `PubSub` topic for P2P mesh formation
+const DEFAULT_MESH_TOPIC: &str = "documents.new";
+
 pub(crate) use api::{
     hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_dht_get_providers,
     hermes_ipfs_dht_provide, hermes_ipfs_evict_peer, hermes_ipfs_get_dht_value,
@@ -14,7 +37,8 @@ pub(crate) use api::{
 };
 use dashmap::DashMap;
 use hermes_ipfs::{
-    AddIpfsFile, Cid, HermesIpfs, HermesIpfsBuilder, IpfsPath as BaseIpfsPath, rust_ipfs::dummy,
+    AddIpfsFile, Cid, HermesIpfs, HermesIpfsBuilder, IpfsPath as BaseIpfsPath,
+    rust_ipfs::{Keypair, dummy},
 };
 use once_cell::sync::OnceCell;
 pub(crate) use task::SubscriptionKind;
@@ -46,34 +70,304 @@ use crate::{
 pub(crate) static HERMES_IPFS: OnceCell<HermesIpfsNode<dummy::Behaviour>> = OnceCell::new();
 
 /// IPFS bootstrap config.
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Config<'a> {
-    /// Local base directory.
+    /// Base directory for IPFS data storage
     pub base_dir: &'a Path,
-    /// Should the default addresses be bound.
+    /// Whether to use default public IPFS bootstrap nodes
     pub default_bootstrap: bool,
+    /// Optional list of custom bootstrap peer multiaddrs
+    pub custom_peers: Option<Vec<String>>,
+}
+
+/// Load an existing keypair from a file or generate a new one.
+///
+/// ## Parameters
+///
+/// * `keypair_path` - Path where the keypair should be stored
+///
+/// ## Returns
+///
+/// The loaded or newly generated keypair.
+///
+/// ## Errors
+///
+/// Returns errors if file I/O fails.
+fn load_or_generate_keypair(keypair_path: &Path) -> anyhow::Result<Keypair> {
+    if keypair_path.exists() {
+        tracing::info!(
+            "Loading existing IPFS keypair from: {}",
+            keypair_path.display()
+        );
+        let bytes = std::fs::read(keypair_path)?;
+        let keypair = Keypair::from_protobuf_encoding(&bytes)
+            .map_err(|e| anyhow::anyhow!("Failed to decode keypair: {e}"))?;
+
+        // Log the peer ID for debugging
+        let peer_id = keypair.public().to_peer_id();
+        tracing::info!("Loaded keypair with Peer ID: {}", peer_id);
+
+        Ok(keypair)
+    } else {
+        tracing::info!("Generating new IPFS keypair at: {}", keypair_path.display());
+        let keypair = Keypair::generate_ed25519();
+
+        // Log the peer ID for debugging
+        let peer_id = keypair.public().to_peer_id();
+        tracing::info!("Generated new keypair with Peer ID: {}", peer_id);
+
+        // Save the keypair for future use
+        let bytes = keypair
+            .to_protobuf_encoding()
+            .map_err(|e| anyhow::anyhow!("Failed to encode keypair: {e}"))?;
+        std::fs::write(keypair_path, bytes)?;
+        tracing::info!("Saved keypair to: {}", keypair_path.display());
+
+        Ok(keypair)
+    }
+}
+
+/// Parse environment variable with fallback to default value.
+fn env_var_or<T: std::str::FromStr>(
+    key: &str,
+    default: T,
+) -> T {
+    std::env::var(key)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
+}
+
+/// Configure IPFS node to listen on the specified port.
+async fn configure_listening_address(node: &hermes_ipfs::Ipfs) {
+    let listen_port = env_var_or("IPFS_LISTEN_PORT", DEFAULT_IPFS_LISTEN_PORT);
+    let listen_addr = format!("/ip4/0.0.0.0/tcp/{listen_port}");
+
+    match listen_addr.parse() {
+        Ok(multiaddr) => {
+            match node.add_listening_address(multiaddr).await {
+                Ok(addr) => tracing::info!("IPFS listening on: {}", addr),
+                Err(e) => tracing::error!("Failed to listen on port {}: {}", listen_port, e),
+            }
+        },
+        Err(e) => tracing::error!("Invalid multiaddr format: {}", e),
+    }
+}
+
+/// Connect to custom bootstrap peers and retry failed connections in the background.
+///
+/// ## What are bootstrap peers?
+///
+/// Bootstrap peers are "address book entries" - initial contact points for joining the
+/// P2P network. Think of them like DNS servers for the internet: without a starting
+/// point, your node can't find anything.
+///
+/// They provide:
+/// - DHT entry points: Access to the distributed routing table for finding content/peers
+/// - Peer discovery: Learn about other nodes in the network through gossip protocols
+/// - Gossipsub mesh: Enable `PubSub` message propagation by connecting to topic
+///   subscribers
+///
+/// Without bootstrap peers, a node is isolated - it won't discover peers, can't query the
+/// DHT, and can't participate in `PubSub` topics.
+///
+/// ## Returns
+///
+/// The number of successfully connected peers.
+async fn connect_to_bootstrap_peers(
+    node: &hermes_ipfs::Ipfs,
+    peers: Vec<String>,
+) -> usize {
+    tracing::info!("Connecting to {} custom bootstrap peer(s)", peers.len());
+
+    let mut connected: usize = 0;
+    let mut failed = Vec::new();
+
+    for peer_addr in &peers {
+        match peer_addr.parse::<hermes_ipfs::Multiaddr>() {
+            Ok(multiaddr) => {
+                match node.connect(multiaddr.clone()).await {
+                    Ok(_) => {
+                        tracing::info!("✓ Connected to bootstrap peer: {}", peer_addr);
+                        connected = connected.saturating_add(1);
+                    },
+                    Err(e) => {
+                        tracing::warn!("⚠ Initial connection failed for {}: {}", peer_addr, e);
+                        failed.push((peer_addr.clone(), multiaddr));
+                    },
+                }
+            },
+            Err(e) => {
+                tracing::warn!("⚠ Invalid multiaddr {}: {}", peer_addr, e);
+            },
+        }
+    }
+
+    tracing::info!(
+        "Custom bootstrap: connected to {}/{} peers",
+        connected,
+        peers.len()
+    );
+
+    // Spawn retry task for failed peers
+    if !failed.is_empty() {
+        tokio::spawn(retry_bootstrap_connections(node.clone(), failed));
+    }
+
+    connected
+}
+
+/// Retry bootstrap connections in the background.
+///
+/// ## Retry Strategy
+///
+/// Uses a simple fixed-interval retry approach:
+/// - Waits `RETRY_INTERVAL_SECS` between attempts (configurable, default: 10s)
+/// - Retries up to `MAX_RETRIES` times (configurable, default: 10 attempts)
+/// - Stops early if all peers connect successfully
+///
+/// This ensures eventual connectivity even when peers are temporarily unreachable
+/// (e.g., network delays, node startup timing issues in test environments).
+///
+/// Periodically attempts to reconnect to failed peers until all are connected or max
+/// retries reached.
+async fn retry_bootstrap_connections(
+    node: hermes_ipfs::Ipfs,
+    mut failed_peers: Vec<(String, hermes_ipfs::Multiaddr)>,
+) {
+    if failed_peers.is_empty() {
+        return;
+    }
+
+    let retry_interval = std::time::Duration::from_secs(env_var_or(
+        "IPFS_RETRY_INTERVAL_SECS",
+        DEFAULT_RETRY_INTERVAL_SECS,
+    ));
+    let max_retries = env_var_or("IPFS_MAX_RETRIES", DEFAULT_MAX_RETRIES);
+
+    for attempt in 1..=max_retries {
+        tokio::time::sleep(retry_interval).await;
+        tracing::debug!(
+            "Bootstrap retry {}/{}: attempting {} peer(s)",
+            attempt,
+            max_retries,
+            failed_peers.len()
+        );
+
+        let mut still_failed = Vec::new();
+        for (addr, multiaddr) in failed_peers {
+            if node.connect(multiaddr.clone()).await.is_err() {
+                still_failed.push((addr, multiaddr));
+            } else {
+                tracing::info!("✓ Bootstrap retry succeeded: {}", addr);
+            }
+        }
+        failed_peers = still_failed;
+
+        if failed_peers.is_empty() {
+            tracing::info!("✓ All bootstrap peers connected");
+            return;
+        }
+    }
+
+    tracing::warn!(
+        "⚠ {} bootstrap peer(s) still unreachable after {} retries",
+        failed_peers.len(),
+        max_retries
+    );
 }
 
 /// Bootstrap `HERMES_IPFS` node.
+///
+/// ## What is bootstrapping?
+///
+/// Bootstrapping connects an IPFS node to the network by:
+/// 1. Loading/generating a persistent keypair (stable peer identity)
+/// 2. Configuring network transports (TCP, QUIC, DNS)
+/// 3. Connecting to initial bootstrap peers (entry points to the network)
+/// 4. Auto-subscribing to a default topic for immediate mesh participation
+///
+/// ## IMPORTANT: `PubSub` requires custom bootstrap peers
+///
+/// **TL;DR: Public IPFS nodes don't work for Hermes `PubSub`. Use custom Hermes bootstrap
+/// peers.**
+///
+/// **Why public IPFS bootstrap nodes CANNOT be used for Hermes `PubSub`:**
+///
+/// Gossipsub (the `PubSub` protocol) requires ALL peers in the mesh to:
+/// 1. Subscribe to the **same topic** (e.g., "documents.new")
+/// 2. Be connected to each other in mesh topology
+///
+/// Public IPFS nodes:
+/// - Don't subscribe to Hermes-specific topics → can't propagate your messages
+/// - Only provide DHT routing and general peer discovery
+/// - Are useless for `PubSub` message exchange
+///
+/// **For `PubSub` to work, you MUST:**
+/// - Use `custom_peers` pointing to other Hermes nodes that subscribe to your topics
+/// - OR deploy dedicated Hermes bootstrap nodes configured to auto-subscribe
+///
+/// The `default_bootstrap` option is ONLY useful for:
+/// - File storage (IPFS add/get operations)
+/// - DHT queries (finding content providers)
+/// - General peer discovery
+///
+/// It will NOT enable `PubSub` message propagation.
+///
+/// ## Parameters
+///
+/// * `base_dir` - Base directory for IPFS data storage
+/// * `default_bootstrap` - Whether to use default public IPFS bootstrap nodes
+/// * `custom_peers` - Optional list of custom bootstrap peer multiaddrs
 ///
 /// ## Errors
 ///
 /// Returns errors if IPFS node fails to start.
 pub fn bootstrap(config: Config) -> anyhow::Result<()> {
-    let ipfs_data_path = config.base_dir.join("ipfs");
+    let ipfs_data_path = config.base_dir.join(IPFS_DATA_DIR);
     if !ipfs_data_path.exists() {
         tracing::info!("creating IPFS repo directory: {}", ipfs_data_path.display());
         std::fs::create_dir_all(&ipfs_data_path)?;
     }
+
+    // Load or generate persistent keypair
+    let keypair_path = ipfs_data_path.join(KEYPAIR_FILENAME);
+    let keypair = load_or_generate_keypair(&keypair_path)?;
+
     let ipfs_node = HermesIpfsNode::init(
-        HermesIpfsBuilder::new()
+        HermesIpfsBuilder::with_keypair(keypair)
+            .map_err(|e| anyhow::anyhow!("Failed to create IPFS builder with keypair: {e}"))?
+            .enable_tcp()
+            .enable_quic()
+            .enable_dns()
             .with_default()
             .set_disk_storage(ipfs_data_path.clone()),
         config.default_bootstrap,
+        config.custom_peers,
     )?;
     HERMES_IPFS
         .set(ipfs_node)
         .map_err(|_| anyhow::anyhow!("failed to start IPFS node"))?;
+
+    // Auto-subscribe to default topic for P2P mesh formation
+    //
+    // Why auto-subscribe at bootstrap time?
+    // - Gossipsub requires peers to be subscribed to the SAME topic to communicate
+    // - By auto-subscribing during bootstrap, all Hermes nodes immediately join the mesh
+    // - This avoids a "cold start" problem where the first node has no peers to talk to
+    // - With Gossipsub's default mesh_n=6, having 6+ nodes subscribed creates a full mesh
+    // - Without this, applications would need to manually subscribe before PubSub works
+    //
+    // Note: This ensures the mesh forms immediately on startup, allowing instant
+    // message propagation as soon as nodes connect to each other.
+    let app_name = ApplicationName::new(DEFAULT_APP_NAME);
+    let topic = PubsubTopic::from(DEFAULT_MESH_TOPIC.to_string());
+    hermes_ipfs_subscribe(SubscriptionKind::Default, &app_name, topic)?;
+    tracing::info!(
+        "Auto-subscribed to {} topic for P2P mesh formation",
+        DEFAULT_MESH_TOPIC
+    );
+
     Ok(())
 }
 
@@ -96,6 +390,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
     pub(crate) fn init(
         builder: HermesIpfsBuilder<N>,
         default_bootstrap: bool,
+        custom_peers: Option<Vec<String>>,
     ) -> anyhow::Result<Self> {
         let runtime = Builder::new_current_thread().enable_all().build()?;
         let (sender, receiver) = mpsc::channel(1);
@@ -103,30 +398,68 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         // Build and start IPFS node, before moving into the thread
         let node = runtime.block_on(async move { builder.start().await })?;
 
+        // Create a oneshot channel to signal when the command handler is ready
+        let (ready_tx, ready_rx) = oneshot::channel();
+
         let _handle = std::thread::spawn(move || {
-            let _unused = runtime.block_on(async move {
-                if default_bootstrap {
-                    // Add default addresses for bootstrapping
+            let result = runtime.block_on(async move {
+                // Configure listening address for P2P connections
+                configure_listening_address(&node).await;
+
+                // Connect to bootstrap peers
+                if let Some(peers) = custom_peers {
+                    connect_to_bootstrap_peers(&node, peers).await;
+                } else if default_bootstrap {
+                    // Use public IPFS bootstrap nodes
                     let addresses = node.default_bootstrap().await?;
-                    // Connect to bootstrap nodes.
                     node.bootstrap().await?;
                     tracing::debug!(
                         "Bootstrapped IPFS node with default addresses: {:?}",
                         addresses
                     );
                 }
-                let hermes_node: HermesIpfs = node.into();
+
                 // Enable DHT server mode for PubSub support
+                //
+                // Why DHT Server Mode is Required:
+                // - DHT (Distributed Hash Table) server mode makes this node actively participate
+                //   in the DHT by storing and serving routing information
+                // - This is REQUIRED for Gossipsub PubSub to work properly because:
+                //   1. PubSub uses the DHT to discover which peers are subscribed to topics
+                //   2. Gossipsub builds mesh connections based on DHT peer discovery
+                //   3. Without server mode, the node would be a "leech" that can't help other peers
+                //      discover the network, weakening the mesh
+                // - All Hermes nodes should be DHT servers to form a robust P2P network
+                let hermes_node: HermesIpfs = node.into();
                 hermes_node
                     .dht_mode(hermes_ipfs::rust_ipfs::DhtMode::Server)
                     .await?;
                 tracing::debug!("IPFS node set to DHT server mode");
+
+                // Signal that the command handler is about to start
+                // Ignore the error if the receiver was dropped
+                let _ = ready_tx.send(());
+
+                // Start command handler
                 let h = tokio::spawn(ipfs_command_handler(hermes_node, receiver));
                 let (..) = tokio::join!(h);
                 Ok::<(), anyhow::Error>(())
             });
-            std::process::exit(0);
+
+            if let Err(e) = result {
+                tracing::error!("IPFS thread error: {}", e);
+            }
         });
+
+        // Wait for the command handler to be ready before returning
+        // This prevents the race condition where auto-subscribe happens before
+        // the command handler is ready to process commands
+        ready_rx.blocking_recv().map_err(|_| {
+            anyhow::anyhow!("IPFS initialization failed: command handler thread died")
+        })?;
+
+        tracing::debug!("IPFS command handler is ready");
+
         Ok(Self {
             sender: Some(sender),
             apps: AppIpfsState::new(),

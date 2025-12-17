@@ -10,11 +10,13 @@ shared::bindings_generate!({
         world hermes {
             include wasi:cli/imports@0.2.6;
             import hermes:doc-sync/api;
+            import hermes:ipfs/api;
             import hermes:logging/api;
             import hermes:http-gateway/api;
 
             export hermes:init/event;
-            export hermes:doc-sync/event;
+            export hermes:ipfs/event;        // Required: Receives `PubSub` messages via on-topic
+            export hermes:doc-sync/event;    // Optional: Doc-sync specific events
             export hermes:http-gateway/event;
         }
     ",
@@ -38,6 +40,23 @@ struct Component;
 /// Default channel name for doc-sync operations
 const DOC_SYNC_CHANNEL: &str = "documents";
 
+/// Maximum length for message previews in log messages
+const MESSAGE_PREVIEW_MAX_LEN: usize = 100;
+
+/// Format a message for logging with size information and truncation.
+///
+/// Messages longer than `MESSAGE_PREVIEW_MAX_LEN` are truncated with "..." suffix.
+fn format_message_preview(data: &[u8]) -> String {
+    let preview = String::from_utf8_lossy(data);
+    let size = data.len();
+    if preview.len() > MESSAGE_PREVIEW_MAX_LEN {
+        let truncated: String = preview.chars().take(MESSAGE_PREVIEW_MAX_LEN).collect();
+        format!("{truncated}... ({size} bytes)")
+    } else {
+        format!("{preview} ({size} bytes)")
+    }
+}
+
 impl exports::hermes::init::event::Guest for Component {
     /// Initialize the module.
     fn init() -> bool {
@@ -49,13 +68,43 @@ impl exports::hermes::init::event::Guest for Component {
     }
 }
 
-/// Stub event handler for receiving documents (not used in this publishing-only demo).
+/// Event handler for receiving `PubSub` messages from IPFS layer.
+///
+/// This handler is REQUIRED for modules to receive `PubSub` messages. When a message
+/// arrives via Gossipsub, the Hermes runtime dispatches it to this `on-topic` handler.
+/// Without this export, the module cannot receive any `PubSub` messages.
+impl exports::hermes::ipfs::event::Guest for Component {
+    fn on_topic(message: hermes::ipfs::api::PubsubMessage) -> bool {
+        log::init(log::LevelFilter::Trace);
+
+        info!(
+            target: "doc_sync::receiver",
+            "📨 RECEIVED PubSub message on topic '{}': {}",
+            message.topic,
+            format_message_preview(&message.message)
+        );
+
+        true // Return true to indicate message was handled
+    }
+}
+
+/// Event handler for doc-sync specific events (not currently used).
+///
+/// This is for potential future doc-sync specific event types. Currently, all
+/// `PubSub` messages are received via the `on-topic` handler above.
 impl exports::hermes::doc_sync::event::Guest for Component {
     fn on_new_doc(
-        _channel: ChannelName,
-        _doc: DocData,
+        channel: ChannelName,
+        doc: DocData,
     ) {
-        // Not implemented - this demo only shows publishing
+        log::init(log::LevelFilter::Trace);
+
+        info!(
+            target: "doc_sync::receiver",
+            "📨 RECEIVED PubSub message on channel '{}': {}",
+            channel,
+            format_message_preview(&doc)
+        );
     }
 }
 
