@@ -65,6 +65,9 @@ impl Run {
                 .collect::<Vec<String>>()
         });
 
+        // Only use public bootstrap if no custom peers provided
+        let default_bootstrap = custom_bootstrap_peers.is_none();
+
         if let Some(ref peers) = custom_bootstrap_peers {
             tracing::info!(
                 "{} Bootstrapping IPFS node with {} custom peer(s)",
@@ -80,8 +83,7 @@ impl Run {
 
         ipfs::bootstrap(ipfs::Config {
             base_dir: &hermes_home_dir,
-            // enable bootstrapping the IPFS node to default addresses
-            default_bootstrap: true,
+            default_bootstrap,
             custom_peers: custom_bootstrap_peers,
         })?;
         let app = build_app(&package, hermes_home_dir)?;
