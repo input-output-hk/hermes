@@ -460,8 +460,14 @@ fn inner_close(
 /// Checks if the pre-publish is completed based on "our peer id" and
 /// available providers.
 ///
-/// For P2P testing and small isolated networks, finding ourselves as a provider
-/// is sufficient. In production with many nodes, this ensures DHT propagation worked.
+/// Returns true if:
+/// 1. We find ourselves as a provider (DHT announcement succeeded), OR
+/// 2. We find other providers (content is available on the network)
+///
+/// Note: In P2P testing environments, content propagates via gossipsub (PubSub),
+/// but nodes don't automatically announce themselves as DHT providers unless they
+/// explicitly fetch content. Therefore, finding ourselves as the only provider
+/// is sufficient to confirm DHT is working correctly.
 fn is_pre_publish_completed(
     our_peer_id: &str,
     current_providers: &[String],
