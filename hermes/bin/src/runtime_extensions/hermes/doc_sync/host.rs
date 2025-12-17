@@ -4,6 +4,7 @@ use stringzilla::stringzilla::Sha256;
 use wasmtime::component::Resource;
 
 use crate::{
+    ipfs::{self, hermes_ipfs_subscribe},
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::hermes::{
@@ -127,8 +128,11 @@ impl HostSyncChannel for HermesRuntimeContext {
         }
 
         // When the channel is created, subscribe to .new <base>.<topic>
-        if let Err(err) = self.pubsub_subscribe(format!("{name}.new")) {
-            // FIXME - Do we want to remove the entry from the map here?
+        if let Err(err) = hermes_ipfs_subscribe(
+            ipfs::SubscriptionKind::DocSync,
+            self.app_name(),
+            format!("{name}.new"),
+        ) {
             DOC_SYNC_STATE.remove(&resource);
             return Err(wasmtime::Error::msg(format!(
                 "Subscription to {name}.new failed: {err}",
