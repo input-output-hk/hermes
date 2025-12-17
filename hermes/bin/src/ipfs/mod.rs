@@ -357,9 +357,7 @@ async fn retry_bootstrap_connections(
 ///
 /// ## Parameters
 ///
-/// * `base_dir` - Base directory for IPFS data storage
-/// * `default_bootstrap` - Whether to use default public IPFS bootstrap nodes
-/// * `custom_peers` - Optional list of custom bootstrap peer multiaddrs
+/// * `config` - IPFS bootstrap config
 ///
 /// ## Errors
 ///
