@@ -64,6 +64,22 @@ fn format_message_preview(data: &[u8]) -> String {
     }
 }
 
+/// Initialize the doc-sync database schema.
+///
+/// Creates the `document` table for either the persistent or in-memory database
+/// depending on the `in_memory` flag.
+///
+/// # Errors
+///
+/// Returns any `SQLite` error that occurs while opening the connection,
+/// beginning the transaction, creating tables, or committing the transaction.
+fn init_db(in_memory: bool) -> anyhow::Result<()> {
+    let mut conn = sqlite::Connection::open(in_memory)?;
+    let mut tx = conn.begin()?;
+    shared::database::doc_sync::create_tables(&mut tx)?;
+    tx.commit()
+}
+
 impl exports::hermes::init::event::Guest for Component {
     /// Initialize the module.
     fn init() -> bool {
