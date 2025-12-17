@@ -464,7 +464,7 @@ fn inner_close(
 /// 1. We find ourselves as a provider (DHT announcement succeeded), OR
 /// 2. We find other providers (content is available on the network)
 ///
-/// Note: In P2P testing environments, content propagates via gossipsub (PubSub),
+/// Note: In P2P testing environments, content propagates via gossipsub (`PubSub`),
 /// but nodes don't automatically announce themselves as DHT providers unless they
 /// explicitly fetch content. Therefore, finding ourselves as the only provider
 /// is sufficient to confirm DHT is working correctly.
