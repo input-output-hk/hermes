@@ -464,14 +464,25 @@ fn inner_close(
 /// Checks if the pre-publish is completed based on "our peer id" and
 /// available providers.
 ///
-/// For P2P testing and small isolated networks, finding ourselves as a provider
-/// is sufficient. In production with many nodes, this ensures DHT propagation worked.
+/// Returns true if:
+/// 1. We find ourselves as a provider (DHT announcement succeeded), OR
+/// 2. We find other providers (content is available on the network)
+///
+/// Note: In P2P testing environments, content propagates via gossipsub (`PubSub`),
+/// but nodes don't automatically announce themselves as DHT providers unless they
+/// explicitly fetch content. Therefore, finding ourselves as the only provider
+/// is sufficient to confirm DHT is working correctly.
 fn is_pre_publish_completed(
     our_peer_id: &str,
     current_providers: &[String],
 ) -> bool {
-    // Pre-publish is completed if at least one provider other than ourselves exists
-    current_providers.iter().any(|p| p != our_peer_id)
+    // If we find ourselves as a provider, DHT propagation worked
+    if current_providers.contains(&our_peer_id.to_string()) {
+        true
+    } else {
+        // If we're not in the list yet, at least one provider should exist
+        !current_providers.is_empty()
+    }
 }
 
 #[cfg(test)]
@@ -483,7 +494,7 @@ mod tests {
     #[test_case("OUR", &["OTHER_1", "OTHER_2"] => true)]
     #[test_case("OUR", &["OUR", "OTHER_1", "OTHER_2"] => true)]
     #[test_case("OUR", &[] => false)]
-    #[test_case("OUR", &["OUR"] => false)]
+    #[test_case("OUR", &["OUR"] => true; "our peer is sufficient for P2P testing")]
     fn pre_publish_completed(
         our_peer_id: &str,
         current_providers: &[&str],

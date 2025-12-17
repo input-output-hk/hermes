@@ -780,8 +780,8 @@ init-bootstrap:
     # Temporarily disable bootstrap for initial startup
     IPFS_BOOTSTRAP_PEERS="" docker compose up -d hermes-node1 hermes-node2 hermes-node3
 
-    echo "⏳ Waiting 15 seconds for nodes to initialize and generate peer IDs..."
-    sleep 15
+    echo "⏳ Waiting 30 seconds for nodes to initialize and generate peer IDs..."
+    sleep 30
 
     # Extract peer IDs from running nodes
     echo ""
