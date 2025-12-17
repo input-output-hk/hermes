@@ -29,6 +29,29 @@ const DEFAULT_APP_NAME: &str = "athena";
 /// Default `PubSub` topic for P2P mesh formation
 const DEFAULT_MESH_TOPIC: &str = "documents.new";
 
+/// Default IPFS listening port (configurable via `IPFS_LISTEN_PORT` env var)
+const DEFAULT_IPFS_LISTEN_PORT: u16 = 4001;
+
+/// Default retry interval in seconds for bootstrap connections (configurable via
+/// `IPFS_RETRY_INTERVAL_SECS`)
+const DEFAULT_RETRY_INTERVAL_SECS: u64 = 10;
+
+/// Default maximum retry attempts for bootstrap connections (configurable via
+/// `IPFS_MAX_RETRIES`)
+const DEFAULT_MAX_RETRIES: u32 = 10;
+
+/// IPFS data subdirectory name within the base directory
+const IPFS_DATA_DIR: &str = "ipfs";
+
+/// Keypair filename for persistent IPFS identity
+const KEYPAIR_FILENAME: &str = "keypair";
+
+/// Default application name for auto-subscription
+const DEFAULT_APP_NAME: &str = "athena";
+
+/// Default `PubSub` topic for P2P mesh formation
+const DEFAULT_MESH_TOPIC: &str = "documents.new";
+
 pub(crate) use api::{
     hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_dht_get_providers,
     hermes_ipfs_dht_provide, hermes_ipfs_evict_peer, hermes_ipfs_get_dht_value,
@@ -37,6 +60,8 @@ pub(crate) use api::{
 };
 use dashmap::DashMap;
 use hermes_ipfs::{
+    AddIpfsFile, Cid, HermesIpfs, HermesIpfsBuilder, IpfsPath as BaseIpfsPath,
+    rust_ipfs::{Keypair, dummy},
     AddIpfsFile, Cid, HermesIpfs, HermesIpfsBuilder, IpfsPath as BaseIpfsPath,
     rust_ipfs::{Keypair, dummy},
 };
@@ -320,6 +345,47 @@ async fn retry_bootstrap_connections(
 /// * `default_bootstrap` - Whether to use default public IPFS bootstrap nodes
 /// * `custom_peers` - Optional list of custom bootstrap peer multiaddrs
 ///
+/// ## What is bootstrapping?
+///
+/// Bootstrapping connects an IPFS node to the network by:
+/// 1. Loading/generating a persistent keypair (stable peer identity)
+/// 2. Configuring network transports (TCP, QUIC, DNS)
+/// 3. Connecting to initial bootstrap peers (entry points to the network)
+/// 4. Auto-subscribing to a default topic for immediate mesh participation
+///
+/// ## IMPORTANT: `PubSub` requires custom bootstrap peers
+///
+/// **TL;DR: Public IPFS nodes don't work for Hermes `PubSub`. Use custom Hermes bootstrap
+/// peers.**
+///
+/// **Why public IPFS bootstrap nodes CANNOT be used for Hermes `PubSub`:**
+///
+/// Gossipsub (the `PubSub` protocol) requires ALL peers in the mesh to:
+/// 1. Subscribe to the **same topic** (e.g., "documents.new")
+/// 2. Be connected to each other in mesh topology
+///
+/// Public IPFS nodes:
+/// - Don't subscribe to Hermes-specific topics → can't propagate your messages
+/// - Only provide DHT routing and general peer discovery
+/// - Are useless for `PubSub` message exchange
+///
+/// **For `PubSub` to work, you MUST:**
+/// - Use `custom_peers` pointing to other Hermes nodes that subscribe to your topics
+/// - OR deploy dedicated Hermes bootstrap nodes configured to auto-subscribe
+///
+/// The `default_bootstrap` option is ONLY useful for:
+/// - File storage (IPFS add/get operations)
+/// - DHT queries (finding content providers)
+/// - General peer discovery
+///
+/// It will NOT enable `PubSub` message propagation.
+///
+/// ## Parameters
+///
+/// * `base_dir` - Base directory for IPFS data storage
+/// * `default_bootstrap` - Whether to use default public IPFS bootstrap nodes
+/// * `custom_peers` - Optional list of custom bootstrap peer multiaddrs
+///
 /// ## Errors
 ///
 /// Returns errors if IPFS node fails to start.
@@ -334,7 +400,17 @@ pub fn bootstrap(config: Config) -> anyhow::Result<()> {
     let keypair_path = ipfs_data_path.join(KEYPAIR_FILENAME);
     let keypair = load_or_generate_keypair(&keypair_path)?;
 
+
+    // Load or generate persistent keypair
+    let keypair_path = ipfs_data_path.join(KEYPAIR_FILENAME);
+    let keypair = load_or_generate_keypair(&keypair_path)?;
+
     let ipfs_node = HermesIpfsNode::init(
+        HermesIpfsBuilder::with_keypair(keypair)
+            .map_err(|e| anyhow::anyhow!("Failed to create IPFS builder with keypair: {e}"))?
+            .enable_tcp()
+            .enable_quic()
+            .enable_dns()
         HermesIpfsBuilder::with_keypair(keypair)
             .map_err(|e| anyhow::anyhow!("Failed to create IPFS builder with keypair: {e}"))?
             .enable_tcp()
@@ -391,6 +467,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         builder: HermesIpfsBuilder<N>,
         default_bootstrap: bool,
         custom_peers: Option<Vec<String>>,
+        custom_peers: Option<Vec<String>>,
     ) -> anyhow::Result<Self> {
         let runtime = Builder::new_current_thread().enable_all().build()?;
         let (sender, receiver) = mpsc::channel(1);
@@ -401,7 +478,19 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         // Create a oneshot channel to signal when the command handler is ready
         let (ready_tx, ready_rx) = oneshot::channel();
 
+        // Create a oneshot channel to signal when the command handler is ready
+        let (ready_tx, ready_rx) = oneshot::channel();
+
         let _handle = std::thread::spawn(move || {
+            let result = runtime.block_on(async move {
+                // Configure listening address for P2P connections
+                configure_listening_address(&node).await;
+
+                // Connect to bootstrap peers
+                if let Some(peers) = custom_peers {
+                    connect_to_bootstrap_peers(&node, peers).await;
+                } else if default_bootstrap {
+                    // Use public IPFS bootstrap nodes
             let result = runtime.block_on(async move {
                 // Configure listening address for P2P connections
                 configure_listening_address(&node).await;
@@ -419,7 +508,19 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
                     );
                 }
 
+
                 // Enable DHT server mode for PubSub support
+                //
+                // Why DHT Server Mode is Required:
+                // - DHT (Distributed Hash Table) server mode makes this node actively participate
+                //   in the DHT by storing and serving routing information
+                // - This is REQUIRED for Gossipsub PubSub to work properly because:
+                //   1. PubSub uses the DHT to discover which peers are subscribed to topics
+                //   2. Gossipsub builds mesh connections based on DHT peer discovery
+                //   3. Without server mode, the node would be a "leech" that can't help other peers
+                //      discover the network, weakening the mesh
+                // - All Hermes nodes should be DHT servers to form a robust P2P network
+                let hermes_node: HermesIpfs = node.into();
                 //
                 // Why DHT Server Mode is Required:
                 // - DHT (Distributed Hash Table) server mode makes this node actively participate
@@ -441,10 +542,31 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
                 let _ = ready_tx.send(());
 
                 // Start command handler
+
+                // Signal that the command handler is about to start
+                // Ignore the error if the receiver was dropped
+                let _ = ready_tx.send(());
+
+                // Start command handler
                 let h = tokio::spawn(ipfs_command_handler(hermes_node, receiver));
                 let (..) = tokio::join!(h);
                 Ok::<(), anyhow::Error>(())
             });
+
+            if let Err(e) = result {
+                tracing::error!("IPFS thread error: {}", e);
+            }
+        });
+
+        // Wait for the command handler to be ready before returning
+        // This prevents the race condition where auto-subscribe happens before
+        // the command handler is ready to process commands
+        ready_rx.blocking_recv().map_err(|_| {
+            anyhow::anyhow!("IPFS initialization failed: command handler thread died")
+        })?;
+
+        tracing::debug!("IPFS command handler is ready");
+
 
             if let Err(e) = result {
                 tracing::error!("IPFS thread error: {}", e);
