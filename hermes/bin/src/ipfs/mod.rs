@@ -23,12 +23,6 @@ const IPFS_DATA_DIR: &str = "ipfs";
 /// Keypair filename for persistent IPFS identity
 const KEYPAIR_FILENAME: &str = "keypair";
 
-/// Default application name for auto-subscription
-const DEFAULT_APP_NAME: &str = "athena";
-
-/// Default `PubSub` topic for P2P mesh formation
-const DEFAULT_MESH_TOPIC: &str = "documents.new";
-
 pub(crate) use api::{
     hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_dht_get_providers,
     hermes_ipfs_dht_provide, hermes_ipfs_evict_peer, hermes_ipfs_get_dht_value,
@@ -285,7 +279,9 @@ async fn retry_bootstrap_connections(
 /// 1. Loading/generating a persistent keypair (stable peer identity)
 /// 2. Configuring network transports (TCP, QUIC, DNS)
 /// 3. Connecting to initial bootstrap peers (entry points to the network)
-/// 4. Auto-subscribing to a default topic for immediate mesh participation
+///
+/// Note: P2P mesh formation happens when modules subscribe to their topics
+/// during initialization (e.g., doc-sync subscribes to "documents.new").
 ///
 /// ## IMPORTANT: `PubSub` requires custom bootstrap peers
 ///
@@ -304,8 +300,9 @@ async fn retry_bootstrap_connections(
 /// - Are useless for `PubSub` message exchange
 ///
 /// **For `PubSub` to work, you MUST:**
-/// - Use `custom_peers` pointing to other Hermes nodes that subscribe to your topics
-/// - OR deploy dedicated Hermes bootstrap nodes configured to auto-subscribe
+/// - Use `custom_peers` pointing to other Hermes nodes that subscribe to the same topics
+/// - Ensure all nodes in the mesh subscribe to the same topics (handled by modules during
+///   init)
 ///
 /// The `default_bootstrap` option is ONLY useful for:
 /// - File storage (IPFS add/get operations)
@@ -326,7 +323,9 @@ async fn retry_bootstrap_connections(
 /// 1. Loading/generating a persistent keypair (stable peer identity)
 /// 2. Configuring network transports (TCP, QUIC, DNS)
 /// 3. Connecting to initial bootstrap peers (entry points to the network)
-/// 4. Auto-subscribing to a default topic for immediate mesh participation
+///
+/// Note: P2P mesh formation happens when modules subscribe to their topics
+/// during initialization (e.g., doc-sync subscribes to "documents.new").
 ///
 /// ## IMPORTANT: `PubSub` requires custom bootstrap peers
 ///
@@ -345,8 +344,9 @@ async fn retry_bootstrap_connections(
 /// - Are useless for `PubSub` message exchange
 ///
 /// **For `PubSub` to work, you MUST:**
-/// - Use `custom_peers` pointing to other Hermes nodes that subscribe to your topics
-/// - OR deploy dedicated Hermes bootstrap nodes configured to auto-subscribe
+/// - Use `custom_peers` pointing to other Hermes nodes that subscribe to the same topics
+/// - Ensure all nodes in the mesh subscribe to the same topics (handled by modules during
+///   init)
 ///
 /// The `default_bootstrap` option is ONLY useful for:
 /// - File storage (IPFS add/get operations)
@@ -388,24 +388,10 @@ pub fn bootstrap(config: Config) -> anyhow::Result<()> {
         .set(ipfs_node)
         .map_err(|_| anyhow::anyhow!("failed to start IPFS node"))?;
 
-    // Auto-subscribe to default topic for P2P mesh formation
-    //
-    // Why auto-subscribe at bootstrap time?
-    // - Gossipsub requires peers to be subscribed to the SAME topic to communicate
-    // - By auto-subscribing during bootstrap, all Hermes nodes immediately join the mesh
-    // - This avoids a "cold start" problem where the first node has no peers to talk to
-    // - With Gossipsub's default mesh_n=6, having 6+ nodes subscribed creates a full mesh
-    // - Without this, applications would need to manually subscribe before PubSub works
-    //
-    // Note: This ensures the mesh forms immediately on startup, allowing instant
-    // message propagation as soon as nodes connect to each other.
-    let app_name = ApplicationName::new(DEFAULT_APP_NAME);
-    let topic = PubsubTopic::from(DEFAULT_MESH_TOPIC.to_string());
-    hermes_ipfs_subscribe(SubscriptionKind::Default, &app_name, topic)?;
-    tracing::info!(
-        "Auto-subscribed to {} topic for P2P mesh formation",
-        DEFAULT_MESH_TOPIC
-    );
+    // Note: P2P mesh formation now happens when modules subscribe to their topics
+    // (e.g., doc-sync module subscribes to "documents.new" during initialization).
+    // This avoids subscription conflicts and allows each module to manage its own
+    // subscriptions.
 
     Ok(())
 }
