@@ -11,7 +11,7 @@ crate-type = ["cdylib"]
 shared = { path = "../../../../../apps/athena/shared", version = "0.1.0", features = ["cat-gateway-types"] }
 
 anyhow = "1.0.100"
-cardano-blockchain-types = { version = "0.0.9", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "cardano-blockchain-types/v0.0.9" }
+cardano-blockchain-types = { path = "../../../../../../../catalyst-libs/rust/cardano-blockchain-types" }
 
 
 [lints]

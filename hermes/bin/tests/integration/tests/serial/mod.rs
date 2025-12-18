@@ -10,3 +10,4 @@ mod failed_module_init;
 mod http_request_rte;
 mod parallel_module_execution;
 mod staked_ada;
+mod verify_doc;

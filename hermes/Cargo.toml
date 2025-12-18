@@ -8,6 +8,8 @@ members = [
     "bin/tests/integration/components/cron_callback",
     "bin/tests/integration/components/staked_ada_indexer_mock",
     "bin/tests/integration/components/doc_sync_subscribe",
+    "bin/tests/integration/components/verify_doc",
+
 ]
 default-members = [
     "bin",
