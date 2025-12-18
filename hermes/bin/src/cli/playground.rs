@@ -66,11 +66,11 @@ impl Playground {
 
         let temp_dir = TempDir::new()?;
 
-        let app =
-            create_and_init_app_with_temp_dir_vfs(self.app_name, &self.components, &temp_dir)?;
-
         tracing::info!("{} Bootstrapping IPFS node", console::Emoji::new("🖧", ""),);
         init_ipfs(&temp_dir)?;
+
+        let app =
+            create_and_init_app_with_temp_dir_vfs(self.app_name, &self.components, &temp_dir)?;
 
         if self.rt_config.serialize_sqlite {
             sqlite::set_serialized();

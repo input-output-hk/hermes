@@ -474,13 +474,13 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
                 tracing::debug!("IPFS node set to DHT server mode");
 
                 // Start command handler
+                let h = tokio::spawn(async move {
+                    // Signal that the command handler is ready to receive commands
+                    // Ignore the error if the receiver was dropped
+                    let _ = ready_tx.send(());
 
-                // Signal that the command handler is about to start
-                // Ignore the error if the receiver was dropped
-                let _ = ready_tx.send(());
-
-                // Start command handler
-                let h = tokio::spawn(ipfs_command_handler(hermes_node, receiver));
+                    ipfs_command_handler(hermes_node, receiver).await
+                });
                 let (..) = tokio::join!(h);
                 Ok::<(), anyhow::Error>(())
             });
@@ -490,14 +490,14 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
             }
         });
 
-        // Wait for the command handler to be ready before returning
-        // This prevents the race condition where auto-subscribe happens before
+        // Wait for the command handler task to be spawned and ready
+        // This prevents the race condition where subscriptions happen before
         // the command handler is ready to process commands
         ready_rx.blocking_recv().map_err(|_| {
             anyhow::anyhow!("IPFS initialization failed: command handler thread died")
         })?;
 
-        tracing::debug!("IPFS command handler is ready");
+        tracing::debug!("IPFS command handler task is ready");
 
         Ok(Self {
             sender: Some(sender),
