@@ -1146,29 +1146,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "catalyst-types"
-version = "0.0.11"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=catalyst-types%2Fv0.0.11#7a32dd981b5de571dc08a751f58f55d4b6fabaff"
-dependencies = [
- "base64-url",
- "chrono",
- "displaydoc",
- "ed25519-dalek",
- "fluent-uri",
- "fmmap",
- "jsonschema 0.28.3",
- "minicbor 0.25.1",
- "num-traits",
- "orx-concurrent-vec",
- "serde",
- "serde_json",
- "strum 0.27.2",
- "thiserror 2.0.17",
- "tracing",
- "uuid",
-]
-
-[[package]]
 name = "cbor4ii"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1369,9 +1346,9 @@ checksum = "a1d728cc89cf3aee9ff92b05e62b19ee65a02b5702cff7d5a377e32c6ae29d8d"
 
 [[package]]
 name = "cmake"
-version = "0.1.56"
+version = "0.1.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b042e5d8a74ae91bb0961acd039822472ec99f8ab0948cbf6d1369588f8be586"
+checksum = "75443c44cd6b379beb8c5b45d85d0773baf31cce901fe7bb252f4eff3008ef7d"
 dependencies = [
  "cc",
 ]
@@ -3235,10 +3212,11 @@ dependencies = [
 
 [[package]]
 name = "hermes-ipfs"
-version = "0.0.7"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=hermes-ipfs%2Fv0.0.7#44776e3e61a92b5b5b762a51fb04a236ebe0fb78"
+version = "0.0.9"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?branch=feat%2Fdoc-sync-timers#4e8c1b6b21265df8f2e2f2b4f8918737b58eab24"
 dependencies = [
  "anyhow",
+ "blake3",
  "bytemuck",
  "catalyst-types 0.0.11",
  "connexa",
@@ -3247,6 +3225,8 @@ dependencies = [
  "futures",
  "ipld-core",
  "libp2p",
+ "minicbor 0.25.1",
+ "rand 0.9.2",
  "rust-ipfs",
  "tokio",
  "tracing",
@@ -4826,9 +4806,9 @@ dependencies = [
 
 [[package]]
 name = "logcall"
-version = "0.1.11"
+version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56e8309d7cbf9e9f27139956138cb375f14621cdb2f4cdd91468467ec04b6784"
+checksum = "ba3e73bcf1964ecc215a63a342653e4d4d20a6a332232073a2e866a1e3eb5795"
 dependencies = [
  "proc-macro-error2",
  "proc-macro2",
@@ -6833,9 +6813,9 @@ checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 
 [[package]]
 name = "reqwest"
-version = "0.12.24"
+version = "0.12.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d0946410b9f7b082a427e4ef5c8ff541a88b357bc6c637c40db3a68ac70a36f"
+checksum = "3b4c14b2d9afca6a60277086b0cc6a6ae0b568f6f7916c943a8cdc79f8be240f"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -7952,9 +7932,9 @@ checksum = "7b3c8667cd96245cbb600b8dec5680a7319edd719c5aa2b5d23c6bff94f39765"
 
 [[package]]
 name = "stringzilla"
-version = "4.4.0"
+version = "4.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c928ccc97d701d7960025d6b9118d4d377b5519bde9b98daf0b1a3a12bbfb14"
+checksum = "1dbf1b15af434312afef361732140f6c2ba3c8038e1e4dc7fffcac52fdb7a306"
 dependencies = [
  "cc",
 ]
@@ -8560,18 +8540,18 @@ dependencies = [
 
 [[package]]
 name = "toml_datetime"
-version = "0.7.3"
+version = "0.7.4+spec-1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2cdb639ebbc97961c51720f858597f7f24c4fc295327923af55b74c3c724533"
+checksum = "fe3cea6b2aa3b910092f6abd4053ea464fab5f9c170ba5e9a6aead16ec4af2b6"
 dependencies = [
  "serde_core",
 ]
 
 [[package]]
 name = "toml_edit"
-version = "0.23.9"
+version = "0.23.10+spec-1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d7cbc3b4b49633d57a0509303158ca50de80ae32c265093b24c414705807832"
+checksum = "84c8b9f757e028cee9fa244aea147aab2a9ec09d5325a9b01e0a49730c2b5269"
 dependencies = [
  "indexmap 2.12.1",
  "toml_datetime",
@@ -8581,9 +8561,9 @@ dependencies = [
 
 [[package]]
 name = "toml_parser"
-version = "1.0.4"
+version = "1.0.5+spec-1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0cbe268d35bdb4bb5a56a2de88d0ad0eb70af5384a99d648cd4b3d04039800e"
+checksum = "4c03bee5ce3696f31250db0bbaff18bc43301ce0e8db2ed1f07cbb2acf89984c"
 dependencies = [
  "winnow",
 ]

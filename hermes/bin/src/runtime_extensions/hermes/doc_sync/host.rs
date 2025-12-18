@@ -8,7 +8,8 @@ use wasmtime::component::Resource;
 
 use super::ChannelState;
 use crate::{
-    ipfs::{self, hermes_ipfs_subscribe},
+    app::ApplicationName,
+    ipfs::{self, hermes_ipfs_publish, hermes_ipfs_subscribe},
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::hermes::{
@@ -118,11 +119,10 @@ impl HostSyncChannel for HermesRuntimeContext {
             wasmtime::Error::msg(format!("BLAKE2b hash output length must be 4 bytes: {err}"))
         })?;
 
-        // 1. Create a channel resource.
         let resource: u32 = u32::from_be_bytes(*prefix_bytes);
         let mut channel_state = DOC_SYNC_STATE
             .entry(resource)
-            .or_insert_with(|| ChannelState::new(&name));
+            .or_insert(ChannelState::new(&name));
         // Same resource key cannot be reused for a different channel
         if channel_state.channel_name != name {
             return Err(wasmtime::Error::msg(format!(
@@ -131,11 +131,12 @@ impl HostSyncChannel for HermesRuntimeContext {
             )));
         }
 
+        let topic_new = format!("{name}.new");
         // When the channel is created, subscribe to .new <base>.<topic>
         if let Err(err) = hermes_ipfs_subscribe(
             ipfs::SubscriptionKind::DocSync,
             self.app_name(),
-            format!("{name}.new"),
+            topic_new.clone(),
         ) {
             DOC_SYNC_STATE.remove(&resource);
             return Err(wasmtime::Error::msg(format!(
@@ -144,7 +145,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         }
         tracing::info!("Created Doc Sync Channel: {name}");
 
-        // 3. When subscribe is successful, create and start the timer
+        // When subscribe is successful, create and start the timer
         if channel_state.timers.is_none() {
             let timers = {
                 let app_name = self.app_name().clone();
