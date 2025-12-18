@@ -9,6 +9,10 @@ use once_cell::sync::Lazy;
 mod event;
 mod host;
 
+pub(crate) use event::OnNewDocEvent;
+
+pub(crate) use event::OnNewDocEvent;
+
 /// In-memory representation for an opened doc-sync channel.
 #[derive(Clone)]
 pub(super) struct ChannelState {

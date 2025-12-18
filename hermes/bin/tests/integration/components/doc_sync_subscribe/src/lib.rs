@@ -7,7 +7,6 @@
 )]
 
 mod bindings {
-
     wit_bindgen::generate!({
         world: "hermes:app/hermes",
         path: "../../../../../../wasm/wasi/wit",
@@ -24,13 +23,13 @@ mod bindings {
     });
 }
 
-struct IPFSSubscribeApp;
+struct DocSyncSubscribeApp;
 
-impl bindings::exports::hermes::init::event::Guest for IPFSSubscribeApp {
+impl bindings::exports::hermes::init::event::Guest for DocSyncSubscribeApp {
     fn init() -> bool {
         bindings::hermes::doc_sync::api::SyncChannel::new("ipfs_channel");
         false
     }
 }
 
-bindings::export!(IPFSSubscribeApp with_types_in bindings);
+bindings::export!(DocSyncSubscribeApp with_types_in bindings);

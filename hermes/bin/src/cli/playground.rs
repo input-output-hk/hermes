@@ -5,6 +5,7 @@ use std::{
     ffi::OsStr,
     fs,
     path::{Path, PathBuf},
+    thread,
     time::Duration,
 };
 
@@ -81,6 +82,14 @@ impl Playground {
             pool::init()?;
         }
 
+        if let Some(delay_ms) = self.rt_config.delay_ms {
+            println!(
+                "{} Delaying the run by {delay_ms} milliseconds...",
+                Emoji::new("🛠️", ""),
+            );
+            thread::sleep(Duration::from_millis(delay_ms));
+        }
+
         println!("{} Loading an application...", Emoji::new("🛠️", ""),);
 
         reactor::load_app(app)?;
@@ -103,9 +112,12 @@ impl Playground {
 /// Initialize the IPFS node
 fn init_ipfs(temp_dir: &TempDir) -> anyhow::Result<()> {
     let ipfs_dir = create_temp_dir_child(temp_dir, Path::new("ipfs"))?;
-    // disable bootstrapping the IPFS node to default addresses for testing
-    let default_bootstrap = false;
-    ipfs::bootstrap(ipfs_dir.as_path(), default_bootstrap)
+    ipfs::bootstrap(ipfs::Config {
+        base_dir: ipfs_dir.as_path(),
+        // disable bootstrapping the IPFS node to default addresses
+        default_bootstrap: false,
+        custom_peers: None,
+    })
 }
 
 /// Collects `.wasm` files in the current directory or sub-directories of the current
