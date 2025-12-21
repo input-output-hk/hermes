@@ -23,12 +23,6 @@ const IPFS_DATA_DIR: &str = "ipfs";
 /// Keypair filename for persistent IPFS identity
 const KEYPAIR_FILENAME: &str = "keypair";
 
-/// Default application name for auto-subscription
-const DEFAULT_APP_NAME: &str = "athena";
-
-/// Default `PubSub` topic for P2P mesh formation
-const DEFAULT_MESH_TOPIC: &str = "documents.new";
-
 pub(crate) use api::{
     hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_dht_get_providers,
     hermes_ipfs_dht_provide, hermes_ipfs_evict_peer, hermes_ipfs_get_dht_value,
@@ -388,24 +382,31 @@ pub fn bootstrap(config: Config) -> anyhow::Result<()> {
         .set(ipfs_node)
         .map_err(|_| anyhow::anyhow!("failed to start IPFS node"))?;
 
-    // Auto-subscribe to default topic for P2P mesh formation
+    // =========================================================================
+    // CHANGE: Removed auto-subscription logic (2025-12-21)
+    // =========================================================================
     //
-    // Why auto-subscribe at bootstrap time?
-    // - Gossipsub requires peers to be subscribed to the SAME topic to communicate
-    // - By auto-subscribing during bootstrap, all Hermes nodes immediately join the mesh
-    // - This avoids a "cold start" problem where the first node has no peers to talk to
-    // - With Gossipsub's default mesh_n=6, having 6+ nodes subscribed creates a full mesh
-    // - Without this, applications would need to manually subscribe before PubSub works
+    // WHAT WAS REMOVED:
+    // - Auto-subscription to "documents.new" topic during IPFS bootstrap
+    // - Constants: DEFAULT_APP_NAME and DEFAULT_MESH_TOPIC
     //
-    // Note: This ensures the mesh forms immediately on startup, allowing instant
-    // message propagation as soon as nodes connect to each other.
-    let app_name = ApplicationName::new(DEFAULT_APP_NAME);
-    let topic = PubsubTopic::from(DEFAULT_MESH_TOPIC.to_string());
-    hermes_ipfs_subscribe(SubscriptionKind::Default, &app_name, topic)?;
-    tracing::info!(
-        "Auto-subscribed to {} topic for P2P mesh formation",
-        DEFAULT_MESH_TOPIC
-    );
+    // WHY IT WAS REMOVED:
+    // - The auto-subscription was causing subscription conflicts
+    // - When the doc-sync module tried to subscribe with SubscriptionKind::DocSync,
+    //   the topic was already subscribed with SubscriptionKind::Default
+    // - IPFS PubSub only allows one subscription per topic per node
+    // - This prevented the doc-sync handler from receiving messages
+    //
+    // NEW BEHAVIOR:
+    // - P2P mesh formation now happens when modules subscribe to their topics
+    // - The doc-sync module subscribes to "documents.new" during initialization
+    // - This uses SubscriptionKind::DocSync which routes to doc_sync_topic_message_handler
+    // - Each module manages its own subscriptions without conflicts
+    //
+    // IMPORTANT: If you add this auto-subscription back, ensure it uses the
+    // correct SubscriptionKind for the handler you want to use, or move to a
+    // different topic that doesn't conflict with module-specific subscriptions.
+    // =========================================================================
 
     Ok(())
 }

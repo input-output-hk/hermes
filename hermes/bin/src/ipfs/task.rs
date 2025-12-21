@@ -307,6 +307,77 @@ fn topic_message_handler(
 }
 
 /// Handler function for topic message streams (Doc Sync).
+///
+/// ============================================================================
+/// CRITICAL: Doc Sync PubSub Message Receiver
+/// ============================================================================
+///
+/// PURPOSE:
+/// - Receives P2P messages on "*.new" topics (e.g., "documents.new")
+/// - Decodes CBOR-encoded payload::New structure sent by publisher
+/// - Extracts CID list from payload
+/// - Fetches document content from IPFS for each CID
+/// - Dispatches OnNewDocEvent to subscribed applications
+///
+/// MESSAGE FORMAT (Matches sender in host.rs::publish):
+/// 1. PubSub message contains CBOR-encoded payload::New
+/// 2. Decoded structure: DocumentDisseminationBody::Docs { docs: Vec<Cid> }
+/// 3. CIDs use dag-cbor codec (0x51) as protocol identifier
+/// 4. IPFS can fetch content using these CIDs (resolves to dag-pb storage)
+///
+/// CURRENT ISSUE - BLOCKING OPERATIONS PROBLEM:
+/// ============================================================================
+/// ⚠️  WARNING: This handler has a KNOWN ISSUE with blocking operations
+///
+/// THE PROBLEM:
+/// - This handler is called from a PubSub subscription stream (async context)
+/// - file_pin() and file_get() use blocking_send() and blocking_recv()
+/// - Calling blocking operations from within tokio async runtime causes:
+///   Option A: Panic "Cannot block the current thread from within a runtime"
+///   Option B: Deadlock/hanging when wrapped in spawn_blocking()
+///
+/// WHY IT FAILS:
+/// - blocking_send()/blocking_recv() block the current thread
+/// - The PubSub handler runs on a tokio worker thread
+/// - Blocking a tokio worker prevents async tasks from progressing
+/// - The ipfs_command_handler that processes commands is also async
+/// - Result: Deadlock - handler waits for response, but processor can't run
+///
+/// ATTEMPTED FIXES (All failed):
+/// 1. Direct call → Panic "Cannot block the current thread"
+/// 2. std::thread::spawn() → Hangs at blocking_send(), can't communicate with runtime
+/// 3. tokio::task::spawn_blocking() → Still hangs, blocking pool has same issue
+///
+/// POTENTIAL SOLUTIONS FOR NEXT DEVELOPER:
+/// ============================================================================
+///
+/// OPTION 1: Make file operations async (RECOMMENDED)
+/// - Create async versions: file_pin_async(), file_get_async()
+/// - Use sender.send().await instead of blocking_send()
+/// - Use rx.await instead of blocking_recv()
+/// - Spawn with tokio::task::spawn() (not spawn_blocking)
+/// - This is the "proper" solution for async Rust
+///
+/// OPTION 2: Restructure subscription handling
+/// - Move PubSub processing to a dedicated blocking thread
+/// - Use crossbeam channels for communication
+/// - Not recommended - fights against tokio's async model
+///
+/// OPTION 3: Inline IPFS operations
+/// - Access hermes_ipfs::Ipfs directly without going through command queue
+/// - Call node.insert_pin() and node.get_ipfs_file() directly (async methods)
+/// - Requires restructuring how HERMES_IPFS singleton works
+///
+/// RECOMMENDATION: Pursue Option 1
+/// - file_pin() and file_get() are wrappers around async operations anyway
+/// - Making them async is the idiomatic Rust solution
+/// - See mod.rs lines 547-559 for current blocking implementation
+///
+/// TEST VALIDATION:
+/// - Run: cd p2p-testing && just test-pubsub-propagation
+/// - Success: All 5 subscriber nodes log "RECEIVED PubSub message"
+/// - The test currently FAILS with "No Propagation" due to this issue
+/// ============================================================================
 #[allow(
     clippy::needless_pass_by_value,
     reason = "The event will be eventually consumed in the handler"

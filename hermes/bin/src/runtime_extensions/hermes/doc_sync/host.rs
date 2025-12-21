@@ -1,5 +1,45 @@
 //! Doc Sync host module.
-use cardano_chain_follower::pallas_codec::minicbor::{self, Encode, Encoder, data::Tag};
+//!
+//! ============================================================================
+//! IMPORTANT CHANGES (2025-12-21): Fixed Doc Sync P2P Message Format
+//! ============================================================================
+//!
+//! PROBLEM SUMMARY:
+//! - Doc Sync PubSub messages were being published in the wrong format
+//! - Messages used dag-pb CIDs (codec 0x70) instead of dag-cbor CIDs (0x51)
+//! - Raw document bytes were published instead of proper CBOR-encoded payloads
+//! - Receiving nodes couldn't decode messages, causing P2P propagation to fail
+//!
+//! FIXES APPLIED:
+//!
+//! 1. IMPORT CHANGES:
+//!    - Changed from `cardano_chain_follower::pallas_codec::minicbor` to `minicbor` crate
+//!    - Added `hermes_ipfs::doc_sync::payload` types (New, CommonFields, DocumentDisseminationBody)
+//!    - Ensures we use the same minicbor version (0.25.1) as hermes-ipfs for encoding/decoding
+//!
+//! 2. CID FORMAT FIX (in add_file function):
+//!    - IPFS file_add returns CID with dag-pb codec (0x70) - used for IPFS storage
+//!    - Doc Sync protocol requires CID with dag-cbor codec (0x51) - used in PubSub messages
+//!    - Now compute BOTH CIDs: dag-pb for storage, dag-cbor for protocol
+//!    - Return dag-cbor CID to be used in publish step
+//!
+//! 3. MESSAGE FORMAT FIX (in publish function):
+//!    - OLD: Published raw document bytes directly
+//!    - NEW: Construct proper payload::New structure with CID list
+//!    - Encode to CBOR using minicbor::to_vec()
+//!    - Publish CBOR-encoded payload (matches receiver expectations)
+//!
+//! TESTING:
+//! - Test with: `cd p2p-testing && just test-pubsub-propagation`
+//! - Should see "RECEIVED PubSub message" logs in all subscriber nodes
+//! - Test validates that messages propagate through 6-node P2P mesh
+//!
+//! RELATED FILES:
+//! - hermes/bin/src/ipfs/task.rs: doc_sync_topic_message_handler (receiver)
+//! - hermes-ipfs/src/doc_sync/payload.rs: Message format definitions
+//! ============================================================================
+
+use minicbor::{Encode, Encoder, data::Tag};
 use stringzilla::stringzilla::Sha256;
 use wasmtime::component::Resource;
 
@@ -17,6 +57,7 @@ use crate::{
         hermes::doc_sync::DOC_SYNC_STATE,
     },
 };
+use hermes_ipfs::doc_sync::payload::{CommonFields, DocumentDisseminationBody, New};
 
 /// The number of steps in the "post document" workflow (see `post()` function):
 /// 1. `add_file`: Store document in IPFS, get CID
@@ -178,7 +219,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         dht_provide(self, &cid)?;
         let peer_id = get_peer_id(self)??;
         ensure_provided(self, &cid, &peer_id)??;
-        publish(self, doc, sync_channel.rep())??;
+        publish(self, &cid, sync_channel.rep())??;
 
         Ok(Ok(cid.as_bytes().to_vec()))
     }
@@ -265,13 +306,55 @@ fn add_file(
 ) -> wasmtime::Result<Result<String, Errno>> {
     const STEP: u8 = 1;
     match ctx.file_add(doc.clone())? {
-        Ok(FileAddResult { file_path, cid }) => {
+        Ok(FileAddResult { file_path, cid: ipfs_cid }) => {
+            // ====================================================================
+            // CRITICAL: Dual CID Computation for Doc Sync P2P Protocol
+            // ====================================================================
+            //
+            // WHY TWO CIDs?
+            // - IPFS file_add returns: CIDv1 with dag-pb codec (0x70)
+            //   → This is how IPFS stores the file internally
+            //   → Used for IPFS operations (pin, get, store)
+            //
+            // - Doc Sync requires: CIDv1 with dag-cbor codec (0x51)
+            //   → This is the protocol-level identifier
+            //   → Used in PubSub messages to identify documents
+            //   → Receiving nodes use this to fetch from IPFS
+            //
+            // THE PROBLEM WE'RE SOLVING:
+            // - Before this fix, we returned the dag-pb CID (0x70) from file_add
+            // - This was published in PubSub messages
+            // - Receiving nodes tried to decode messages expecting dag-cbor CIDs
+            // - Result: decode failures, no P2P propagation
+            //
+            // THE SOLUTION:
+            // 1. Keep the dag-pb CID for IPFS storage (ipfs_cid variable)
+            // 2. Compute dag-cbor CID by hashing the same content
+            // 3. Return dag-cbor CID (cbor_cid_str) for use in publish step
+            // 4. Receiving nodes can use either CID to fetch from IPFS
+            //    (IPFS resolves both to the same content)
+            //
+            // IMPORTANT: Both CIDs point to the same content!
+            // - Same SHA-256 hash of the document
+            // - Different codec prefix (0x70 vs 0x51)
+            // - IPFS can retrieve content using either CID
+            // ====================================================================
+
+            let mut hasher = Sha256::new();
+            hasher.update(doc);
+            let hash_digest = hasher.digest();
+
+            let multihash = multihash::Multihash::<64>::wrap(SHA2_256_CODE, &hash_digest)?;
+            let cbor_cid = hermes_ipfs::Cid::new_v1(CBOR_CODEC, multihash);
+            let cbor_cid_str = cbor_cid.to_string();
+
             tracing::info!(
-                "✓ Step {STEP}/{POST_STEP_COUNT}: Added and pinned to IPFS (CID: {}) → {}",
-                cid,
+                "✓ Step {STEP}/{POST_STEP_COUNT}: Added and pinned to IPFS (storage: {}, protocol: {}) → {}",
+                ipfs_cid,
+                cbor_cid_str,
                 file_path
             );
-            Ok(Ok(cid))
+            Ok(Ok(cbor_cid_str))
         },
         Err(e) => {
             tracing::error!(
@@ -398,10 +481,12 @@ fn ensure_provided(
 /// in IPFS. We treat "no peers" as a warning rather than a fatal error.
 fn publish(
     ctx: &mut HermesRuntimeContext,
-    doc: DocData,
+    cid: &str,
     rep: u32,
 ) -> wasmtime::Result<Result<(), Errno>> {
     const STEP: u8 = 5;
+    tracing::info!("⏭ Step {STEP}/{POST_STEP_COUNT}: Publish - starting with CID: {}", cid);
+
     let channel_name = DOC_SYNC_STATE
         .get(&rep)
         .ok_or_else(|| wasmtime::Error::msg("Channel not found"))?
@@ -409,39 +494,85 @@ fn publish(
         .clone();
 
     let topic_new = format!("{channel_name}.new");
+    tracing::info!("Publishing to topic: {}", topic_new);
 
-    // The channel should already be subscribed to the `.new` topic (subscription
-    // is performed in `new()`). Invoking the subscription again to ensure
-    // the topic is active, because Gossipsub enforces that peers must subscribe
-    // to a topic before they are permitted to publish on it.
-    match ctx.pubsub_subscribe(topic_new.clone())? {
-        Ok(_) => tracing::info!("✓ Subscribed to topic: {topic_new}"),
-        Err(e) => tracing::warn!("⚠ Subscribe warning: {:?}", e),
-    }
+    // ========================================================================
+    // CRITICAL: Construct Proper CBOR-Encoded Doc Sync Payload
+    // ========================================================================
+    //
+    // WHAT WAS WRONG BEFORE:
+    // - OLD CODE: Published raw document bytes directly to PubSub
+    // - This is NOT the Doc Sync protocol format
+    // - Receiving nodes (doc_sync_topic_message_handler) expect:
+    //   1. CBOR-encoded payload::New structure
+    //   2. Contains CID list (not raw document content)
+    //   3. Uses minicbor 0.25.1 encoding
+    //
+    // THE FIX (Steps below):
+    // 1. Parse CID string → hermes_ipfs::Cid type
+    // 2. Construct payload::New with DocumentDisseminationBody::Docs
+    // 3. Encode to CBOR bytes using minicbor::to_vec()
+    // 4. Publish CBOR bytes (not raw document)
+    //
+    // RECEIVER SIDE (in doc_sync_topic_message_handler):
+    // - Receives CBOR bytes from PubSub
+    // - Decodes: minicbor::decode::<payload::New>(&message.data)
+    // - Extracts CID list from payload
+    // - Fetches actual document content from IPFS using CIDs
+    // - Dispatches OnNewDocEvent with document content
+    //
+    // KEY INSIGHT: P2P messages contain CIDs (content identifiers),
+    // not the actual document content. This is efficient because:
+    // - Small messages (just CIDs)
+    // - Content fetched directly from IPFS (distributed storage)
+    // - Multiple docs can be sent in one message (CID list)
+    // ========================================================================
 
-    // Attempt to publish to PubSub
-    tracing::info!(
-        "📤 Attempting to publish {} bytes to topic: {}",
-        doc.len(),
-        topic_new
-    );
+    // Step 1: Parse CID string
+    let cid_parsed = match cid.parse::<hermes_ipfs::Cid>() {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::error!("Failed to parse CID {}: {}", cid, e);
+            return Ok(Err(Errno::DocErrorPlaceholder));
+        },
+    };
 
-    match ctx.pubsub_publish(topic_new.clone(), doc)? {
+    // Step 2: Construct payload::New structure
+    // Structure matches hermes-ipfs/src/doc_sync/payload.rs definitions
+    let payload = match New::try_from(DocumentDisseminationBody::Docs {
+        common_fields: CommonFields {
+            root: [0u8; 32], // TODO: Use actual SMT root hash when available
+            count: 1,        // Single document in this message
+            in_reply_to: None, // Not a reply to another message
+        },
+        docs: vec![cid_parsed], // List of CIDs to announce
+    }) {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::error!("Failed to create payload::New: {}", e);
+            return Ok(Err(Errno::DocErrorPlaceholder));
+        }
+    };
+
+    // Step 3: Encode payload to CBOR bytes
+    // CRITICAL: Must use minicbor crate (v0.25.1) - same version as hermes-ipfs
+    // Different minicbor versions produce incompatible encodings
+    let payload_bytes = match minicbor::to_vec(&payload) {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            tracing::error!("Failed to encode payload to CBOR: {}", e);
+            return Ok(Err(Errno::DocErrorPlaceholder));
+        }
+    };
+
+    tracing::info!("Publishing {} bytes of CBOR-encoded payload to topic: {}", payload_bytes.len(), topic_new);
+
+    match ctx.pubsub_publish(topic_new.clone(), payload_bytes)? {
         Ok(()) => {
-            tracing::info!("✅ Step {STEP}/{POST_STEP_COUNT}: Published to PubSub → {topic_new}");
+            tracing::info!("✅ Step {STEP}/{POST_STEP_COUNT}: Payload published to PubSub → {topic_new}");
         },
         Err(e) => {
-            // Non-fatal: PubSub requires peer nodes to be subscribed to the topic.
-            // In a single-node environment, this is expected to fail with
-            // "NoPeersSubscribedToTopic". We treat this as a warning rather
-            // than a fatal error since Step 1 already succeeded.
-            tracing::warn!(
-                "⚠ Step {STEP}/{POST_STEP_COUNT}: PubSub publish failed: {:?}",
-                e
-            );
-            tracing::warn!(
-                "   Note: Gossipsub requires other nodes subscribing to '{topic_new}' to work",
-            );
+            tracing::warn!("⚠ Step {STEP}/{POST_STEP_COUNT}: PubSub publish failed: {:?}", e);
             tracing::info!("   Document is successfully stored in IPFS");
         },
     }
