@@ -432,7 +432,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         default_bootstrap: bool,
         custom_peers: Option<Vec<String>>,
     ) -> anyhow::Result<Self> {
-        let runtime = Builder::new_current_thread().enable_all().build()?;
+        let runtime = Builder::new_multi_thread().enable_all().build()?;
         let (sender, receiver) = mpsc::channel(1);
 
         // Build and start IPFS node, before moving into the thread
@@ -602,6 +602,61 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
             .blocking_send(IpfsCommand::UnPinFile(*cid, cmd_tx))
             .map_err(|_| Errno::FilePinError)?;
         cmd_rx.blocking_recv().map_err(|_| Errno::FilePinError)?
+    }
+
+    /// Get file (async version)
+    ///
+    /// This is the async version of `file_get` that uses `send().await` instead of
+    /// `blocking_send()`. This is safe to call from async contexts like PubSub handlers.
+    ///
+    /// ## Parameters
+    /// - `ipfs_path`: The IPFS path of the file
+    ///
+    /// ## Errors
+    /// - `Errno::InvalidIpfsPath`: Invalid IPFS path
+    /// - `Errno::FileGetError`: Failed to get the file
+    pub(crate) async fn file_get_async(
+        &self,
+        ipfs_path: &IpfsPath,
+    ) -> Result<IpfsFile, Errno> {
+        let ipfs_path = BaseIpfsPath::from_str(ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
+        let (cmd_tx, cmd_rx) = oneshot::channel();
+        self.sender
+            .as_ref()
+            .ok_or(Errno::FileGetError)?
+            .send(IpfsCommand::GetFile(ipfs_path.clone(), cmd_tx))
+            .await
+            .map_err(|_| Errno::FileGetError)?;
+        cmd_rx.await.map_err(|_| Errno::FileGetError)?
+    }
+
+    /// Pin file (async version)
+    ///
+    /// This is the async version of `file_pin` that uses `send().await` instead of
+    /// `blocking_send()`. This is safe to call from async contexts like PubSub handlers.
+    ///
+    /// ## Parameters
+    /// - `ipfs_path`: The IPFS path of the file
+    ///
+    /// ## Errors
+    /// - `Errno::InvalidCid`: Invalid CID
+    /// - `Errno::InvalidIpfsPath`: Invalid IPFS path
+    /// - `Errno::FilePinError`: Failed to pin the file
+    #[allow(dead_code)]
+    pub(crate) async fn file_pin_async(
+        &self,
+        ipfs_path: &IpfsPath,
+    ) -> Result<bool, Errno> {
+        let ipfs_path = BaseIpfsPath::from_str(ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
+        let cid = ipfs_path.root().cid().ok_or(Errno::InvalidCid)?;
+        let (cmd_tx, cmd_rx) = oneshot::channel();
+        self.sender
+            .as_ref()
+            .ok_or(Errno::FilePinError)?
+            .send(IpfsCommand::PinFile(*cid, cmd_tx))
+            .await
+            .map_err(|_| Errno::FilePinError)?;
+        cmd_rx.await.map_err(|_| Errno::FilePinError)?
     }
 
     /// Put DHT Key-Value

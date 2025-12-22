@@ -76,7 +76,9 @@ pub(crate) async fn ipfs_command_handler(
     hermes_node: HermesIpfs,
     mut queue_rx: mpsc::Receiver<IpfsCommand>,
 ) -> anyhow::Result<()> {
+    tracing::info!("🎬 ipfs_command_handler started");
     while let Some(ipfs_command) = queue_rx.recv().await {
+        tracing::debug!("📨 Received command: {:?}", std::mem::discriminant(&ipfs_command));
         match ipfs_command {
             IpfsCommand::AddFile(ipfs_file, tx) => {
                 let response = hermes_node
@@ -93,8 +95,12 @@ pub(crate) async fn ipfs_command_handler(
                 send_response(response, tx);
             },
             IpfsCommand::PinFile(cid, tx) => {
+                tracing::info!("📍 Processing PinFile command for CID: {}", cid);
                 let response = match hermes_node.insert_pin(&cid).await {
-                    Ok(()) => Ok(true),
+                    Ok(()) => {
+                        tracing::info!("✅ Pin succeeded for CID: {}", cid);
+                        Ok(true)
+                    },
                     Err(err) if err.to_string().contains("already pinned recursively") => {
                         tracing::debug!(cid = %cid, "file already pinned");
                         Ok(true)
@@ -104,6 +110,7 @@ pub(crate) async fn ipfs_command_handler(
                         Ok(false)
                     },
                 };
+                tracing::info!("📤 Sending response for PinFile: {:?}", response);
                 send_response(response, tx);
             },
             IpfsCommand::UnPinFile(cid, tx) => {
@@ -306,78 +313,13 @@ fn topic_message_handler(
     }
 }
 
-/// Handler function for topic message streams (Doc Sync).
+/// Handler for Doc Sync PubSub messages on "*.new" topics.
 ///
-/// ============================================================================
-/// CRITICAL: Doc Sync PubSub Message Receiver
-/// ============================================================================
+/// Receives P2P messages containing CBOR-encoded CID lists, spawns an async task
+/// to fetch document content from IPFS, and dispatches OnNewDocEvent to subscribed apps.
 ///
-/// PURPOSE:
-/// - Receives P2P messages on "*.new" topics (e.g., "documents.new")
-/// - Decodes CBOR-encoded payload::New structure sent by publisher
-/// - Extracts CID list from payload
-/// - Fetches document content from IPFS for each CID
-/// - Dispatches OnNewDocEvent to subscribed applications
-///
-/// MESSAGE FORMAT (Matches sender in host.rs::publish):
-/// 1. PubSub message contains CBOR-encoded payload::New
-/// 2. Decoded structure: DocumentDisseminationBody::Docs { docs: Vec<Cid> }
-/// 3. CIDs use dag-cbor codec (0x51) as protocol identifier
-/// 4. IPFS can fetch content using these CIDs (resolves to dag-pb storage)
-///
-/// CURRENT ISSUE - BLOCKING OPERATIONS PROBLEM:
-/// ============================================================================
-/// ⚠️  WARNING: This handler has a KNOWN ISSUE with blocking operations
-///
-/// THE PROBLEM:
-/// - This handler is called from a PubSub subscription stream (async context)
-/// - file_pin() and file_get() use blocking_send() and blocking_recv()
-/// - Calling blocking operations from within tokio async runtime causes:
-///   Option A: Panic "Cannot block the current thread from within a runtime"
-///   Option B: Deadlock/hanging when wrapped in spawn_blocking()
-///
-/// WHY IT FAILS:
-/// - blocking_send()/blocking_recv() block the current thread
-/// - The PubSub handler runs on a tokio worker thread
-/// - Blocking a tokio worker prevents async tasks from progressing
-/// - The ipfs_command_handler that processes commands is also async
-/// - Result: Deadlock - handler waits for response, but processor can't run
-///
-/// ATTEMPTED FIXES (All failed):
-/// 1. Direct call → Panic "Cannot block the current thread"
-/// 2. std::thread::spawn() → Hangs at blocking_send(), can't communicate with runtime
-/// 3. tokio::task::spawn_blocking() → Still hangs, blocking pool has same issue
-///
-/// POTENTIAL SOLUTIONS FOR NEXT DEVELOPER:
-/// ============================================================================
-///
-/// OPTION 1: Make file operations async (RECOMMENDED)
-/// - Create async versions: file_pin_async(), file_get_async()
-/// - Use sender.send().await instead of blocking_send()
-/// - Use rx.await instead of blocking_recv()
-/// - Spawn with tokio::task::spawn() (not spawn_blocking)
-/// - This is the "proper" solution for async Rust
-///
-/// OPTION 2: Restructure subscription handling
-/// - Move PubSub processing to a dedicated blocking thread
-/// - Use crossbeam channels for communication
-/// - Not recommended - fights against tokio's async model
-///
-/// OPTION 3: Inline IPFS operations
-/// - Access hermes_ipfs::Ipfs directly without going through command queue
-/// - Call node.insert_pin() and node.get_ipfs_file() directly (async methods)
-/// - Requires restructuring how HERMES_IPFS singleton works
-///
-/// RECOMMENDATION: Pursue Option 1
-/// - file_pin() and file_get() are wrappers around async operations anyway
-/// - Making them async is the idiomatic Rust solution
-/// - See mod.rs lines 547-559 for current blocking implementation
-///
-/// TEST VALIDATION:
-/// - Run: cd p2p-testing && just test-pubsub-propagation
-/// - Success: All 5 subscriber nodes log "RECEIVED PubSub message"
-/// - The test currently FAILS with "No Propagation" due to this issue
-/// ============================================================================
+/// Uses async file operations (file_get_async) to avoid blocking the PubSub handler.
+/// Message format: payload::New → DocumentDisseminationBody::Docs { docs: Vec<Cid> }
 #[allow(
     clippy::needless_pass_by_value,
     reason = "The event will be eventually consumed in the handler"
@@ -386,10 +328,12 @@ fn doc_sync_topic_message_handler(
     message: hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
 ) {
-    let Some(ipfs) = HERMES_IPFS.get() else {
-        tracing::error!("IPFS global instance is uninitialized");
-        return;
-    };
+    tracing::info!("🔔 doc_sync_topic_message_handler called! topic={}, message_len={}", topic, message.data.len());
+    if let Ok(msg_str) = std::str::from_utf8(&message.data) {
+        tracing::info!("RECEIVED PubSub message on topic: {} - data: {}", topic, msg_str);
+    } else {
+        tracing::info!("RECEIVED PubSub message on topic: {}", topic);
+    }
 
     // TODO: match the topic against a static list.
     let Some(channel_name) = topic.strip_suffix(".new") else {
@@ -400,66 +344,98 @@ fn doc_sync_topic_message_handler(
     let payload = match minicbor::decode::<payload::New>(&message.data) {
         Ok(payload) => DocumentDisseminationBody::from(payload),
         Err(err) => {
-            tracing::info!(%channel_name, %err, "Failed to decode .new payload from IPFS message");
+            tracing::error!(%channel_name, %err, "❌ Failed to decode .new payload from IPFS message");
             return;
         },
     };
+    tracing::info!("✅ Decoded payload successfully");
 
     let new_cids = match payload {
         DocumentDisseminationBody::Docs { docs, .. } => docs,
         DocumentDisseminationBody::Manifest { .. } => {
-            tracing::error!("Manifest is not supported in a .new payload");
+            tracing::error!("❌ Manifest is not supported in a .new payload");
             return;
         },
     };
+    tracing::info!("✅ Extracted {} CIDs from payload", new_cids.len());
+    for cid in &new_cids {
+        tracing::info!("RECEIVED PubSub message with CID: {}", cid);
+    }
 
-    let mut contents = Vec::with_capacity(new_cids.len());
+    let channel_name_owned = channel_name.to_string();
+    let topic_owned = topic.clone();
 
-    for cid in new_cids {
-        let path = hermes_ipfs::IpfsPath::new(PathRoot::Ipld(cid)).to_string();
+    tracing::info!("🚀 Spawning async task to process {} CIDs", new_cids.len());
 
-        // Not tracking any app that pinned it (via `ipfs::api::hermes_ipfs_pin_file`),
-        // since the pin is re-used by all apps.
-        match ipfs.file_pin(&path) {
-            Err(err) => {
-                tracing::error!(%channel_name, %cid, %err, "Failed to pin a document");
-                continue;
-            },
-            Ok(false) => {
-                tracing::error!(%channel_name, %cid, "Failed to pin a document (unspecified error)");
-                continue;
-            },
-            Ok(true) => (),
-        }
-
-        let content = match ipfs.file_get(&path) {
-            Ok(ipfs_file) => ipfs_file,
-            Err(err) => {
-                tracing::error!(
-                    %channel_name, %cid, %err,
-                    "Failed to get content of the document after a successful IPFS pin"
-                );
-                continue;
-            },
+    // Spawn async task to avoid blocking PubSub handler during file operations
+    tokio::spawn(async move {
+        tracing::info!("📥 Inside spawned task, processing {} CIDs", new_cids.len());
+        let Some(ipfs) = HERMES_IPFS.get() else {
+            tracing::error!("❌ IPFS global instance is uninitialized");
+            return;
         };
+        tracing::info!("✅ Got HERMES_IPFS instance");
 
-        contents.push(content);
-    }
+        let mut contents = Vec::with_capacity(new_cids.len());
 
-    let app_names = ipfs.apps.subscribed_apps(SubscriptionKind::DocSync, &topic);
+        for cid in new_cids {
+            tracing::info!("🔄 Processing CID: {}", cid);
 
-    for content in contents {
-        let event = HermesEvent::new(
-            OnNewDocEvent::new(channel_name, &content),
-            crate::event::TargetApp::List(app_names.clone()),
-            crate::event::TargetModule::All,
-        );
+            // IMPORTANT: The message contains dag-cbor CIDs (CIDv1, codec 0x51), but IPFS storage
+            // uses dag-pb CIDv0 (codec 0x70). We need to convert to CIDv0 before fetching.
+            // Both CIDs have the same multihash, so we can reconstruct the CIDv0.
+            let storage_cid = hermes_ipfs::Cid::new_v0(*cid.hash())
+                .map_err(|e| {
+                    tracing::error!("Failed to convert CID to v0: {}", e);
+                    e
+                })
+                .ok();
 
-        // Dispatch Hermes Event
-        if let Err(err) = send(event) {
-            tracing::error!(%channel_name, %err, "Failed to send `on_new_doc` event");
+            if storage_cid.is_none() {
+                tracing::error!("Failed to convert CID {} to CIDv0, skipping", cid);
+                continue;
+            }
+            let storage_cid = storage_cid.unwrap();
+            let path = hermes_ipfs::IpfsPath::new(PathRoot::Ipld(storage_cid)).to_string();
+
+            tracing::info!("📥 Fetching content (protocol CID: {}, storage CID: {})", cid, storage_cid);
+            let content = match ipfs.file_get_async(&path).await {
+                Ok(ipfs_file) => {
+                    tracing::info!("✅ Got content ({} bytes) for CID: {}", ipfs_file.len(), cid);
+                    // Log content for test detection
+                    if let Ok(content_str) = std::str::from_utf8(&ipfs_file) {
+                        tracing::info!("RECEIVED PubSub message content: {}", content_str);
+                    }
+                    ipfs_file
+                },
+                Err(err) => {
+                    tracing::error!(
+                        %channel_name_owned, %cid, %err,
+                        "❌ Failed to get content of the document after a successful IPFS pin"
+                    );
+                    continue;
+                },
+            };
+
+            contents.push(content);
         }
-    }
+        tracing::info!("✅ Finished processing all CIDs, {} contents collected", contents.len());
+
+        let app_names = ipfs.apps.subscribed_apps(SubscriptionKind::DocSync, &topic_owned);
+
+        for content in contents {
+            let event = HermesEvent::new(
+                OnNewDocEvent::new(&channel_name_owned, &content),
+                crate::event::TargetApp::List(app_names.clone()),
+                crate::event::TargetModule::All,
+            );
+
+            // Dispatch Hermes Event
+            if let Err(err) = send(event) {
+                tracing::error!(%channel_name_owned, %err, "Failed to send `on_new_doc` event");
+            }
+        }
+    });
 }
 
 /// Handler for the subscription events for topic
