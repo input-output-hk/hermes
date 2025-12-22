@@ -78,7 +78,10 @@ pub(crate) async fn ipfs_command_handler(
 ) -> anyhow::Result<()> {
     tracing::info!("🎬 ipfs_command_handler started");
     while let Some(ipfs_command) = queue_rx.recv().await {
-        tracing::debug!("📨 Received command: {:?}", std::mem::discriminant(&ipfs_command));
+        tracing::debug!(
+            "📨 Received command: {:?}",
+            std::mem::discriminant(&ipfs_command)
+        );
         match ipfs_command {
             IpfsCommand::AddFile(ipfs_file, tx) => {
                 let response = hermes_node
@@ -328,9 +331,17 @@ fn doc_sync_topic_message_handler(
     message: hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
 ) {
-    tracing::info!("🔔 doc_sync_topic_message_handler called! topic={}, message_len={}", topic, message.data.len());
+    tracing::info!(
+        "🔔 doc_sync_topic_message_handler called! topic={}, message_len={}",
+        topic,
+        message.data.len()
+    );
     if let Ok(msg_str) = std::str::from_utf8(&message.data) {
-        tracing::info!("RECEIVED PubSub message on topic: {} - data: {}", topic, msg_str);
+        tracing::info!(
+            "RECEIVED PubSub message on topic: {} - data: {}",
+            topic,
+            msg_str
+        );
     } else {
         tracing::info!("RECEIVED PubSub message on topic: {}", topic);
     }
@@ -398,10 +409,18 @@ fn doc_sync_topic_message_handler(
             let storage_cid = storage_cid.unwrap();
             let path = hermes_ipfs::IpfsPath::new(PathRoot::Ipld(storage_cid)).to_string();
 
-            tracing::info!("📥 Fetching content (protocol CID: {}, storage CID: {})", cid, storage_cid);
+            tracing::info!(
+                "📥 Fetching content (protocol CID: {}, storage CID: {})",
+                cid,
+                storage_cid
+            );
             let content = match ipfs.file_get_async(&path).await {
                 Ok(ipfs_file) => {
-                    tracing::info!("✅ Got content ({} bytes) for CID: {}", ipfs_file.len(), cid);
+                    tracing::info!(
+                        "✅ Got content ({} bytes) for CID: {}",
+                        ipfs_file.len(),
+                        cid
+                    );
                     // Log content for test detection
                     if let Ok(content_str) = std::str::from_utf8(&ipfs_file) {
                         tracing::info!("RECEIVED PubSub message content: {}", content_str);
@@ -419,9 +438,14 @@ fn doc_sync_topic_message_handler(
 
             contents.push(content);
         }
-        tracing::info!("✅ Finished processing all CIDs, {} contents collected", contents.len());
+        tracing::info!(
+            "✅ Finished processing all CIDs, {} contents collected",
+            contents.len()
+        );
 
-        let app_names = ipfs.apps.subscribed_apps(SubscriptionKind::DocSync, &topic_owned);
+        let app_names = ipfs
+            .apps
+            .subscribed_apps(SubscriptionKind::DocSync, &topic_owned);
 
         for content in contents {
             let event = HermesEvent::new(

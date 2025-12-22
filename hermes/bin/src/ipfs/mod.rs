@@ -392,8 +392,8 @@ pub fn bootstrap(config: Config) -> anyhow::Result<()> {
     //
     // WHY IT WAS REMOVED:
     // - The auto-subscription was causing subscription conflicts
-    // - When the doc-sync module tried to subscribe with SubscriptionKind::DocSync,
-    //   the topic was already subscribed with SubscriptionKind::Default
+    // - When the doc-sync module tried to subscribe with SubscriptionKind::DocSync, the topic
+    //   was already subscribed with SubscriptionKind::Default
     // - IPFS PubSub only allows one subscription per topic per node
     // - This prevented the doc-sync handler from receiving messages
     //

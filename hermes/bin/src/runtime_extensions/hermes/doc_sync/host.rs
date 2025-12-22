@@ -14,12 +14,15 @@
 //!
 //! 1. IMPORT CHANGES:
 //!    - Changed from `cardano_chain_follower::pallas_codec::minicbor` to `minicbor` crate
-//!    - Added `hermes_ipfs::doc_sync::payload` types (New, CommonFields, DocumentDisseminationBody)
-//!    - Ensures we use the same minicbor version (0.25.1) as hermes-ipfs for encoding/decoding
+//!    - Added `hermes_ipfs::doc_sync::payload` types (New, CommonFields,
+//!      DocumentDisseminationBody)
+//!    - Ensures we use the same minicbor version (0.25.1) as hermes-ipfs for
+//!      encoding/decoding
 //!
 //! 2. CID FORMAT FIX (in add_file function):
 //!    - IPFS file_add returns CID with dag-pb codec (0x70) - used for IPFS storage
-//!    - Doc Sync protocol requires CID with dag-cbor codec (0x51) - used in PubSub messages
+//!    - Doc Sync protocol requires CID with dag-cbor codec (0x51) - used in PubSub
+//!      messages
 //!    - Now compute BOTH CIDs: dag-pb for storage, dag-cbor for protocol
 //!    - Return dag-cbor CID to be used in publish step
 //!
@@ -39,6 +42,7 @@
 //! - hermes-ipfs/src/doc_sync/payload.rs: Message format definitions
 //! ============================================================================
 
+use hermes_ipfs::doc_sync::payload::{CommonFields, DocumentDisseminationBody, New};
 use minicbor::{Encode, Encoder, data::Tag};
 use stringzilla::stringzilla::Sha256;
 use wasmtime::component::Resource;
@@ -57,7 +61,6 @@ use crate::{
         hermes::doc_sync::DOC_SYNC_STATE,
     },
 };
-use hermes_ipfs::doc_sync::payload::{CommonFields, DocumentDisseminationBody, New};
 
 /// The number of steps in the "post document" workflow (see `post()` function):
 /// 1. `add_file`: Store document in IPFS, get CID
@@ -306,20 +309,21 @@ fn add_file(
 ) -> wasmtime::Result<Result<String, Errno>> {
     const STEP: u8 = 1;
     match ctx.file_add(doc.clone())? {
-        Ok(FileAddResult { file_path, cid: ipfs_cid }) => {
+        Ok(FileAddResult {
+            file_path,
+            cid: ipfs_cid,
+        }) => {
             // ====================================================================
             // CRITICAL: Dual CID Computation for Doc Sync P2P Protocol
             // ====================================================================
             //
             // WHY TWO CIDs?
-            // - IPFS file_add returns: CIDv1 with dag-pb codec (0x70)
-            //   → This is how IPFS stores the file internally
-            //   → Used for IPFS operations (pin, get, store)
+            // - IPFS file_add returns: CIDv1 with dag-pb codec (0x70) → This is how IPFS stores the
+            //   file internally → Used for IPFS operations (pin, get, store)
             //
-            // - Doc Sync requires: CIDv1 with dag-cbor codec (0x51)
-            //   → This is the protocol-level identifier
-            //   → Used in PubSub messages to identify documents
-            //   → Receiving nodes use this to fetch from IPFS
+            // - Doc Sync requires: CIDv1 with dag-cbor codec (0x51) → This is the protocol-level
+            //   identifier → Used in PubSub messages to identify documents → Receiving nodes use
+            //   this to fetch from IPFS
             //
             // THE PROBLEM WE'RE SOLVING:
             // - Before this fix, we returned the dag-pb CID (0x70) from file_add
@@ -331,8 +335,8 @@ fn add_file(
             // 1. Keep the dag-pb CID for IPFS storage (ipfs_cid variable)
             // 2. Compute dag-cbor CID by hashing the same content
             // 3. Return dag-cbor CID (cbor_cid_str) for use in publish step
-            // 4. Receiving nodes can use either CID to fetch from IPFS
-            //    (IPFS resolves both to the same content)
+            // 4. Receiving nodes can use either CID to fetch from IPFS (IPFS resolves both to the
+            //    same content)
             //
             // IMPORTANT: Both CIDs point to the same content!
             // - Same SHA-256 hash of the document
@@ -485,7 +489,10 @@ fn publish(
     rep: u32,
 ) -> wasmtime::Result<Result<(), Errno>> {
     const STEP: u8 = 5;
-    tracing::info!("⏭ Step {STEP}/{POST_STEP_COUNT}: Publish - starting with CID: {}", cid);
+    tracing::info!(
+        "⏭ Step {STEP}/{POST_STEP_COUNT}: Publish - starting with CID: {}",
+        cid
+    );
 
     let channel_name = DOC_SYNC_STATE
         .get(&rep)
@@ -541,8 +548,8 @@ fn publish(
     // Structure matches hermes-ipfs/src/doc_sync/payload.rs definitions
     let payload = match New::try_from(DocumentDisseminationBody::Docs {
         common_fields: CommonFields {
-            root: [0u8; 32], // TODO: Use actual SMT root hash when available
-            count: 1,        // Single document in this message
+            root: [0u8; 32],   // TODO: Use actual SMT root hash when available
+            count: 1,          // Single document in this message
             in_reply_to: None, // Not a reply to another message
         },
         docs: vec![cid_parsed], // List of CIDs to announce
@@ -551,7 +558,7 @@ fn publish(
         Err(e) => {
             tracing::error!("Failed to create payload::New: {}", e);
             return Ok(Err(Errno::DocErrorPlaceholder));
-        }
+        },
     };
 
     // Step 3: Encode payload to CBOR bytes
@@ -562,17 +569,26 @@ fn publish(
         Err(e) => {
             tracing::error!("Failed to encode payload to CBOR: {}", e);
             return Ok(Err(Errno::DocErrorPlaceholder));
-        }
+        },
     };
 
-    tracing::info!("Publishing {} bytes of CBOR-encoded payload to topic: {}", payload_bytes.len(), topic_new);
+    tracing::info!(
+        "Publishing {} bytes of CBOR-encoded payload to topic: {}",
+        payload_bytes.len(),
+        topic_new
+    );
 
     match ctx.pubsub_publish(topic_new.clone(), payload_bytes)? {
         Ok(()) => {
-            tracing::info!("✅ Step {STEP}/{POST_STEP_COUNT}: Payload published to PubSub → {topic_new}");
+            tracing::info!(
+                "✅ Step {STEP}/{POST_STEP_COUNT}: Payload published to PubSub → {topic_new}"
+            );
         },
         Err(e) => {
-            tracing::warn!("⚠ Step {STEP}/{POST_STEP_COUNT}: PubSub publish failed: {:?}", e);
+            tracing::warn!(
+                "⚠ Step {STEP}/{POST_STEP_COUNT}: PubSub publish failed: {:?}",
+                e
+            );
             tracing::info!("   Document is successfully stored in IPFS");
         },
     }
