@@ -313,36 +313,10 @@ fn add_file(
             file_path,
             cid: ipfs_cid,
         }) => {
-            // ====================================================================
-            // CRITICAL: Dual CID Computation for Doc Sync P2P Protocol
-            // ====================================================================
-            //
-            // WHY TWO CIDs?
-            // - IPFS file_add returns: CIDv1 with dag-pb codec (0x70) → This is how IPFS stores the
-            //   file internally → Used for IPFS operations (pin, get, store)
-            //
-            // - Doc Sync requires: CIDv1 with dag-cbor codec (0x51) → This is the protocol-level
-            //   identifier → Used in PubSub messages to identify documents → Receiving nodes use
-            //   this to fetch from IPFS
-            //
-            // THE PROBLEM WE'RE SOLVING:
-            // - Before this fix, we returned the dag-pb CID (0x70) from file_add
-            // - This was published in PubSub messages
-            // - Receiving nodes tried to decode messages expecting dag-cbor CIDs
-            // - Result: decode failures, no P2P propagation
-            //
-            // THE SOLUTION:
-            // 1. Keep the dag-pb CID for IPFS storage (ipfs_cid variable)
-            // 2. Compute dag-cbor CID by hashing the same content
-            // 3. Return dag-cbor CID (cbor_cid_str) for use in publish step
-            // 4. Receiving nodes can use either CID to fetch from IPFS (IPFS resolves both to the
-            //    same content)
-            //
-            // IMPORTANT: Both CIDs point to the same content!
-            // - Same SHA-256 hash of the document
-            // - Different codec prefix (0x70 vs 0x51)
-            // - IPFS can retrieve content using either CID
-            // ====================================================================
+            // Compute two CIDs for the same content:
+            // - ipfs_cid (dag-pb/0x70): For IPFS storage operations
+            // - cbor_cid (dag-cbor/0x51): For P2P protocol messages
+            // Both reference the same content; IPFS can fetch using either.
 
             let mut hasher = Sha256::new();
             hasher.update(doc);
@@ -503,37 +477,8 @@ fn publish(
     let topic_new = format!("{channel_name}.new");
     tracing::info!("Publishing to topic: {}", topic_new);
 
-    // ========================================================================
-    // CRITICAL: Construct Proper CBOR-Encoded Doc Sync Payload
-    // ========================================================================
-    //
-    // WHAT WAS WRONG BEFORE:
-    // - OLD CODE: Published raw document bytes directly to PubSub
-    // - This is NOT the Doc Sync protocol format
-    // - Receiving nodes (doc_sync_topic_message_handler) expect:
-    //   1. CBOR-encoded payload::New structure
-    //   2. Contains CID list (not raw document content)
-    //   3. Uses minicbor 0.25.1 encoding
-    //
-    // THE FIX (Steps below):
-    // 1. Parse CID string → hermes_ipfs::Cid type
-    // 2. Construct payload::New with DocumentDisseminationBody::Docs
-    // 3. Encode to CBOR bytes using minicbor::to_vec()
-    // 4. Publish CBOR bytes (not raw document)
-    //
-    // RECEIVER SIDE (in doc_sync_topic_message_handler):
-    // - Receives CBOR bytes from PubSub
-    // - Decodes: minicbor::decode::<payload::New>(&message.data)
-    // - Extracts CID list from payload
-    // - Fetches actual document content from IPFS using CIDs
-    // - Dispatches OnNewDocEvent with document content
-    //
-    // KEY INSIGHT: P2P messages contain CIDs (content identifiers),
-    // not the actual document content. This is efficient because:
-    // - Small messages (just CIDs)
-    // - Content fetched directly from IPFS (distributed storage)
-    // - Multiple docs can be sent in one message (CID list)
-    // ========================================================================
+    // Construct CBOR-encoded payload::New structure for P2P protocol.
+    // Messages contain CID lists, not document content - receivers fetch from IPFS.
 
     // Step 1: Parse CID string
     let cid_parsed = match cid.parse::<hermes_ipfs::Cid>() {
@@ -561,9 +506,7 @@ fn publish(
         },
     };
 
-    // Step 3: Encode payload to CBOR bytes
-    // CRITICAL: Must use minicbor crate (v0.25.1) - same version as hermes-ipfs
-    // Different minicbor versions produce incompatible encodings
+    // Step 3: Encode payload to CBOR bytes (must match hermes-ipfs minicbor version)
     let payload_bytes = match minicbor::to_vec(&payload) {
         Ok(bytes) => bytes,
         Err(e) => {
