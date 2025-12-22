@@ -3212,8 +3212,8 @@ dependencies = [
 
 [[package]]
 name = "hermes-ipfs"
-version = "0.0.9"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?branch=feat%2Fdoc-sync-timers#4e8c1b6b21265df8f2e2f2b4f8918737b58eab24"
+version = "0.0.10"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=hermes-ipfs%2Fv0.0.10#36d1f307f51063d1976d22216f87b9ef4f7e9d68"
 dependencies = [
  "anyhow",
  "blake3",
