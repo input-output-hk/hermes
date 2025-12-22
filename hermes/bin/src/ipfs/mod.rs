@@ -382,32 +382,6 @@ pub fn bootstrap(config: Config) -> anyhow::Result<()> {
         .set(ipfs_node)
         .map_err(|_| anyhow::anyhow!("failed to start IPFS node"))?;
 
-    // =========================================================================
-    // CHANGE: Removed auto-subscription logic (2025-12-21)
-    // =========================================================================
-    //
-    // WHAT WAS REMOVED:
-    // - Auto-subscription to "documents.new" topic during IPFS bootstrap
-    // - Constants: DEFAULT_APP_NAME and DEFAULT_MESH_TOPIC
-    //
-    // WHY IT WAS REMOVED:
-    // - The auto-subscription was causing subscription conflicts
-    // - When the doc-sync module tried to subscribe with SubscriptionKind::DocSync, the topic
-    //   was already subscribed with SubscriptionKind::Default
-    // - IPFS PubSub only allows one subscription per topic per node
-    // - This prevented the doc-sync handler from receiving messages
-    //
-    // NEW BEHAVIOR:
-    // - P2P mesh formation now happens when modules subscribe to their topics
-    // - The doc-sync module subscribes to "documents.new" during initialization
-    // - This uses SubscriptionKind::DocSync which routes to doc_sync_topic_message_handler
-    // - Each module manages its own subscriptions without conflicts
-    //
-    // IMPORTANT: If you add this auto-subscription back, ensure it uses the
-    // correct SubscriptionKind for the handler you want to use, or move to a
-    // different topic that doesn't conflict with module-specific subscriptions.
-    // =========================================================================
-
     Ok(())
 }
 
@@ -628,35 +602,6 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
             .await
             .map_err(|_| Errno::FileGetError)?;
         cmd_rx.await.map_err(|_| Errno::FileGetError)?
-    }
-
-    /// Pin file (async version)
-    ///
-    /// This is the async version of `file_pin` that uses `send().await` instead of
-    /// `blocking_send()`. This is safe to call from async contexts like PubSub handlers.
-    ///
-    /// ## Parameters
-    /// - `ipfs_path`: The IPFS path of the file
-    ///
-    /// ## Errors
-    /// - `Errno::InvalidCid`: Invalid CID
-    /// - `Errno::InvalidIpfsPath`: Invalid IPFS path
-    /// - `Errno::FilePinError`: Failed to pin the file
-    #[allow(dead_code)]
-    pub(crate) async fn file_pin_async(
-        &self,
-        ipfs_path: &IpfsPath,
-    ) -> Result<bool, Errno> {
-        let ipfs_path = BaseIpfsPath::from_str(ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
-        let cid = ipfs_path.root().cid().ok_or(Errno::InvalidCid)?;
-        let (cmd_tx, cmd_rx) = oneshot::channel();
-        self.sender
-            .as_ref()
-            .ok_or(Errno::FilePinError)?
-            .send(IpfsCommand::PinFile(*cid, cmd_tx))
-            .await
-            .map_err(|_| Errno::FilePinError)?;
-        cmd_rx.await.map_err(|_| Errno::FilePinError)?
     }
 
     /// Put DHT Key-Value
