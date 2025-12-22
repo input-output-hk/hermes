@@ -1,46 +1,10 @@
 //! Doc Sync host module.
 //!
-//! ============================================================================
-//! IMPORTANT CHANGES (2025-12-21): Fixed Doc Sync P2P Message Format
-//! ============================================================================
-//!
-//! PROBLEM SUMMARY:
-//! - Doc Sync PubSub messages were being published in the wrong format
-//! - Messages used dag-pb CIDs (codec 0x70) instead of dag-cbor CIDs (0x51)
-//! - Raw document bytes were published instead of proper CBOR-encoded payloads
-//! - Receiving nodes couldn't decode messages, causing P2P propagation to fail
-//!
-//! FIXES APPLIED:
-//!
-//! 1. IMPORT CHANGES:
-//!    - Changed from `cardano_chain_follower::pallas_codec::minicbor` to `minicbor` crate
-//!    - Added `hermes_ipfs::doc_sync::payload` types (New, CommonFields,
-//!      DocumentDisseminationBody)
-//!    - Ensures we use the same minicbor version (0.25.1) as hermes-ipfs for
-//!      encoding/decoding
-//!
-//! 2. CID FORMAT FIX (in add_file function):
-//!    - IPFS file_add returns CID with dag-pb codec (0x70) - used for IPFS storage
-//!    - Doc Sync protocol requires CID with dag-cbor codec (0x51) - used in PubSub
-//!      messages
-//!    - Now compute BOTH CIDs: dag-pb for storage, dag-cbor for protocol
-//!    - Return dag-cbor CID to be used in publish step
-//!
-//! 3. MESSAGE FORMAT FIX (in publish function):
-//!    - OLD: Published raw document bytes directly
-//!    - NEW: Construct proper payload::New structure with CID list
-//!    - Encode to CBOR using minicbor::to_vec()
-//!    - Publish CBOR-encoded payload (matches receiver expectations)
-//!
-//! TESTING:
-//! - Test with: `cd p2p-testing && just test-pubsub-propagation`
-//! - Should see "RECEIVED PubSub message" logs in all subscriber nodes
-//! - Test validates that messages propagate through 6-node P2P mesh
-//!
-//! RELATED FILES:
-//! - hermes/bin/src/ipfs/task.rs: doc_sync_topic_message_handler (receiver)
-//! - hermes-ipfs/src/doc_sync/payload.rs: Message format definitions
-//! ============================================================================
+//! Handles document storage and P2P propagation:
+//! - Stores documents in IPFS with dual CID formats (dag-pb for storage, dag-cbor for
+//!   protocol)
+//! - Publishes CBOR-encoded messages with CID lists to PubSub topics
+//! - Receiving nodes decode messages and fetch content from IPFS
 
 use hermes_ipfs::doc_sync::payload::{CommonFields, DocumentDisseminationBody, New};
 use minicbor::{Encode, Encoder, data::Tag};
