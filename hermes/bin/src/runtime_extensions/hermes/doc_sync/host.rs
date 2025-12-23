@@ -1,8 +1,11 @@
 //! Doc Sync host module.
 use std::sync::Arc;
 
-use cardano_chain_follower::pallas_codec::minicbor::{self, Encode, Encoder, data::Tag};
-use hermes_ipfs::doc_sync::timers::{config::SyncTimersConfig, state::SyncTimersState};
+use hermes_ipfs::doc_sync::{
+    payload::{CommonFields, DocumentDisseminationBody, New},
+    timers::{config::SyncTimersConfig, state::SyncTimersState},
+};
+use minicbor::{Encode, Encoder, data::Tag, encode};
 use stringzilla::stringzilla::Sha256;
 use wasmtime::component::Resource;
 
@@ -47,12 +50,12 @@ const CID_CBOR_TAG: u64 = 42;
 /// Wrapper for `hermes_ipfs::Cid` to implement `minicbor::Encode` for it.
 struct Cid(hermes_ipfs::Cid);
 
-impl minicbor::Encode<()> for Cid {
-    fn encode<W: minicbor::encode::Write>(
+impl Encode<()> for Cid {
+    fn encode<W: encode::Write>(
         &self,
         e: &mut Encoder<W>,
         _ctx: &mut (),
-    ) -> Result<(), minicbor::encode::Error<W::Error>> {
+    ) -> Result<(), encode::Error<W::Error>> {
         // Encode as tag(42) containing the CID bytes
         e.tag(Tag::new(CID_CBOR_TAG))?;
         e.bytes(&self.0.to_bytes())?;
@@ -85,7 +88,7 @@ impl Host for HermesRuntimeContext {
         // Create CID v1 with CBOR codec
         let cid = hermes_ipfs::Cid::new_v1(CBOR_CODEC, multihash);
 
-        let mut e = minicbor::Encoder::new(Vec::new());
+        let mut e = Encoder::new(Vec::new());
         Cid(cid).encode(&mut e, &mut ())?;
 
         Ok(e.into_writer())
@@ -513,7 +516,25 @@ fn send_new_keepalive(
     app_name: &ApplicationName,
 ) -> anyhow::Result<()> {
     let new_topic = format!("{channel_name}.new");
-    hermes_ipfs_publish(app_name, &new_topic, vec![])
+    // TODO: Use actual SMT root hash when available
+    // Sending .new keepalive message where `docs` is empty
+    let payload = New::try_from(DocumentDisseminationBody::Docs {
+        common_fields: CommonFields {
+            root: [0u8; 32].into(),
+            count: 0,
+            in_reply_to: None,
+        },
+        docs: vec![],
+    })
+    .map_err(|e| anyhow::anyhow!("Failed to create payload::New: {e}"))?;
+
+    let mut payload_bytes = Vec::new();
+    let mut enc = Encoder::new(&mut payload_bytes);
+    payload
+        .encode(&mut enc, &mut ())
+        .map_err(|e| anyhow::anyhow!("Failed to encode payload::New: {e}"))?;
+
+    hermes_ipfs_publish(app_name, &new_topic, payload_bytes)
         .map_err(|e| anyhow::Error::msg(format!("Keepalive publish failed: {e:?}")))?;
     Ok(())
 }
