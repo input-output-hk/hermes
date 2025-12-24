@@ -1,10 +1,18 @@
 //! Doc Sync host module.
-use cardano_chain_follower::pallas_codec::minicbor::{self, Encode, Encoder, data::Tag};
+use std::sync::Arc;
+
+use hermes_ipfs::doc_sync::{
+    payload::{CommonFields, DocumentDisseminationBody, New},
+    timers::{config::SyncTimersConfig, state::SyncTimersState},
+};
+use minicbor::{Encode, Encoder, data::Tag, encode};
 use stringzilla::stringzilla::Sha256;
 use wasmtime::component::Resource;
 
+use super::ChannelState;
 use crate::{
-    ipfs::{self, hermes_ipfs_subscribe},
+    app::ApplicationName,
+    ipfs::{self, hermes_ipfs_publish, hermes_ipfs_subscribe},
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::hermes::{
@@ -42,12 +50,12 @@ const CID_CBOR_TAG: u64 = 42;
 /// Wrapper for `hermes_ipfs::Cid` to implement `minicbor::Encode` for it.
 struct Cid(hermes_ipfs::Cid);
 
-impl minicbor::Encode<()> for Cid {
-    fn encode<W: minicbor::encode::Write>(
+impl Encode<()> for Cid {
+    fn encode<W: encode::Write>(
         &self,
         e: &mut Encoder<W>,
         _ctx: &mut (),
-    ) -> Result<(), minicbor::encode::Error<W::Error>> {
+    ) -> Result<(), encode::Error<W::Error>> {
         // Encode as tag(42) containing the CID bytes
         e.tag(Tag::new(CID_CBOR_TAG))?;
         e.bytes(&self.0.to_bytes())?;
@@ -80,7 +88,7 @@ impl Host for HermesRuntimeContext {
         // Create CID v1 with CBOR codec
         let cid = hermes_ipfs::Cid::new_v1(CBOR_CODEC, multihash);
 
-        let mut e = minicbor::Encoder::new(Vec::new());
+        let mut e = Encoder::new(Vec::new());
         Cid(cid).encode(&mut e, &mut ())?;
 
         Ok(e.into_writer())
@@ -115,31 +123,45 @@ impl HostSyncChannel for HermesRuntimeContext {
         })?;
 
         let resource: u32 = u32::from_be_bytes(*prefix_bytes);
-
-        // Code block is used to minimize locking scope.
-        {
-            let entry = DOC_SYNC_STATE.entry(resource).or_insert(name.clone());
-            if &name != entry.value() {
-                return Err(wasmtime::Error::msg(format!(
-                    "Collision occurred with previous value = {} and new one = {name}",
-                    entry.value()
-                )));
-            }
+        let mut channel_state = DOC_SYNC_STATE
+            .entry(resource)
+            .or_insert(ChannelState::new(&name));
+        // Same resource key cannot be reused for a different channel
+        if channel_state.channel_name != name {
+            return Err(wasmtime::Error::msg(format!(
+                "Collision occurred with previous value = {} and new one = {name}",
+                channel_state.channel_name
+            )));
         }
 
+        let topic_new = format!("{name}.new");
         // When the channel is created, subscribe to .new <base>.<topic>
         if let Err(err) = hermes_ipfs_subscribe(
             ipfs::SubscriptionKind::DocSync,
             self.app_name(),
-            format!("{name}.new"),
+            topic_new.clone(),
         ) {
             DOC_SYNC_STATE.remove(&resource);
             return Err(wasmtime::Error::msg(format!(
-                "Subscription to {name}.new failed: {err}",
+                "Subscription to {topic_new} failed: {err}",
             )));
         }
-
         tracing::info!("Created Doc Sync Channel: {name}");
+
+        // When subscribe is successful, create and start the timer
+        if channel_state.timers.is_none() {
+            let timers = {
+                let app_name = self.app_name().clone();
+
+                let callback = Arc::new(move || {
+                    send_new_keepalive(&name, &app_name).map_err(|e| anyhow::anyhow!("{e:?}",))
+                });
+
+                SyncTimersState::new(SyncTimersConfig::default(), callback)
+            };
+            timers.start_quiet_timer();
+            channel_state.timers = Some(timers);
+        }
 
         Ok(wasmtime::component::Resource::new_own(resource))
     }
@@ -402,13 +424,12 @@ fn publish(
     rep: u32,
 ) -> wasmtime::Result<Result<(), Errno>> {
     const STEP: u8 = 5;
-    let channel_name = DOC_SYNC_STATE
+    let channel_state = DOC_SYNC_STATE
         .get(&rep)
         .ok_or_else(|| wasmtime::Error::msg("Channel not found"))?
-        .value()
         .clone();
 
-    let topic_new = format!("{channel_name}.new");
+    let topic_new = format!("{}.new", channel_state.channel_name);
 
     // The channel should already be subscribed to the `.new` topic (subscription
     // is performed in `new()`). Invoking the subscription again to ensure
@@ -444,6 +465,10 @@ fn publish(
             );
             tracing::info!("   Document is successfully stored in IPFS");
         },
+    }
+
+    if let Some(timers) = channel_state.timers {
+        timers.reset_quiet_timer();
     }
 
     Ok(Ok(()))
@@ -483,6 +508,35 @@ fn is_pre_publish_completed(
         // If we're not in the list yet, at least one provider should exist
         !current_providers.is_empty()
     }
+}
+
+/// Sending new keep alive message for .new topic.
+fn send_new_keepalive(
+    channel_name: &str,
+    app_name: &ApplicationName,
+) -> anyhow::Result<()> {
+    let new_topic = format!("{channel_name}.new");
+    // TODO: Use actual SMT root hash when available
+    // Sending .new keepalive message where `docs` is empty
+    let payload = New::try_from(DocumentDisseminationBody::Docs {
+        common_fields: CommonFields {
+            root: [0u8; 32].into(),
+            count: 0,
+            in_reply_to: None,
+        },
+        docs: vec![],
+    })
+    .map_err(|e| anyhow::anyhow!("Failed to create payload::New: {e}"))?;
+
+    let mut payload_bytes = Vec::new();
+    let mut enc = Encoder::new(&mut payload_bytes);
+    payload
+        .encode(&mut enc, &mut ())
+        .map_err(|e| anyhow::anyhow!("Failed to encode payload::New: {e}"))?;
+
+    hermes_ipfs_publish(app_name, &new_topic, payload_bytes)
+        .map_err(|e| anyhow::Error::msg(format!("Keepalive publish failed: {e:?}")))?;
+    Ok(())
 }
 
 #[cfg(test)]

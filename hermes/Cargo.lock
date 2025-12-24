@@ -1346,9 +1346,9 @@ checksum = "a1d728cc89cf3aee9ff92b05e62b19ee65a02b5702cff7d5a377e32c6ae29d8d"
 
 [[package]]
 name = "cmake"
-version = "0.1.56"
+version = "0.1.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b042e5d8a74ae91bb0961acd039822472ec99f8ab0948cbf6d1369588f8be586"
+checksum = "75443c44cd6b379beb8c5b45d85d0773baf31cce901fe7bb252f4eff3008ef7d"
 dependencies = [
  "cc",
 ]
@@ -3212,10 +3212,11 @@ dependencies = [
 
 [[package]]
 name = "hermes-ipfs"
-version = "0.0.9"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=hermes-ipfs%2Fv0.0.9#27b852f6e22db951f907bc7f85ab3aef30c90c2e"
+version = "0.0.10"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=hermes-ipfs%2Fv0.0.10#36d1f307f51063d1976d22216f87b9ef4f7e9d68"
 dependencies = [
  "anyhow",
+ "blake3",
  "bytemuck",
  "catalyst-types 0.0.11",
  "connexa",
@@ -3225,8 +3226,10 @@ dependencies = [
  "ipld-core",
  "libp2p",
  "minicbor 0.25.1",
+ "rand 0.9.2",
  "rust-ipfs",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -8537,18 +8540,18 @@ dependencies = [
 
 [[package]]
 name = "toml_datetime"
-version = "0.7.3"
+version = "0.7.4+spec-1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2cdb639ebbc97961c51720f858597f7f24c4fc295327923af55b74c3c724533"
+checksum = "fe3cea6b2aa3b910092f6abd4053ea464fab5f9c170ba5e9a6aead16ec4af2b6"
 dependencies = [
  "serde_core",
 ]
 
 [[package]]
 name = "toml_edit"
-version = "0.23.9"
+version = "0.23.10+spec-1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d7cbc3b4b49633d57a0509303158ca50de80ae32c265093b24c414705807832"
+checksum = "84c8b9f757e028cee9fa244aea147aab2a9ec09d5325a9b01e0a49730c2b5269"
 dependencies = [
  "indexmap 2.12.1",
  "toml_datetime",
@@ -8558,9 +8561,9 @@ dependencies = [
 
 [[package]]
 name = "toml_parser"
-version = "1.0.4"
+version = "1.0.5+spec-1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0cbe268d35bdb4bb5a56a2de88d0ad0eb70af5384a99d648cd4b3d04039800e"
+checksum = "4c03bee5ce3696f31250db0bbaff18bc43301ce0e8db2ed1f07cbb2acf89984c"
 dependencies = [
  "winnow",
 ]
