@@ -1,4 +1,11 @@
 //! Doc Sync host module.
+//!
+//! Handles document storage and P2P propagation:
+//! - Stores documents in IPFS with dual CID formats (dag-pb for storage, dag-cbor for
+//!   protocol)
+//! - Publishes CBOR-encoded messages with CID lists to `PubSub` topics
+//! - Receiving nodes decode messages and fetch content from IPFS
+
 use std::sync::Arc;
 
 use hermes_ipfs::doc_sync::{
@@ -200,9 +207,9 @@ impl HostSyncChannel for HermesRuntimeContext {
         dht_provide(self, &cid)?;
         let peer_id = get_peer_id(self)??;
         ensure_provided(self, &cid, &peer_id)??;
-        publish(self, doc, sync_channel.rep())??;
+        publish(self, &cid, sync_channel.rep())??;
 
-        Ok(Ok(cid.as_bytes().to_vec()))
+        Ok(Ok(cid.to_bytes()))
     }
 
     /// Prove a document is stored in the provers
@@ -284,10 +291,11 @@ impl HostSyncChannel for HermesRuntimeContext {
 fn add_file(
     ctx: &mut HermesRuntimeContext,
     doc: &DocData,
-) -> wasmtime::Result<Result<String, Errno>> {
+) -> wasmtime::Result<Result<hermes_ipfs::Cid, Errno>> {
     const STEP: u8 = 1;
     match ctx.file_add(doc.clone())? {
         Ok(FileAddResult { file_path, cid }) => {
+            let cid: hermes_ipfs::Cid = cid.try_into()?;
             tracing::info!(
                 "✓ Step {STEP}/{POST_STEP_COUNT}: Added and pinned to IPFS (CID: {}) → {}",
                 cid,
@@ -308,11 +316,11 @@ fn add_file(
 /// Announce being a provider of the given CID to the DHT.
 fn dht_provide(
     ctx: &mut HermesRuntimeContext,
-    cid: &str,
+    cid: &hermes_ipfs::Cid,
 ) -> Result<(), Errno> {
     const STEP: u8 = 2;
     tracing::info!("⏭ Step {STEP}/{POST_STEP_COUNT}: Pre-publish");
-    match ctx.dht_provide(cid.into()) {
+    match ctx.dht_provide(cid.to_bytes()) {
         Ok(_) => {
             tracing::info!(
                 "✓ Step {STEP}/{POST_STEP_COUNT}: DHT provide successful (CID: {})",
@@ -352,7 +360,7 @@ fn get_peer_id(ctx: &mut HermesRuntimeContext) -> wasmtime::Result<Result<String
 /// `peer_id`
 fn ensure_provided(
     ctx: &mut HermesRuntimeContext,
-    cid: &str,
+    cid: &hermes_ipfs::Cid,
     peer_id: &str,
 ) -> wasmtime::Result<Result<(), Errno>> {
     const STEP: u8 = 4;
@@ -374,7 +382,7 @@ fn ensure_provided(
         .into_iter()
         .chain(std::iter::repeat_n(2000, 20));
     loop {
-        let providers = ctx.dht_get_providers(cid.into())??;
+        let providers = ctx.dht_get_providers(cid.to_bytes())??;
         tracing::debug!(
             "Step {STEP}/{POST_STEP_COUNT}: DHT query returned {} provider(s): {:?}",
             providers.len(),
@@ -420,48 +428,68 @@ fn ensure_provided(
 /// in IPFS. We treat "no peers" as a warning rather than a fatal error.
 fn publish(
     ctx: &mut HermesRuntimeContext,
-    doc: DocData,
+    cid: &hermes_ipfs::Cid,
     rep: u32,
 ) -> wasmtime::Result<Result<(), Errno>> {
     const STEP: u8 = 5;
+    tracing::info!(
+        "⏭ Step {STEP}/{POST_STEP_COUNT}: Publish - starting with CID: {}",
+        cid.to_string()
+    );
+
     let channel_state = DOC_SYNC_STATE
         .get(&rep)
         .ok_or_else(|| wasmtime::Error::msg("Channel not found"))?
         .clone();
 
     let topic_new = format!("{}.new", channel_state.channel_name);
+    tracing::info!("Publishing to topic: {}", topic_new);
 
-    // The channel should already be subscribed to the `.new` topic (subscription
-    // is performed in `new()`). Invoking the subscription again to ensure
-    // the topic is active, because Gossipsub enforces that peers must subscribe
-    // to a topic before they are permitted to publish on it.
-    match ctx.pubsub_subscribe(topic_new.clone())? {
-        Ok(_) => tracing::info!("✓ Subscribed to topic: {topic_new}"),
-        Err(e) => tracing::warn!("⚠ Subscribe warning: {:?}", e),
-    }
+    // Construct CBOR-encoded payload::New structure for P2P protocol.
+    // Messages contain CID lists, not document content - receivers fetch from IPFS.
 
-    // Attempt to publish to PubSub
+    // Step 2: Construct payload::New structure
+    // Structure matches hermes-ipfs/src/doc_sync/payload.rs definitions
+    let payload = match New::try_from(DocumentDisseminationBody::Docs {
+        common_fields: CommonFields {
+            root: [0u8; 32].into(), // TODO: Use actual SMT root hash when available
+            count: 1,               // Single document in this message
+            in_reply_to: None,      // Not a reply to another message
+        },
+        docs: vec![*cid], // List of CIDs to announce
+    }) {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::error!("Failed to create payload::New: {}", e);
+            return Ok(Err(Errno::DocErrorPlaceholder));
+        },
+    };
+
+    // Step 3: Encode payload to CBOR bytes (must match hermes-ipfs minicbor version)
+    let payload_bytes = match minicbor::to_vec(&payload) {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            tracing::error!("Failed to encode payload to CBOR: {}", e);
+            return Ok(Err(Errno::DocErrorPlaceholder));
+        },
+    };
+
     tracing::info!(
-        "📤 Attempting to publish {} bytes to topic: {}",
-        doc.len(),
+        "Publishing {} bytes of CBOR-encoded payload to topic: {}",
+        payload_bytes.len(),
         topic_new
     );
 
-    match ctx.pubsub_publish(topic_new.clone(), doc)? {
+    match ctx.pubsub_publish(topic_new.clone(), payload_bytes)? {
         Ok(()) => {
-            tracing::info!("✅ Step {STEP}/{POST_STEP_COUNT}: Published to PubSub → {topic_new}");
+            tracing::info!(
+                "✅ Step {STEP}/{POST_STEP_COUNT}: Payload published to PubSub → {topic_new}"
+            );
         },
         Err(e) => {
-            // Non-fatal: PubSub requires peer nodes to be subscribed to the topic.
-            // In a single-node environment, this is expected to fail with
-            // "NoPeersSubscribedToTopic". We treat this as a warning rather
-            // than a fatal error since Step 1 already succeeded.
             tracing::warn!(
                 "⚠ Step {STEP}/{POST_STEP_COUNT}: PubSub publish failed: {:?}",
                 e
-            );
-            tracing::warn!(
-                "   Note: Gossipsub requires other nodes subscribing to '{topic_new}' to work",
             );
             tracing::info!("   Document is successfully stored in IPFS");
         },

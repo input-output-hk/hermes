@@ -23,12 +23,6 @@ const IPFS_DATA_DIR: &str = "ipfs";
 /// Keypair filename for persistent IPFS identity
 const KEYPAIR_FILENAME: &str = "keypair";
 
-/// Default application name for auto-subscription
-const DEFAULT_APP_NAME: &str = "athena";
-
-/// Default `PubSub` topic for P2P mesh formation
-const DEFAULT_MESH_TOPIC: &str = "documents.new";
-
 pub(crate) use api::{
     hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_dht_get_providers,
     hermes_ipfs_dht_provide, hermes_ipfs_evict_peer, hermes_ipfs_get_dht_value,
@@ -388,25 +382,6 @@ pub fn bootstrap(config: Config) -> anyhow::Result<()> {
         .set(ipfs_node)
         .map_err(|_| anyhow::anyhow!("failed to start IPFS node"))?;
 
-    // Auto-subscribe to default topic for P2P mesh formation
-    //
-    // Why auto-subscribe at bootstrap time?
-    // - Gossipsub requires peers to be subscribed to the SAME topic to communicate
-    // - By auto-subscribing during bootstrap, all Hermes nodes immediately join the mesh
-    // - This avoids a "cold start" problem where the first node has no peers to talk to
-    // - With Gossipsub's default mesh_n=6, having 6+ nodes subscribed creates a full mesh
-    // - Without this, applications would need to manually subscribe before PubSub works
-    //
-    // Note: This ensures the mesh forms immediately on startup, allowing instant
-    // message propagation as soon as nodes connect to each other.
-    let app_name = ApplicationName::new(DEFAULT_APP_NAME);
-    let topic = PubsubTopic::from(DEFAULT_MESH_TOPIC.to_string());
-    hermes_ipfs_subscribe(SubscriptionKind::Default, &app_name, topic)?;
-    tracing::info!(
-        "Auto-subscribed to {} topic for P2P mesh formation",
-        DEFAULT_MESH_TOPIC
-    );
-
     Ok(())
 }
 
@@ -431,7 +406,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         default_bootstrap: bool,
         custom_peers: Option<Vec<String>>,
     ) -> anyhow::Result<Self> {
-        let runtime = Builder::new_current_thread().enable_all().build()?;
+        let runtime = Builder::new_multi_thread().enable_all().build()?;
         let (sender, receiver) = mpsc::channel(1);
 
         // Build and start IPFS node, before moving into the thread
@@ -601,6 +576,33 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
             .blocking_send(IpfsCommand::UnPinFile(*cid, cmd_tx))
             .map_err(|_| Errno::FilePinError)?;
         cmd_rx.blocking_recv().map_err(|_| Errno::FilePinError)?
+    }
+
+    /// Get file (async version)
+    ///
+    /// This is the async version of `file_get` that uses `send().await` instead of
+    /// `blocking_send()`. This is safe to call from async contexts like `PubSub`
+    /// handlers.
+    ///
+    /// ## Parameters
+    /// - `ipfs_path`: The IPFS path of the file
+    ///
+    /// ## Errors
+    /// - `Errno::InvalidIpfsPath`: Invalid IPFS path
+    /// - `Errno::FileGetError`: Failed to get the file
+    pub(crate) async fn file_get_async(
+        &self,
+        ipfs_path: &IpfsPath,
+    ) -> Result<IpfsFile, Errno> {
+        let ipfs_path = BaseIpfsPath::from_str(ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
+        let (cmd_tx, cmd_rx) = oneshot::channel();
+        self.sender
+            .as_ref()
+            .ok_or(Errno::FileGetError)?
+            .send(IpfsCommand::GetFile(ipfs_path.clone(), cmd_tx))
+            .await
+            .map_err(|_| Errno::FileGetError)?;
+        cmd_rx.await.map_err(|_| Errno::FileGetError)?
     }
 
     /// Put DHT Key-Value
