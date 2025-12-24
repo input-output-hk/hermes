@@ -63,6 +63,7 @@ impl minicbor::Encode<()> for Cid {
     }
 }
 
+#[allow(clippy::todo)]
 impl Host for HermesRuntimeContext {
     /// Get the Document ID for the given Binary Document
     ///
@@ -187,7 +188,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         ensure_provided(self, &cid, &peer_id)??;
         publish(self, &cid, sync_channel.rep())??;
 
-        Ok(Ok(cid.to_bytes()))
+        Ok(Ok(cid.as_bytes().to_vec()))
     }
 
     /// Prove a document is stored in the provers
@@ -269,7 +270,7 @@ impl HostSyncChannel for HermesRuntimeContext {
 fn add_file(
     ctx: &mut HermesRuntimeContext,
     doc: &DocData,
-) -> wasmtime::Result<Result<hermes_ipfs::Cid, Errno>> {
+) -> wasmtime::Result<Result<String, Errno>> {
     const STEP: u8 = 1;
     match ctx.file_add(doc.clone())? {
         Ok(FileAddResult {
@@ -278,21 +279,24 @@ fn add_file(
         }) => {
             // Compute two CIDs for the same content:
             // - ipfs_cid (dag-pb/0x70): For IPFS storage operations
-            // - cbor_cid (cbor/0x51): For P2P protocol messages
+            // - cbor_cid (dag-cbor/0x51): For P2P protocol messages
             // Both reference the same content; IPFS can fetch using either.
 
-            let cbor_cid = ctx.id_for(doc.clone())?;
-            let cid = hermes_ipfs::Cid::try_from(cbor_cid).map_err(|e| {
-                tracing::error!("Failed to parse CID from bytes: {}", e);
-                Errno::DocErrorPlaceholder
-            })?;
+            let mut hasher = Sha256::new();
+            hasher.update(doc);
+            let hash_digest = hasher.digest();
+
+            let multihash = multihash::Multihash::<64>::wrap(SHA2_256_CODE, &hash_digest)?;
+            let cbor_cid = hermes_ipfs::Cid::new_v1(CBOR_CODEC, multihash);
+            let cbor_cid_str = cbor_cid.to_string();
+
             tracing::info!(
                 "✓ Step {STEP}/{POST_STEP_COUNT}: Added and pinned to IPFS (storage: {}, protocol: {}) → {}",
                 ipfs_cid,
-                cid.to_string(),
+                cbor_cid_str,
                 file_path
             );
-            Ok(Ok(cid))
+            Ok(Ok(cbor_cid_str))
         },
         Err(e) => {
             tracing::error!(
@@ -307,11 +311,11 @@ fn add_file(
 /// Announce being a provider of the given CID to the DHT.
 fn dht_provide(
     ctx: &mut HermesRuntimeContext,
-    cid: &hermes_ipfs::Cid,
+    cid: &str,
 ) -> Result<(), Errno> {
     const STEP: u8 = 2;
     tracing::info!("⏭ Step {STEP}/{POST_STEP_COUNT}: Pre-publish");
-    match ctx.dht_provide(cid.to_bytes()) {
+    match ctx.dht_provide(cid.into()) {
         Ok(_) => {
             tracing::info!(
                 "✓ Step {STEP}/{POST_STEP_COUNT}: DHT provide successful (CID: {})",
@@ -351,7 +355,7 @@ fn get_peer_id(ctx: &mut HermesRuntimeContext) -> wasmtime::Result<Result<String
 /// `peer_id`
 fn ensure_provided(
     ctx: &mut HermesRuntimeContext,
-    cid: &hermes_ipfs::Cid,
+    cid: &str,
     peer_id: &str,
 ) -> wasmtime::Result<Result<(), Errno>> {
     const STEP: u8 = 4;
@@ -373,7 +377,7 @@ fn ensure_provided(
         .into_iter()
         .chain(std::iter::repeat_n(2000, 20));
     loop {
-        let providers = ctx.dht_get_providers(cid.to_bytes())??;
+        let providers = ctx.dht_get_providers(cid.into())??;
         tracing::debug!(
             "Step {STEP}/{POST_STEP_COUNT}: DHT query returned {} provider(s): {:?}",
             providers.len(),
@@ -419,13 +423,13 @@ fn ensure_provided(
 /// in IPFS. We treat "no peers" as a warning rather than a fatal error.
 fn publish(
     ctx: &mut HermesRuntimeContext,
-    cid: &hermes_ipfs::Cid,
+    cid: &str,
     rep: u32,
 ) -> wasmtime::Result<Result<(), Errno>> {
     const STEP: u8 = 5;
     tracing::info!(
         "⏭ Step {STEP}/{POST_STEP_COUNT}: Publish - starting with CID: {}",
-        cid.to_string()
+        cid
     );
 
     let channel_name = DOC_SYNC_STATE
@@ -440,7 +444,16 @@ fn publish(
     // Construct CBOR-encoded payload::New structure for P2P protocol.
     // Messages contain CID lists, not document content - receivers fetch from IPFS.
 
-    // Construct payload::New structure
+    // Step 1: Parse CID string
+    let cid_parsed = match cid.parse::<hermes_ipfs::Cid>() {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::error!("Failed to parse CID {}: {}", cid, e);
+            return Ok(Err(Errno::DocErrorPlaceholder));
+        },
+    };
+
+    // Step 2: Construct payload::New structure
     // Structure matches hermes-ipfs/src/doc_sync/payload.rs definitions
     let payload = match New::try_from(DocumentDisseminationBody::Docs {
         common_fields: CommonFields {
@@ -448,7 +461,7 @@ fn publish(
             count: 1,          // Single document in this message
             in_reply_to: None, // Not a reply to another message
         },
-        docs: vec![*cid], // List of CIDs to announce
+        docs: vec![cid_parsed], // List of CIDs to announce
     }) {
         Ok(p) => p,
         Err(e) => {
@@ -457,7 +470,7 @@ fn publish(
         },
     };
 
-    // Encode payload to CBOR bytes (must match hermes-ipfs minicbor version)
+    // Step 3: Encode payload to CBOR bytes (must match hermes-ipfs minicbor version)
     let payload_bytes = match minicbor::to_vec(&payload) {
         Ok(bytes) => bytes,
         Err(e) => {
