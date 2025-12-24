@@ -63,7 +63,6 @@ impl minicbor::Encode<()> for Cid {
     }
 }
 
-#[allow(clippy::todo)]
 impl Host for HermesRuntimeContext {
     /// Get the Document ID for the given Binary Document
     ///
@@ -279,23 +278,21 @@ fn add_file(
         }) => {
             // Compute two CIDs for the same content:
             // - ipfs_cid (dag-pb/0x70): For IPFS storage operations
-            // - cbor_cid (dag-cbor/0x51): For P2P protocol messages
+            // - cbor_cid (cbor/0x51): For P2P protocol messages
             // Both reference the same content; IPFS can fetch using either.
 
-            let mut hasher = Sha256::new();
-            hasher.update(doc);
-            let hash_digest = hasher.digest();
-
-            let multihash = multihash::Multihash::<64>::wrap(SHA2_256_CODE, &hash_digest)?;
-            let cbor_cid = hermes_ipfs::Cid::new_v1(CBOR_CODEC, multihash);
-
+            let cbor_cid = ctx.id_for(doc.clone())?;
+            let cid = hermes_ipfs::Cid::try_from(cbor_cid).map_err(|e| {
+                tracing::error!("Failed to parse CID from bytes: {}", e);
+                Errno::DocErrorPlaceholder
+            })?;
             tracing::info!(
                 "✓ Step {STEP}/{POST_STEP_COUNT}: Added and pinned to IPFS (storage: {}, protocol: {}) → {}",
                 ipfs_cid,
-                cbor_cid.to_string(),
+                cid.to_string(),
                 file_path
             );
-            Ok(Ok(cbor_cid))
+            Ok(Ok(cid))
         },
         Err(e) => {
             tracing::error!(
@@ -443,7 +440,7 @@ fn publish(
     // Construct CBOR-encoded payload::New structure for P2P protocol.
     // Messages contain CID lists, not document content - receivers fetch from IPFS.
 
-    // Step 2: Construct payload::New structure
+    // Construct payload::New structure
     // Structure matches hermes-ipfs/src/doc_sync/payload.rs definitions
     let payload = match New::try_from(DocumentDisseminationBody::Docs {
         common_fields: CommonFields {
@@ -460,7 +457,7 @@ fn publish(
         },
     };
 
-    // Step 3: Encode payload to CBOR bytes (must match hermes-ipfs minicbor version)
+    // Encode payload to CBOR bytes (must match hermes-ipfs minicbor version)
     let payload_bytes = match minicbor::to_vec(&payload) {
         Ok(bytes) => bytes,
         Err(e) => {
