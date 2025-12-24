@@ -106,6 +106,7 @@ libsqlite
 libtest
 linkat
 lintfix
+logcall
 ltbase
 mapref
 mathrm
@@ -174,14 +175,15 @@ rfind
 Rmax
 Rmin
 rngs
-rsplit
 rollouts
+rsplit
 rusqlite
 rustc
 rustdoc
 rustdocflags
 rustflags
 rustls
+rustup
 saibatizoku
 sandboxed
 sandboxing
@@ -238,5 +240,3 @@ xprv
 xpub
 zilla
 zillable
-rustup
-logcall
