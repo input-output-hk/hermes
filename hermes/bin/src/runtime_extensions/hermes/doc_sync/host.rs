@@ -432,9 +432,9 @@ fn publish(
     // Structure matches hermes-ipfs/src/doc_sync/payload.rs definitions
     let payload = match New::try_from(DocumentDisseminationBody::Docs {
         common_fields: CommonFields {
-            root: [0u8; 32].into(), // TODO: Use actual SMT root hash when available
-            count: 1,               // Single document in this message
-            in_reply_to: None,      // Not a reply to another message
+            root: [0u8; 32],   // TODO: Use actual SMT root hash when available
+            count: 1,          // Single document in this message
+            in_reply_to: None, // Not a reply to another message
         },
         docs: vec![*cid], // List of CIDs to announce
     }) {
