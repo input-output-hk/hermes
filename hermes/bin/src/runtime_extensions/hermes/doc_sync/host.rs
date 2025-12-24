@@ -273,29 +273,14 @@ fn add_file(
 ) -> wasmtime::Result<Result<hermes_ipfs::Cid, Errno>> {
     const STEP: u8 = 1;
     match ctx.file_add(doc.clone())? {
-        Ok(FileAddResult {
-            file_path,
-            cid: ipfs_cid,
-        }) => {
-            // Compute two CIDs for the same content:
-            // - ipfs_cid (dag-pb/0x70): For IPFS storage operations
-            // - cbor_cid (dag-cbor/0x51): For P2P protocol messages
-            // Both reference the same content; IPFS can fetch using either.
-
-            let mut hasher = Sha256::new();
-            hasher.update(doc);
-            let hash_digest = hasher.digest();
-
-            let multihash = multihash::Multihash::<64>::wrap(SHA2_256_CODE, &hash_digest)?;
-            let cbor_cid = hermes_ipfs::Cid::new_v1(CBOR_CODEC, multihash);
-
+        Ok(FileAddResult { file_path, cid }) => {
+            let cid: hermes_ipfs::Cid = cid.try_into()?;
             tracing::info!(
-                "✓ Step {STEP}/{POST_STEP_COUNT}: Added and pinned to IPFS (storage: {}, protocol: {}) → {}",
-                ipfs_cid,
-                cbor_cid.to_string(),
+                "✓ Step {STEP}/{POST_STEP_COUNT}: Added and pinned to IPFS (CID: {}) → {}",
+                cid,
                 file_path
             );
-            Ok(Ok(cbor_cid))
+            Ok(Ok(cid))
         },
         Err(e) => {
             tracing::error!(
@@ -447,9 +432,9 @@ fn publish(
     // Structure matches hermes-ipfs/src/doc_sync/payload.rs definitions
     let payload = match New::try_from(DocumentDisseminationBody::Docs {
         common_fields: CommonFields {
-            root: [0u8; 32],   // TODO: Use actual SMT root hash when available
-            count: 1,          // Single document in this message
-            in_reply_to: None, // Not a reply to another message
+            root: [0u8; 32].into(), // TODO: Use actual SMT root hash when available
+            count: 1,               // Single document in this message
+            in_reply_to: None,      // Not a reply to another message
         },
         docs: vec![*cid], // List of CIDs to announce
     }) {
