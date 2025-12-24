@@ -581,7 +581,8 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
     /// Get file (async version)
     ///
     /// This is the async version of `file_get` that uses `send().await` instead of
-    /// `blocking_send()`. This is safe to call from async contexts like PubSub handlers.
+    /// `blocking_send()`. This is safe to call from async contexts like `PubSub`
+    /// handlers.
     ///
     /// ## Parameters
     /// - `ipfs_path`: The IPFS path of the file

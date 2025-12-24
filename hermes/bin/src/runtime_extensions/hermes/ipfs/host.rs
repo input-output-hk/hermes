@@ -22,7 +22,7 @@ impl From<hermes_ipfs::IpfsPath> for FileAddResult {
             cid: value
                 .root()
                 .cid()
-                .map(|cid| cid.to_bytes())
+                .map(hermes_ipfs::Cid::to_bytes)
                 .unwrap_or_default(),
         }
     }

@@ -3,7 +3,7 @@
 //! Handles document storage and P2P propagation:
 //! - Stores documents in IPFS with dual CID formats (dag-pb for storage, dag-cbor for
 //!   protocol)
-//! - Publishes CBOR-encoded messages with CID lists to PubSub topics
+//! - Publishes CBOR-encoded messages with CID lists to `PubSub` topics
 //! - Receiving nodes decode messages and fetch content from IPFS
 
 use std::sync::Arc;

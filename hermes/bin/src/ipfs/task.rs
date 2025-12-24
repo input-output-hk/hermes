@@ -316,15 +316,19 @@ fn topic_message_handler(
     }
 }
 
-/// Handler for Doc Sync PubSub messages on "*.new" topics.
+// TODO - Generalize this function, it should be able to handle multiple topics, not just
+// .new
+/// Handler for Doc Sync `PubSub` messages on "*.new" topics.
 ///
 /// Receives P2P messages containing CBOR-encoded CID lists, spawns an async task
-/// to fetch document content from IPFS, and dispatches OnNewDocEvent to subscribed apps.
+/// to fetch document content from IPFS, and dispatches `OnNewDocEvent` to subscribed
+/// apps.
 ///
-/// Uses async file operations (file_get_async) to avoid blocking the PubSub handler.
-/// Message format: payload::New → DocumentDisseminationBody::Docs { docs: Vec<Cid> }
+/// Uses async file operations (`file_get_async`) to avoid blocking the `PubSub` handler.
+/// Message format: `payload::New` → `DocumentDisseminationBody::Docs { docs: Vec<Cid> }`
 #[allow(
     clippy::needless_pass_by_value,
+    clippy::too_many_lines,
     reason = "The event will be eventually consumed in the handler"
 )]
 fn doc_sync_topic_message_handler(
@@ -402,11 +406,11 @@ fn doc_sync_topic_message_handler(
                 })
                 .ok();
 
-            if storage_cid.is_none() {
+            let Some(storage_cid) = storage_cid else {
                 tracing::error!("Failed to convert CID {} to CIDv0, skipping", cid);
                 continue;
-            }
-            let storage_cid = storage_cid.unwrap();
+            };
+
             let path = hermes_ipfs::IpfsPath::new(PathRoot::Ipld(storage_cid)).to_string();
 
             tracing::info!(
