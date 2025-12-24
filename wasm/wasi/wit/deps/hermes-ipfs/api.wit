@@ -20,7 +20,7 @@ interface api {
     /// A path to an IPFS file.
     type ipfs-path = string;
     /// A CID.
-    type ipfs-cid = string;
+    type ipfs-cid = list<u8>;
     /// PubSub Message Data
     type message-data = list<u8>;
     /// PubSub Message ID
