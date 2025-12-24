@@ -646,6 +646,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "blake2b-ref"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "294d17c72e0ba59fad763caa112368d0672083779cdebbb97164f4bb4c1e339a"
+
+[[package]]
 name = "blake2b_simd"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1110,7 +1116,7 @@ dependencies = [
  "chrono",
  "displaydoc",
  "ed25519-dalek",
- "fluent-uri",
+ "fluent-uri 0.3.2",
  "fmmap",
  "minicbor 0.25.1",
  "num-traits",
@@ -1131,7 +1137,7 @@ dependencies = [
  "chrono",
  "displaydoc",
  "ed25519-dalek",
- "fluent-uri",
+ "fluent-uri 0.3.2",
  "fmmap",
  "jsonschema 0.28.3",
  "minicbor 0.25.1",
@@ -1139,6 +1145,31 @@ dependencies = [
  "orx-concurrent-vec",
  "serde",
  "serde_json",
+ "strum 0.27.2",
+ "thiserror 2.0.17",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "catalyst-types"
+version = "0.0.12"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=catalyst-types%2Fv0.0.12#36d1f307f51063d1976d22216f87b9ef4f7e9d68"
+dependencies = [
+ "base64-url",
+ "blake3",
+ "chrono",
+ "displaydoc",
+ "ed25519-dalek",
+ "fluent-uri 0.3.2",
+ "fmmap",
+ "jsonschema 0.37.4",
+ "minicbor 0.25.1",
+ "num-traits",
+ "orx-concurrent-vec",
+ "serde",
+ "serde_json",
+ "sparse-merkle-tree",
  "strum 0.27.2",
  "thiserror 2.0.17",
  "tracing",
@@ -2555,6 +2586,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "fluent-uri"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc74ac4d8359ae70623506d512209619e5cf8f347124910440dbc221714b328e"
+dependencies = [
+ "borrow-or-share",
+ "ref-cast",
+ "serde",
+]
+
+[[package]]
 name = "flume"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2591,6 +2633,12 @@ name = "foldhash"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
+
+[[package]]
+name = "foldhash"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "fontconfig-parser"
@@ -2997,7 +3045,7 @@ checksum = "9229cfe53dfd69f0609a49f65461bd93001ea1ef889cd5529dd176593f5338a1"
 dependencies = [
  "allocator-api2",
  "equivalent",
- "foldhash",
+ "foldhash 0.1.5",
  "serde",
 ]
 
@@ -3006,6 +3054,11 @@ name = "hashbrown"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
+dependencies = [
+ "allocator-api2",
+ "equivalent",
+ "foldhash 0.2.0",
+]
 
 [[package]]
 name = "hashlink"
@@ -3143,7 +3196,7 @@ dependencies = [
  "build-info-build",
  "cardano-blockchain-types",
  "cardano-chain-follower",
- "catalyst-types 0.0.11",
+ "catalyst-types 0.0.12",
  "chrono",
  "chrono-tz",
  "clap",
@@ -3975,6 +4028,33 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "uuid-simd",
+]
+
+[[package]]
+name = "jsonschema"
+version = "0.37.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73c9ffb2b5c56d58030e1b532d8e8389da94590515f118cf35b5cb68e4764a7e"
+dependencies = [
+ "ahash",
+ "bytecount",
+ "data-encoding",
+ "email_address",
+ "fancy-regex 0.16.2",
+ "fraction",
+ "getrandom 0.3.4",
+ "idna",
+ "itoa",
+ "num-cmp",
+ "num-traits",
+ "percent-encoding",
+ "referencing 0.37.4",
+ "regex",
+ "regex-syntax",
+ "serde",
+ "serde_json",
+ "unicode-general-category",
  "uuid-simd",
 ]
 
@@ -6748,7 +6828,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0dcb5ab28989ad7c91eb1b9531a37a1a137cc69a0499aee4117cae4a107c464"
 dependencies = [
  "ahash",
- "fluent-uri",
+ "fluent-uri 0.3.2",
  "once_cell",
  "percent-encoding",
  "serde_json",
@@ -6761,8 +6841,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e9c261f7ce75418b3beadfb3f0eb1299fe8eb9640deba45ffa2cb783098697d"
 dependencies = [
  "ahash",
- "fluent-uri",
+ "fluent-uri 0.3.2",
  "once_cell",
+ "parking_lot",
+ "percent-encoding",
+ "serde_json",
+]
+
+[[package]]
+name = "referencing"
+version = "0.37.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4283168a506f0dcbdce31c9f9cce3129c924da4c6bca46e46707fcb746d2d70c"
+dependencies = [
+ "ahash",
+ "fluent-uri 0.4.1",
+ "getrandom 0.3.4",
+ "hashbrown 0.16.1",
  "parking_lot",
  "percent-encoding",
  "serde_json",
@@ -7876,6 +7971,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "sparse-merkle-tree"
+version = "0.6.2"
+source = "git+https://github.com/nervosnetwork/sparse-merkle-tree.git?rev=b74ea1bd57a397df82fcf32f2639de7e5248659f#b74ea1bd57a397df82fcf32f2639de7e5248659f"
+dependencies = [
+ "blake2b-ref",
+ "cc",
+ "cfg-if",
+]
+
+[[package]]
 name = "spin"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8801,6 +8906,12 @@ name = "unicode-ccc"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce61d488bcdc9bc8b5d1772c404828b17fc481c0a582b5581e95fb233aef503e"
+
+[[package]]
+name = "unicode-general-category"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b993bddc193ae5bd0d623b49ec06ac3e9312875fdae725a975c51db1cc1677f"
 
 [[package]]
 name = "unicode-ident"
