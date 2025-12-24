@@ -1,6 +1,7 @@
 //! Doc Sync host module.
 use std::sync::Arc;
 
+use catalyst_types::smt::Value;
 use hermes_ipfs::doc_sync::{
     payload::{CommonFields, DocumentDisseminationBody, New},
     timers::{config::SyncTimersConfig, state::SyncTimersState},
@@ -48,6 +49,7 @@ const SHA2_256_CODE: u64 = 0x12;
 const CID_CBOR_TAG: u64 = 42;
 
 /// Wrapper for `hermes_ipfs::Cid` to implement `minicbor::Encode` for it.
+#[derive(Clone)]
 struct Cid(hermes_ipfs::Cid);
 
 impl Encode<()> for Cid {
@@ -60,6 +62,16 @@ impl Encode<()> for Cid {
         e.tag(Tag::new(CID_CBOR_TAG))?;
         e.bytes(&self.0.to_bytes())?;
         Ok(())
+    }
+}
+
+impl catalyst_types::smt::Value for Cid {
+    fn to_bytes(&self) -> std::vec::Vec<u8> {
+        self.0.to_bytes()
+    }
+
+    fn from_bytes(bytes: &[u8]) -> Self {
+        Self(hermes_ipfs::Cid::try_from(bytes).unwrap_or_default())
     }
 }
 
@@ -196,13 +208,14 @@ impl HostSyncChannel for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<DocLoc, Errno>> {
         tracing::info!("📤 Posting {} bytes to doc-sync channel", doc.len());
 
-        let cid = add_file(self, &doc)??;
+        let cid = add_document(self, &doc)??;
+
         dht_provide(self, &cid)?;
         let peer_id = get_peer_id(self)??;
         ensure_provided(self, &cid, &peer_id)??;
         publish(self, doc, sync_channel.rep())??;
 
-        Ok(Ok(cid.as_bytes().to_vec()))
+        Ok(Ok(cid.to_bytes()))
     }
 
     /// Prove a document is stored in the provers
@@ -281,16 +294,17 @@ impl HostSyncChannel for HermesRuntimeContext {
 /// Add document to IPFS (automatically pins)
 /// Note: `file_add` pins the document under the hood via the `hermes_ipfs` library,
 /// so no explicit `file_pin` call is needed.
-fn add_file(
+fn add_document(
     ctx: &mut HermesRuntimeContext,
     doc: &DocData,
-) -> wasmtime::Result<Result<String, Errno>> {
+) -> wasmtime::Result<Result<Cid, Errno>> {
     const STEP: u8 = 1;
     match ctx.file_add(doc.clone())? {
         Ok(FileAddResult { file_path, cid }) => {
+            let cid = Cid::from_bytes(&cid);
             tracing::info!(
                 "✓ Step {STEP}/{POST_STEP_COUNT}: Added and pinned to IPFS (CID: {}) → {}",
-                cid,
+                cid.0,
                 file_path
             );
             Ok(Ok(cid))
@@ -308,15 +322,15 @@ fn add_file(
 /// Announce being a provider of the given CID to the DHT.
 fn dht_provide(
     ctx: &mut HermesRuntimeContext,
-    cid: &str,
+    cid: &Cid,
 ) -> Result<(), Errno> {
     const STEP: u8 = 2;
     tracing::info!("⏭ Step {STEP}/{POST_STEP_COUNT}: Pre-publish");
-    match ctx.dht_provide(cid.into()) {
+    match ctx.dht_provide(cid.to_bytes().into()) {
         Ok(_) => {
             tracing::info!(
                 "✓ Step {STEP}/{POST_STEP_COUNT}: DHT provide successful (CID: {})",
-                cid
+                cid.0
             );
             Ok(())
         },
@@ -352,7 +366,7 @@ fn get_peer_id(ctx: &mut HermesRuntimeContext) -> wasmtime::Result<Result<String
 /// `peer_id`
 fn ensure_provided(
     ctx: &mut HermesRuntimeContext,
-    cid: &str,
+    cid: &Cid,
     peer_id: &str,
 ) -> wasmtime::Result<Result<(), Errno>> {
     const STEP: u8 = 4;
@@ -374,7 +388,7 @@ fn ensure_provided(
         .into_iter()
         .chain(std::iter::repeat_n(2000, 20));
     loop {
-        let providers = ctx.dht_get_providers(cid.into())??;
+        let providers = ctx.dht_get_providers(cid.to_bytes().into())??;
         tracing::debug!(
             "Step {STEP}/{POST_STEP_COUNT}: DHT query returned {} provider(s): {:?}",
             providers.len(),
