@@ -78,7 +78,7 @@ pub(crate) async fn ipfs_command_handler(
 ) -> anyhow::Result<()> {
     while let Some(ipfs_command) = queue_rx.recv().await {
         tracing::debug!(
-            "📨 Received command: {:?}",
+            "Received command: {:?}",
             std::mem::discriminant(&ipfs_command)
         );
         match ipfs_command {
@@ -99,7 +99,7 @@ pub(crate) async fn ipfs_command_handler(
             IpfsCommand::PinFile(cid, tx) => {
                 let response = match hermes_node.insert_pin(&cid).await {
                     Ok(()) => {
-                        tracing::info!("Pin succeeded for CID: {}", cid);
+                        tracing::info!("Pin succeeded for CID: {}", cid.to_string());
                         Ok(true)
                     },
                     Err(err) if err.to_string().contains("already pinned recursively") => {
@@ -363,7 +363,7 @@ fn doc_sync_topic_message_handler(
     let topic_owned = topic.clone();
     // Spawn async task to avoid blocking PubSub handler during file operations
     tokio::spawn(async move {
-        tracing::debug!("📥 Inside spawned task, processing {} CIDs", new_cids.len());
+        tracing::debug!("Inside spawned task, processing {} CIDs", new_cids.len());
         let Some(ipfs) = HERMES_IPFS.get() else {
             tracing::error!("IPFS global instance is uninitialized");
             return;
@@ -388,9 +388,7 @@ fn doc_sync_topic_message_handler(
                 continue;
             };
             let path = hermes_ipfs::IpfsPath::new(PathRoot::Ipld(storage_cid)).to_string();
-            tracing::debug!(
-                "📥 Fetching content (protocol CID: {cid}, storage CID: {storage_cid})",
-            );
+            tracing::debug!("Fetching content (protocol CID: {cid}, storage CID: {storage_cid})",);
             let content = match ipfs.file_get_async(&path).await {
                 Ok(ipfs_file) => {
                     if let Ok(content_str) = std::str::from_utf8(&ipfs_file) {

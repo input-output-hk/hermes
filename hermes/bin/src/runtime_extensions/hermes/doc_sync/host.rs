@@ -1,8 +1,6 @@
 //! Doc Sync host module.
 //!
 //! Handles document storage and P2P propagation:
-//! - Stores documents in IPFS with dual CID formats (dag-pb for storage, dag-cbor for
-//!   protocol)
 //! - Publishes CBOR-encoded messages with CID lists to `PubSub` topics
 //! - Receiving nodes decode messages and fetch content from IPFS
 
@@ -431,24 +429,15 @@ fn publish(
     cid: &hermes_ipfs::Cid,
     rep: u32,
 ) -> wasmtime::Result<Result<(), Errno>> {
-    const STEP: u8 = 5;
-    tracing::info!(
-        "⏭ Step {STEP}/{POST_STEP_COUNT}: Publish - starting with CID: {}",
-        cid.to_string()
-    );
-
     let channel_state = DOC_SYNC_STATE
         .get(&rep)
         .ok_or_else(|| wasmtime::Error::msg("Channel not found"))?
         .clone();
-
     let topic_new = format!("{}.new", channel_state.channel_name);
-    tracing::info!("Publishing to topic: {}", topic_new);
 
+    tracing::info!("⏭ Publish - starting with CID: {}", cid.to_string());
     // Construct CBOR-encoded payload::New structure for P2P protocol.
-    // Messages contain CID lists, not document content - receivers fetch from IPFS.
-
-    // Step 2: Construct payload::New structure
+    // Messages contain CID lists, no document content - receivers fetch from IPFS.
     // Structure matches hermes-ipfs/src/doc_sync/payload.rs definitions
     let payload = match New::try_from(DocumentDisseminationBody::Docs {
         common_fields: CommonFields {
@@ -460,38 +449,26 @@ fn publish(
     }) {
         Ok(p) => p,
         Err(e) => {
-            tracing::error!("Failed to create payload::New: {}", e);
+            tracing::error!("Failed to create payload::New: {e}");
             return Ok(Err(Errno::DocErrorPlaceholder));
         },
     };
 
-    // Step 3: Encode payload to CBOR bytes (must match hermes-ipfs minicbor version)
+    // Encode payload to CBOR bytes (must match hermes-ipfs minicbor version)
     let payload_bytes = match minicbor::to_vec(&payload) {
         Ok(bytes) => bytes,
         Err(e) => {
-            tracing::error!("Failed to encode payload to CBOR: {}", e);
+            tracing::error!("Failed to encode payload to CBOR: {e}");
             return Ok(Err(Errno::DocErrorPlaceholder));
         },
     };
 
-    tracing::info!(
-        "Publishing {} bytes of CBOR-encoded payload to topic: {}",
-        payload_bytes.len(),
-        topic_new
-    );
-
     match ctx.pubsub_publish(topic_new.clone(), payload_bytes)? {
         Ok(()) => {
-            tracing::info!(
-                "✅ Step {STEP}/{POST_STEP_COUNT}: Payload published to PubSub → {topic_new}"
-            );
+            tracing::info!("✓ Payload published to PubSub → {topic_new}");
         },
         Err(e) => {
-            tracing::warn!(
-                "⚠ Step {STEP}/{POST_STEP_COUNT}: PubSub publish failed: {:?}",
-                e
-            );
-            tracing::info!("   Document is successfully stored in IPFS");
+            tracing::warn!("✗ PubSub publish failed: {:?}", e);
         },
     }
 
