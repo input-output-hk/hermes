@@ -76,7 +76,6 @@ pub(crate) async fn ipfs_command_handler(
     hermes_node: HermesIpfs,
     mut queue_rx: mpsc::Receiver<IpfsCommand>,
 ) -> anyhow::Result<()> {
-    tracing::info!("🎬 ipfs_command_handler started");
     while let Some(ipfs_command) = queue_rx.recv().await {
         tracing::debug!(
             "📨 Received command: {:?}",
@@ -98,10 +97,9 @@ pub(crate) async fn ipfs_command_handler(
                 send_response(response, tx);
             },
             IpfsCommand::PinFile(cid, tx) => {
-                tracing::info!("📍 Processing PinFile command for CID: {}", cid);
                 let response = match hermes_node.insert_pin(&cid).await {
                     Ok(()) => {
-                        tracing::info!("✅ Pin succeeded for CID: {}", cid);
+                        tracing::info!("Pin succeeded for CID: {}", cid);
                         Ok(true)
                     },
                     Err(err) if err.to_string().contains("already pinned recursively") => {
@@ -113,7 +111,7 @@ pub(crate) async fn ipfs_command_handler(
                         Ok(false)
                     },
                 };
-                tracing::info!("📤 Sending response for PinFile: {:?}", response);
+                tracing::info!("Sending response for PinFile: {:?}", response);
                 send_response(response, tx);
             },
             IpfsCommand::UnPinFile(cid, tx) => {
@@ -335,19 +333,8 @@ fn doc_sync_topic_message_handler(
     message: hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
 ) {
-    tracing::info!(
-        "🔔 doc_sync_topic_message_handler called! topic={}, message_len={}",
-        topic,
-        message.data.len()
-    );
     if let Ok(msg_str) = std::str::from_utf8(&message.data) {
-        tracing::info!(
-            "RECEIVED PubSub message on topic: {} - data: {}",
-            topic,
-            msg_str
-        );
-    } else {
-        tracing::info!("RECEIVED PubSub message on topic: {}", topic);
+        tracing::info!("RECEIVED PubSub message on topic: {topic} - data: {msg_str}",);
     }
 
     // TODO: match the topic against a static list.
@@ -359,46 +346,36 @@ fn doc_sync_topic_message_handler(
     let payload = match minicbor::decode::<payload::New>(&message.data) {
         Ok(payload) => DocumentDisseminationBody::from(payload),
         Err(err) => {
-            tracing::error!(%channel_name, %err, "❌ Failed to decode .new payload from IPFS message");
+            tracing::error!(%channel_name, %err, "Failed to decode .new payload from IPFS message");
             return;
         },
     };
-    tracing::info!("✅ Decoded payload successfully");
 
     let new_cids = match payload {
         DocumentDisseminationBody::Docs { docs, .. } => docs,
         DocumentDisseminationBody::Manifest { .. } => {
-            tracing::error!("❌ Manifest is not supported in a .new payload");
+            tracing::error!("Manifest is not supported in a .new payload");
             return;
         },
     };
-    tracing::info!("✅ Extracted {} CIDs from payload", new_cids.len());
-    for cid in &new_cids {
-        tracing::info!("RECEIVED PubSub message with CID: {}", cid);
-    }
 
     let channel_name_owned = channel_name.to_string();
     let topic_owned = topic.clone();
-
-    tracing::info!("🚀 Spawning async task to process {} CIDs", new_cids.len());
-
     // Spawn async task to avoid blocking PubSub handler during file operations
     tokio::spawn(async move {
-        tracing::info!("📥 Inside spawned task, processing {} CIDs", new_cids.len());
+        tracing::debug!("📥 Inside spawned task, processing {} CIDs", new_cids.len());
         let Some(ipfs) = HERMES_IPFS.get() else {
-            tracing::error!("❌ IPFS global instance is uninitialized");
+            tracing::error!("IPFS global instance is uninitialized");
             return;
         };
-        tracing::info!("✅ Got HERMES_IPFS instance");
 
         let mut contents = Vec::with_capacity(new_cids.len());
-
         for cid in new_cids {
-            tracing::info!("🔄 Processing CID: {}", cid);
+            tracing::info!("Processing CID: {}", cid.to_string());
 
-            // IMPORTANT: The message contains dag-cbor CIDs (CIDv1, codec 0x51), but IPFS storage
-            // uses dag-pb CIDv0 (codec 0x70). We need to convert to CIDv0 before fetching.
-            // Both CIDs have the same multihash, so we can reconstruct the CIDv0.
+            // TODO - HACK - The conversion to CIDv0 is needed since the data is stored in UnixFS.
+            // UnixFS designs to use either raw or dag-pb codec. This whole section need to be
+            // revisited <https://github.com/input-output-hk/hermes/issues/736>
             let storage_cid = hermes_ipfs::Cid::new_v0(*cid.hash())
                 .map_err(|e| {
                     tracing::error!("Failed to convert CID to v0: {}", e);
@@ -407,34 +384,24 @@ fn doc_sync_topic_message_handler(
                 .ok();
 
             let Some(storage_cid) = storage_cid else {
-                tracing::error!("Failed to convert CID {} to CIDv0, skipping", cid);
+                tracing::error!("Failed to convert CID {cid} to CIDv0, skipping");
                 continue;
             };
-
             let path = hermes_ipfs::IpfsPath::new(PathRoot::Ipld(storage_cid)).to_string();
-
-            tracing::info!(
-                "📥 Fetching content (protocol CID: {}, storage CID: {})",
-                cid,
-                storage_cid
+            tracing::debug!(
+                "📥 Fetching content (protocol CID: {cid}, storage CID: {storage_cid})",
             );
             let content = match ipfs.file_get_async(&path).await {
                 Ok(ipfs_file) => {
-                    tracing::info!(
-                        "✅ Got content ({} bytes) for CID: {}",
-                        ipfs_file.len(),
-                        cid
-                    );
-                    // Log content for test detection
                     if let Ok(content_str) = std::str::from_utf8(&ipfs_file) {
-                        tracing::info!("RECEIVED PubSub message content: {}", content_str);
+                        tracing::info!("RECEIVED PubSub message content: {content_str}");
                     }
                     ipfs_file
                 },
                 Err(err) => {
                     tracing::error!(
                         %channel_name_owned, %cid, %err,
-                        "❌ Failed to get content of the document after a successful IPFS pin"
+                        "Failed to get content of the document after a successful IPFS pin"
                     );
                     continue;
                 },
@@ -442,11 +409,6 @@ fn doc_sync_topic_message_handler(
 
             contents.push(content);
         }
-        tracing::info!(
-            "✅ Finished processing all CIDs, {} contents collected",
-            contents.len()
-        );
-
         let app_names = ipfs
             .apps
             .subscribed_apps(SubscriptionKind::DocSync, &topic_owned);
