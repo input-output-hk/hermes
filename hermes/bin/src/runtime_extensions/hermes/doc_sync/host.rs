@@ -293,13 +293,16 @@ fn add_file(
     const STEP: u8 = 1;
     match ctx.file_add(doc.clone())? {
         Ok(FileAddResult { file_path, cid }) => {
-            let cid: hermes_ipfs::Cid = cid.try_into()?;
+            // TODO - Should not convert CID here <https://github.com/input-output-hk/hermes/issues/736>
+            let mut hasher = Sha256::new();
+            hasher.update(doc);
+            let hash_digest = hasher.digest();
+            let multihash = multihash::Multihash::<64>::wrap(SHA2_256_CODE, &hash_digest)?;
+            let cbor_cid = hermes_ipfs::Cid::new_v1(CBOR_CODEC, multihash);
             tracing::info!(
-                "✓ Step {STEP}/{POST_STEP_COUNT}: Added and pinned to IPFS (CID: {}) → {}",
-                cid,
-                file_path
+                "✓ Step {STEP}/{POST_STEP_COUNT}: Added and pinned to IPFS (CID: {cbor_cid}, {cid:?}) → {file_path}"
             );
-            Ok(Ok(cid))
+            Ok(Ok(cbor_cid))
         },
         Err(e) => {
             tracing::error!(
