@@ -359,6 +359,12 @@ fn doc_sync_topic_message_handler(
         },
     };
 
+    // DO NOT remove this log, since it is use in test `_test-pubsub-execute`
+    tracing::info!(
+        "RECEIVED PubSub message with CIDs: {:?}",
+        new_cids.iter().map(|c| c.to_string()).collect::<Vec<_>>()
+    );
+
     let channel_name_owned = channel_name.to_string();
     let topic_owned = topic.clone();
     // Spawn async task to avoid blocking PubSub handler during file operations
