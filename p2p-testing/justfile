@@ -819,9 +819,11 @@ init-bootstrap:
     # Node 2: bootstrap from nodes 1,3
     sed -i.tmp "s|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/[^,]*,/ip4/172.20.0.12/tcp/4001/p2p/[^\"]*|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/$PEER_ID_1,/ip4/172.20.0.12/tcp/4001/p2p/$PEER_ID_3|g" docker-compose.yml
 
-    # Nodes 3-6: bootstrap from nodes 1,2,3
-    sed -i.tmp "s|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/[^,]*,/ip4/172.20.0.11/tcp/4001/p2p/[^,]*,/ip4/172.20.0.12/tcp/4001/p2p/[^\"]*|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/$PEER_ID_1,/ip4/172.20.0.11/tcp/4001/p2p/$PEER_ID_2,/ip4/172.20.0.12/tcp/4001/p2p/$PEER_ID_3|g" docker-compose.yml
+    # Node 3: bootstrap from nodes 1,2 (only 2 peers, not 3)
+    sed -i.tmp "s|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/[^,]*,/ip4/172.20.0.11/tcp/4001/p2p/[^\"]*|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/$PEER_ID_1,/ip4/172.20.0.11/tcp/4001/p2p/$PEER_ID_2|g" docker-compose.yml
 
+    # Nodes 4-6: bootstrap from nodes 1,2,3 (3 peers)
+    sed -i.tmp "s|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/[^,]*,/ip4/172.20.0.11/tcp/4001/p2p/[^,]*,/ip4/172.20.0.12/tcp/4001/p2p/[^\"]*|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/$PEER_ID_1,/ip4/172.20.0.11/tcp/4001/p2p/$PEER_ID_2,/ip4/172.20.0.12/tcp/4001/p2p/$PEER_ID_3|g" docker-compose.yml    
     rm -f docker-compose.yml.tmp
 
     echo "   ✅ docker-compose.yml updated (backup saved as docker-compose.yml.backup)"
@@ -1151,7 +1153,7 @@ _test-pubsub-execute:
     for SECOND in $(seq 1 $MAX_WAIT); do
         for NODE in {2..6}; do
             if [ "${NODE_STATUS[$NODE]}" = "⏳" ]; then
-                GREP_RESULT=$(docker compose logs "hermes-node$NODE" 2>&1 | grep "RECEIVED PubSub message with CID" | wc -l)
+                GREP_RESULT=$(docker compose logs "hermes-node$NODE" 2>&1 | grep "RECEIVED PubSub message with CIDs" | wc -l)
                 if [ "$GREP_RESULT" -gt 0 ]; then
                     NODE_STATUS[$NODE]="✅"
                     NODE_RECEIVE_TIME[$NODE]=$(date +%s%3N)
