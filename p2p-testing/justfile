@@ -1153,7 +1153,8 @@ _test-pubsub-execute:
     for SECOND in $(seq 1 $MAX_WAIT); do
         for NODE in {2..6}; do
             if [ "${NODE_STATUS[$NODE]}" = "⏳" ]; then
-                GREP_RESULT=$(docker compose logs "hermes-node$NODE" 2>&1 | grep "RECEIVED PubSub message with CIDs" | wc -l)
+                # Check if the node has received the message should non-empty CIDs array
+                GREP_RESULT=$(docker compose logs "hermes-node$NODE" 2>&1 | grep 'RECEIVED PubSub message with CIDs: \[' | grep -v '\[\]' | wc -l)                
                 if [ "$GREP_RESULT" -gt 0 ]; then
                     NODE_STATUS[$NODE]="✅"
                     NODE_RECEIVE_TIME[$NODE]=$(date +%s%3N)
