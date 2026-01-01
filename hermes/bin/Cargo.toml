@@ -48,7 +48,7 @@ anyhow = "1.0.99"
 hex-literal = "1.0.0"
 thiserror = "2.0.16"
 hex = "0.4.3"
-tracing = { version = "0.1.41", features = ["log"] }
+tracing = { version = "0.1.44", features = ["log"] }
 tracing-subscriber = { version = "0.3.20", features = ["fmt", "json", "time", "env-filter"] }
 libtest-mimic = "0.8.1"
 crossbeam-queue = "0.3.12"
