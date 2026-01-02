@@ -150,6 +150,9 @@ impl HostSyncChannel for HermesRuntimeContext {
             return Err(wasmtime::Error::msg(format!(
                 "Subscription to {topic_new} failed: {err}",
             )));
+        } else {
+            // DO NOT REMOVE THIS LOG, it is used in the test
+            tracing::info!("Subscribed to .new with base {name}");
         }
         tracing::info!("Created Doc Sync Channel: {name}");
 
