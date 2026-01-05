@@ -125,6 +125,6 @@ fn signature_from_tree(tree: &Tree<Cid>) -> anyhow::Result<(Blake3256, u64)> {
         .as_slice()
         .try_into()
         .map_err(|_| anyhow::anyhow!("SMT root should be 32 bytes"))?;
-    let count = u64::try_from(tree.count()).unwrap_or(u64::MAX);
+    let count = u64::try_from(tree.count()).context("number of leaves is too big")?;
     Ok((Blake3256::from(root_bytes), count))
 }
