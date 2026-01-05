@@ -1,5 +1,7 @@
 /// Interface to local `IPFS` instance.
 interface api {
+    use hermes:binary/api.{bstr};
+
     record file-add-result {
         file-path: ipfs-path,
         cid: ipfs-cid
@@ -20,7 +22,7 @@ interface api {
     /// A path to an IPFS file.
     type ipfs-path = string;
     /// A CID.
-    type ipfs-cid = list<u8>;
+    type ipfs-cid = bstr;
     /// PubSub Message Data
     type message-data = list<u8>;
     /// PubSub Message ID
