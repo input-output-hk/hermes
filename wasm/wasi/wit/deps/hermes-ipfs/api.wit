@@ -52,6 +52,10 @@ interface api {
         file-get-error,
         /// Unable to pin file.
         file-pin-error,
+        /// Failed to get CID.
+        get-cid-error,
+        /// Failed to serialize data to CBOR format.
+        cbor-serialize-error,
         /// Invalid CID.
         invalid-cid,
         /// Invalid DHT key.
