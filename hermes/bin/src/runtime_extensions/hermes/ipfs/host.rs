@@ -1,5 +1,7 @@
 //! IPFS host implementation for WASM runtime.
 
+use hermes_ipfs::Cid;
+
 use crate::{
     ipfs::{
         self, hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_dht_get_providers,
@@ -19,11 +21,7 @@ impl From<hermes_ipfs::IpfsPath> for FileAddResult {
     fn from(value: hermes_ipfs::IpfsPath) -> Self {
         FileAddResult {
             file_path: value.to_string(),
-            cid: value
-                .root()
-                .cid()
-                .map(|cid| cid.to_bytes())
-                .unwrap_or_default(),
+            cid: value.root().cid().map(Cid::to_bytes).unwrap_or_default(),
         }
     }
 }

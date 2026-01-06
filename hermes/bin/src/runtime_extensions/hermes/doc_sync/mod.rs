@@ -79,7 +79,7 @@ static DOC_SYNC_STATE: Lazy<State> = Lazy::new(DashMap::new);
 
 /// Compute a resource id from channel name using BLAKE2b/4 bytes.
 ///
-/// The BLAKE2b digest is 64 bytes (512-bit); we take the first 4 bytes as a fast
+/// The `BLAKE2b` digest is 64 bytes (512-bit); we take the first 4 bytes as a fast
 /// 32-bit identifier. Number of channels is expected to be ≪ u32, so collisions
 /// are unlikely in practice. This keeps the ID small to reduce contention when
 /// accessing `DOC_SYNC_STATE`.
@@ -93,7 +93,11 @@ pub(super) fn channel_resource_id(name: &str) -> Result<u32, String> {
         .map_err(|err| format!("BLAKE2b hash output length must be 4 bytes: {err}"))
 }
 
-/// Insert CIDs into SMT and return updated (root, count).
+/// Inserts a collection of CIDs into the Sparse Merkle Tree (SMT) and returns the updated
+/// state.
+///
+/// This implementation follows the protocol's requirement for idempotent set inserts.
+/// It is used when processing `.new` or `.dif` messages to update the local document set.
 pub(super) fn insert_cids_into_smt(
     smt: &Arc<Mutex<Tree<Cid>>>,
     cids: impl IntoIterator<Item = Cid>,
@@ -106,20 +110,25 @@ pub(super) fn insert_cids_into_smt(
         guard.insert(&cid).context("insert CID into SMT")?;
     }
 
-    signature_from_tree(&guard)
+    summary_from_tree(&guard)
 }
 
-/// Read current SMT signature without mutation.
-pub(super) fn current_smt_signature(
-    smt: &Arc<Mutex<Tree<Cid>>>
-) -> anyhow::Result<(Blake3256, u64)> {
+/// Reads the current SMT summary (root hash and document count) without modification.
+///
+/// This "snapshot" is used to detect divergence against remote peers or to
+/// generate quiet-period `.new` keepalive announcements.
+pub(super) fn current_smt_summary(smt: &Arc<Mutex<Tree<Cid>>>) -> anyhow::Result<(Blake3256, u64)> {
     let guard = smt
         .lock()
         .map_err(|err| anyhow::anyhow!("failed to lock SMT: {err}"))?;
-    signature_from_tree(&guard)
+    summary_from_tree(&guard)
 }
 
-fn signature_from_tree(tree: &Tree<Cid>) -> anyhow::Result<(Blake3256, u64)> {
+/// Internal helper to extract the BLAKE3-256 root and the u64 document count.
+///
+/// The root represents the cryptographic commitment to the set, while the count
+/// is used to calculate the prefix depth for reconciliation.
+fn summary_from_tree(tree: &Tree<Cid>) -> anyhow::Result<(Blake3256, u64)> {
     let root_bytes: [u8; 32] = tree
         .root()
         .as_slice()

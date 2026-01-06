@@ -11,7 +11,7 @@ use stringzilla::stringzilla::Sha256;
 use wasmtime::component::Resource;
 
 use super::{
-    ChannelState, Cid, DOC_SYNC_STATE, Tree, channel_resource_id, current_smt_signature,
+    ChannelState, Cid, DOC_SYNC_STATE, Tree, channel_resource_id, current_smt_summary,
     insert_cids_into_smt,
 };
 use crate::{
@@ -147,7 +147,7 @@ impl HostSyncChannel for HermesRuntimeContext {
                 let smt = channel_state.smt.clone();
 
                 let callback = Arc::new(move || {
-                    send_new_keepalive(smt.clone(), channel_name.clone(), app_name.clone())
+                    send_new_keepalive(&smt, &channel_name, &app_name)
                         .map_err(|e| anyhow::anyhow!("{e:?}"))
                 });
 
@@ -212,7 +212,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         let payload = build_new_payload(root, count, vec![cid.inner()]).map_err(|err| {
             wasmtime::Error::msg(format!("Failed to build doc-sync payload: {err}"))
         })?;
-        publish_new_payload(self, &channel_state, payload)??;
+        publish_new_payload(self, &channel_state, &payload)??;
 
         if let Some(timers) = channel_state.timers {
             timers.reset_quiet_timer();
@@ -329,7 +329,7 @@ fn dht_provide(
 ) -> Result<(), Errno> {
     const STEP: u8 = 2;
     tracing::info!("⏭ Step {STEP}/{POST_STEP_COUNT}: Pre-publish");
-    match ctx.dht_provide(cid.to_bytes().into()) {
+    match ctx.dht_provide(cid.to_bytes()) {
         Ok(_) => {
             tracing::info!(
                 "✓ Step {STEP}/{POST_STEP_COUNT}: DHT provide successful (CID: {})",
@@ -391,7 +391,7 @@ fn ensure_provided(
         .into_iter()
         .chain(std::iter::repeat_n(2000, 20));
     loop {
-        let providers = ctx.dht_get_providers(cid.to_bytes().into())??;
+        let providers = ctx.dht_get_providers(cid.to_bytes())??;
         tracing::debug!(
             "Step {STEP}/{POST_STEP_COUNT}: DHT query returned {} provider(s): {:?}",
             providers.len(),
@@ -440,7 +440,7 @@ fn build_new_payload(
     .map_err(|e| anyhow::anyhow!("Failed to create payload::New: {e}"))
 }
 
-/// Publish encoded `.new` payload to PubSub.
+/// Publish encoded `.new` payload to `PubSub`.
 ///
 /// IMPORTANT: Gossipsub is a peer-to-peer protocol that requires at least one
 /// OTHER peer node to be subscribed to the topic before messages can be published.
@@ -455,7 +455,7 @@ fn build_new_payload(
 fn publish_new_payload(
     ctx: &mut HermesRuntimeContext,
     channel_state: &ChannelState,
-    payload: New,
+    payload: &New,
 ) -> wasmtime::Result<Result<(), Errno>> {
     const STEP: u8 = 5;
     let topic_new = format!("{}.new", channel_state.channel_name);
@@ -538,11 +538,11 @@ fn is_pre_publish_completed(
 
 /// Sending new keep alive message for .new topic.
 fn send_new_keepalive(
-    smt: Arc<Mutex<Tree<Cid>>>,
-    channel_name: String,
-    app_name: ApplicationName,
+    smt: &Arc<Mutex<Tree<Cid>>>,
+    channel_name: &str,
+    app_name: &ApplicationName,
 ) -> anyhow::Result<()> {
-    let (root, count) = current_smt_signature(&smt)
+    let (root, count) = current_smt_summary(smt)
         .map_err(|err| anyhow::anyhow!("Failed to fetch SMT state: {err}"))?;
     let payload = build_new_payload(root, count, vec![])?;
     let mut payload_bytes = Vec::new();
@@ -552,7 +552,7 @@ fn send_new_keepalive(
         .map_err(|e| anyhow::anyhow!("Failed to encode payload::New: {e}"))?;
 
     let new_topic = format!("{channel_name}.new");
-    hermes_ipfs_publish(&app_name, &new_topic, payload_bytes)
+    hermes_ipfs_publish(app_name, &new_topic, payload_bytes)
         .map_err(|e| anyhow::Error::msg(format!("Keepalive publish failed: {e:?}")))?;
     Ok(())
 }
