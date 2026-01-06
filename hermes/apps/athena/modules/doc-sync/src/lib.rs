@@ -25,7 +25,7 @@ shared::bindings_generate!({
 
 export!(Component);
 
-use cardano_blockchain_types::pallas_codec::minicbor::{self, Encoder, data::Tag};
+use cardano_blockchain_types::pallas_codec::minicbor::{Encoder, data::Tag};
 use cid::{Cid, multihash::Multihash};
 use hermes::{
     doc_sync::api::{DocData, SyncChannel},
@@ -166,14 +166,27 @@ impl exports::hermes::http_gateway::event::Guest for Component {
                 // Call channel::post (executes 4-step workflow on host)
                 match channel::post(&body) {
                     Ok(cid_bytes) => {
-                        let cid = String::from_utf8_lossy(&cid_bytes);
-                        Some(json_response(
-                            200,
-                            &serde_json::json!({
-                                "success": true,
-                                "cid": cid
-                            }),
-                        ))
+                        match TryInto::<Cid>::try_into(cid_bytes) {
+                            Ok(cid) => {
+                                Some(json_response(
+                                    200,
+                                    &serde_json::json!({
+                                        "success": true,
+                                        "cid": cid.to_string()
+                                    }),
+                                ))
+                            },
+                            Err(e) => {
+                                error!(target: "doc_sync", "Failed to convert CID bytes to CID: {e:?}");
+                                Some(json_response(
+                                    500,
+                                    &serde_json::json!({
+                                        "success": false,
+                                        "error": "Failed to convert CID bytes to CID"
+                                    }),
+                                ))
+                            },
+                        }
                     },
                     Err(e) => {
                         error!(target: "doc_sync", "Failed to post document: {e:?}");
@@ -252,8 +265,8 @@ fn compute_cid(doc: &DocData) -> anyhow::Result<Vec<u8>> {
     const CID_CBOR_TAG: u64 = 42;
     const SHA2_256_CODE: u64 = 0x12;
 
-    let doc_bytes = minicbor::to_vec(doc)?;
-    let hash = Sha256::digest(&doc_bytes);
+    // `doc` is already in CBOR
+    let hash = Sha256::digest(&doc);
     let digest = Multihash::wrap(SHA2_256_CODE, &hash)?;
     let cid = Cid::new_v1(CBOR_CODEC, digest);
 

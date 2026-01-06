@@ -14,7 +14,11 @@ pub(crate) fn hermes_ipfs_add_file(
 ) -> Result<hermes_ipfs::IpfsPath, Errno> {
     tracing::debug!(app_name = %app_name, "adding IPFS file");
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
-    let ipfs_path = ipfs.file_add(contents)?;
+    let cbor_contents = minicbor::to_vec(contents).map_err(|e| {
+        tracing::error!("Failed to serialize document to CBOR during file add: {e}",);
+        Errno::CborSerializeError
+    })?;
+    let ipfs_path = ipfs.file_add(cbor_contents)?;
     let ipfs_path_str = ipfs_path.to_string();
     tracing::debug!(app_name = %app_name, path = %ipfs_path_str, "added IPFS file");
     ipfs.apps.pinned_file(app_name.clone(), &ipfs_path_str)?;
