@@ -47,9 +47,8 @@ pub(crate) fn hermes_ipfs_get_file(
     path: &IpfsPath,
 ) -> Result<IpfsFile, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
-    tracing::debug!(app_name = %app_name, path = %path, "get IPFS file");
     let content = ipfs.file_get(path)?;
-    tracing::debug!(app_name = %app_name, path = %path, "got IPFS file");
+    tracing::debug!(app_name = %app_name, path = %path, "got IPFS file with content {content:?}");
     Ok(content)
 }
 

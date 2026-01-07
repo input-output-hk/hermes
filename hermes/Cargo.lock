@@ -3212,8 +3212,8 @@ dependencies = [
 
 [[package]]
 name = "hermes-ipfs"
-version = "0.0.10"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=hermes-ipfs%2Fv0.0.10#36d1f307f51063d1976d22216f87b9ef4f7e9d68"
+version = "0.0.11"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?branch=fix%2Fhermes-736%2Fadd-file#6682c0af7bc9497814f99e211583c7db3bea728a"
 dependencies = [
  "anyhow",
  "blake3",
@@ -3226,6 +3226,7 @@ dependencies = [
  "ipld-core",
  "libp2p",
  "minicbor 0.25.1",
+ "multihash-codetable",
  "rand 0.9.2",
  "rust-ipfs",
  "tokio",

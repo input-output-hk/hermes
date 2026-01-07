@@ -2,7 +2,7 @@
 use std::{collections::HashSet, str::FromStr};
 
 use hermes_ipfs::{
-    AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
+    Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
     doc_sync::payload::{self, DocumentDisseminationBody},
     rust_ipfs::path::PathRoot,
 };
@@ -16,7 +16,7 @@ use crate::{
     event::{HermesEvent, queue::send},
     runtime_extensions::{
         bindings::hermes::ipfs::api::{
-            DhtKey, DhtValue, Errno, MessageData, PeerId, PubsubMessage, PubsubTopic,
+            DhtKey, DhtValue, Errno, IpfsFile, MessageData, PeerId, PubsubMessage, PubsubTopic,
         },
         hermes::{doc_sync::OnNewDocEvent, ipfs::event::OnTopicEvent},
     },
@@ -35,7 +35,7 @@ pub(crate) enum SubscriptionKind {
 /// IPFS Command
 pub(crate) enum IpfsCommand {
     /// Add a new IPFS file
-    AddFile(AddIpfsFile, oneshot::Sender<Result<PathIpfsFile, Errno>>),
+    AddFile(IpfsFile, oneshot::Sender<Result<PathIpfsFile, Errno>>),
     /// Get a file from IPFS
     GetFile(PathIpfsFile, oneshot::Sender<Result<Vec<u8>, Errno>>),
     /// Pin a file
@@ -90,8 +90,12 @@ pub(crate) async fn ipfs_command_handler(
                 send_response(response, tx);
             },
             IpfsCommand::GetFile(ipfs_path, tx) => {
+                let cid = ipfs_path.root().cid().ok_or_else(|| {
+                    tracing::error!(ipfs_path = %ipfs_path, "Failed to get CID from IPFS path");
+                    Errno::GetCidError
+                })?;
                 let response = hermes_node
-                    .get_ipfs_file(ipfs_path.into())
+                    .get_ipfs_file(cid)
                     .await
                     .map_err(|_| Errno::FileGetError);
                 send_response(response, tx);
@@ -381,23 +385,7 @@ fn doc_sync_topic_message_handler(
         let mut contents = Vec::with_capacity(new_cids.len());
         for cid in new_cids {
             tracing::info!("Processing CID: {}", cid.to_string());
-
-            // TODO - HACK - The conversion to CIDv0 is needed since the data is stored in UnixFS.
-            // UnixFS designs to use either raw or dag-pb codec. This whole section need to be
-            // revisited <https://github.com/input-output-hk/hermes/issues/736>
-            let storage_cid = hermes_ipfs::Cid::new_v0(*cid.hash())
-                .map_err(|e| {
-                    tracing::error!("Failed to convert CID to v0: {}", e);
-                    e
-                })
-                .ok();
-
-            let Some(storage_cid) = storage_cid else {
-                tracing::error!("Failed to convert CID {cid} to CIDv0, skipping");
-                continue;
-            };
-            let path = hermes_ipfs::IpfsPath::new(PathRoot::Ipld(storage_cid)).to_string();
-            tracing::debug!("Fetching content (protocol CID: {cid}, storage CID: {storage_cid})",);
+            let path = hermes_ipfs::IpfsPath::new(PathRoot::Ipld(cid)).to_string();
             let content = match ipfs.file_get_async(&path).await {
                 Ok(ipfs_file) => {
                     if let Ok(content_str) = std::str::from_utf8(&ipfs_file) {

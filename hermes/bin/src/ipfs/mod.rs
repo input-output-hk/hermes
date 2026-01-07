@@ -31,7 +31,7 @@ pub(crate) use api::{
 };
 use dashmap::DashMap;
 use hermes_ipfs::{
-    AddIpfsFile, Cid, HermesIpfs, HermesIpfsBuilder, IpfsPath as BaseIpfsPath,
+    Cid, HermesIpfs, HermesIpfsBuilder, IpfsPath as BaseIpfsPath,
     rust_ipfs::{Keypair, dummy},
 };
 use once_cell::sync::OnceCell;
@@ -498,10 +498,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         self.sender
             .as_ref()
             .ok_or(Errno::FileAddError)?
-            .blocking_send(IpfsCommand::AddFile(
-                AddIpfsFile::Stream((None, contents)),
-                cmd_tx,
-            ))
+            .blocking_send(IpfsCommand::AddFile(contents, cmd_tx))
             .map_err(|_| Errno::FileAddError)?;
         cmd_rx.blocking_recv().map_err(|_| Errno::FileAddError)?
     }
