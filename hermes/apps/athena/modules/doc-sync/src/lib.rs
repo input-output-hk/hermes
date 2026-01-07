@@ -25,7 +25,6 @@ shared::bindings_generate!({
 
 export!(Component);
 
-use cardano_blockchain_types::pallas_codec::minicbor::{Encoder, data::Tag};
 use cid::{Cid, multihash::Multihash};
 use hermes::{
     doc_sync::api::{DocData, SyncChannel},
@@ -259,20 +258,13 @@ fn store_in_db(doc: &DocData) -> anyhow::Result<()> {
 }
 
 /// Computes a `CIDv1` (CBOR codec, sha2-256 multihash) for the document bytes,
-/// wraps it in the IPLD CID CBOR tag (42) and returns the tagged bytes.
-fn compute_cid(doc: &DocData) -> anyhow::Result<Vec<u8>> {
+fn compute_cid(doc: &DocData) -> anyhow::Result<String> {
     const CBOR_CODEC: u64 = 0x51;
-    const CID_CBOR_TAG: u64 = 42;
     const SHA2_256_CODE: u64 = 0x12;
 
     // `doc` is already in CBOR
     let hash = Sha256::digest(&doc);
     let digest = Multihash::wrap(SHA2_256_CODE, &hash)?;
     let cid = Cid::new_v1(CBOR_CODEC, digest);
-
-    let mut encoder = Encoder::new(Vec::new());
-    encoder.tag(Tag::new(CID_CBOR_TAG))?;
-    encoder.bytes(&cid.to_bytes())?;
-
-    Ok(encoder.into_writer())
+    Ok(cid.to_string())
 }
