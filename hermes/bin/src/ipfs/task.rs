@@ -90,7 +90,7 @@ pub(crate) async fn ipfs_command_handler(
                 send_response(response, tx);
             },
             IpfsCommand::GetFile(ipfs_path, tx) => {
-                let cid = ipfs_path.root().cid().ok_or({
+                let cid = ipfs_path.root().cid().ok_or_else(|| {
                     tracing::error!(ipfs_path = %ipfs_path, "Failed to get CID from IPFS path");
                     Errno::GetCidError
                 })?;
@@ -155,13 +155,10 @@ pub(crate) async fn ipfs_command_handler(
                     .await
                     .map_err(|_| Errno::PubsubSubscribeError)?;
 
-                let message_handler = TopicMessageHandler::new(
-                    &topic,
-                    match kind {
-                        SubscriptionKind::Default => topic_message_handler,
-                        SubscriptionKind::DocSync => doc_sync_topic_message_handler,
-                    },
-                );
+                let message_handler = TopicMessageHandler::new(&topic, match kind {
+                    SubscriptionKind::Default => topic_message_handler,
+                    SubscriptionKind::DocSync => doc_sync_topic_message_handler,
+                });
 
                 let subscription_handler =
                     TopicSubscriptionStatusHandler::new(&topic, topic_subscription_handler);
@@ -200,10 +197,12 @@ pub(crate) async fn ipfs_command_handler(
             },
             IpfsCommand::Identity(peer_id, tx) => {
                 let peer_id = match peer_id {
-                    Some(peer_id) => Some(
-                        hermes_ipfs::PeerId::from_str(&peer_id)
-                            .map_err(|_| Errno::InvalidPeerId)?,
-                    ),
+                    Some(peer_id) => {
+                        Some(
+                            hermes_ipfs::PeerId::from_str(&peer_id)
+                                .map_err(|_| Errno::InvalidPeerId)?,
+                        )
+                    },
                     None => None,
                 };
 
@@ -222,8 +221,7 @@ pub(crate) async fn ipfs_command_handler(
 
 /// A handler for messages from the IPFS pubsub topic
 pub(super) struct TopicMessageHandler<T>
-where
-    T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static,
+where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static
 {
     /// The topic.
     topic: String,
@@ -233,8 +231,7 @@ where
 }
 
 impl<T> TopicMessageHandler<T>
-where
-    T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static,
+where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static
 {
     /// Creates the new handler.
     pub fn new(
@@ -258,8 +255,7 @@ where
 
 /// A handler for subscribe/unsubscribe events from the IPFS pubsub topic
 pub(super) struct TopicSubscriptionStatusHandler<T>
-where
-    T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static,
+where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static
 {
     /// The topic.
     topic: String,
@@ -269,8 +265,7 @@ where
 }
 
 impl<T> TopicSubscriptionStatusHandler<T>
-where
-    T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static,
+where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static
 {
     /// Creates the new handler.
     pub fn new(
