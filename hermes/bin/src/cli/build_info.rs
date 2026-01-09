@@ -1,10 +1,12 @@
 //! Hermes binary build info
 
-/// Formatted hermes binary build info
-pub mod built_info {
+#[allow(clippy::doc_markdown)]
+/// Hermes binary build info
+mod built_info {
     include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 
+/// Macro to unwrap an option or return a default value in the const context
 macro_rules! const_unwrap_or {
     ($opt:expr, $default:expr) => {
         match $opt {
@@ -14,6 +16,7 @@ macro_rules! const_unwrap_or {
     };
 }
 
+/// Formatted hermes binary build info
 pub(crate) const BUILD_INFO: &str = const_format::formatcp!(
     "
         version: {}
