@@ -16,7 +16,8 @@ shared::bindings_generate!({
 
             export hermes:init/event;
             export hermes:ipfs/event;        // Required: Receives `PubSub` messages via on-topic
-            export hermes:doc-sync/event;    // Optional: Doc-sync specific events
+            export hermes:doc-sync/event-on-new-doc;    // Optional: Doc-sync specific events
+            export hermes:doc-sync/event-return-cids;    // Optional: Doc-sync specific events
             export hermes:http-gateway/event;
         }
     ",
@@ -40,6 +41,8 @@ use shared::{
         sqlite,
     },
 };
+
+use crate::exports::hermes::doc_sync::event_return_cids::IpfsCid;
 
 /// Doc Sync component - thin wrapper calling host-side implementation.
 struct Component;
@@ -120,7 +123,7 @@ impl exports::hermes::ipfs::event::Guest for Component {
 ///
 /// This is for potential future doc-sync specific event types. Currently, all
 /// `PubSub` messages are received via the `on-topic` handler above.
-impl exports::hermes::doc_sync::event::Guest for Component {
+impl exports::hermes::doc_sync::event_on_new_doc::Guest for Component {
     fn on_new_doc(
         channel: ChannelName,
         doc: DocData,
@@ -137,6 +140,15 @@ impl exports::hermes::doc_sync::event::Guest for Component {
         if let Err(err) = store_in_db(&doc) {
             error!(target: "doc_sync::on_new_doc", "Failed to store doc from channel {channel}: {err:?}");
         }
+    }
+}
+
+impl exports::hermes::doc_sync::event_return_cids::Guest for Component {
+    fn return_cids(
+        _channel: ChannelName,
+        _doc: DocData,
+    ) -> Vec<IpfsCid> {
+        vec![]
     }
 }
 
