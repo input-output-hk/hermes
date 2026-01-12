@@ -1,0 +1,39 @@
+[package]
+name = "hermes-ipfs"
+version = "0.0.11"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+authors = ["Input Output Global"]
+homepage = "https://github.com/input-output-hk/catalyst-libs"
+repository = "https://github.com/input-output-hk/catalyst-libs"
+
+[features]
+doc-sync = ["ed25519-dalek", "catalyst-types", "blake3"]
+
+[dependencies]
+anyhow = "1.0.100"
+bytemuck = { version = "1.23.2", features = ["derive", "extern_crate_alloc"] }
+derive_more = {version = "2.0.1", features = ["from", "into", "display", "try_from", "deref"] }
+ipld-core = { version = "0.4.1", features = ["serde"]}
+# A fork of crates-io version with updated dependencies (`libp2p` and `ring` in particular).
+# rev-26b99cb as at July 30, 2025
+rust-ipfs = { version = "0.15.0", git = "https://github.com/dariusc93/rust-ipfs", rev = "0a6269e05a4ccfaa547a47a56f92171e4abc0564", features = ["tcp", "quic", "dns", "noise"] }
+tokio = "1.46.0"
+futures = "0.3.31"
+libp2p = "0.56.0"
+connexa = { version = "0.4.1", features = ["full"] }
+minicbor = { version = "0.25.1", features = ["alloc", "derive", "half"] }
+ed25519-dalek = { version = "2.1.1", optional = true }
+catalyst-types = { version = "0.0.11", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "catalyst-types/v0.0.11", optional = true }
+tracing = "0.1.43"
+rand = "0.9.2"
+blake3 = { version = "1.8.2", optional = true }
+multihash-codetable = "0.1.4"
+
+[dev-dependencies]
+# Dependencies used by examples
+clap = { version = "4.5.23", features = ["derive"] }
+dirs = "6.0.0"
+lipsum = "0.9.1"
+rustyline-async = "0.4.5"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }

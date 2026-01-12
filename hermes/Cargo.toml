@@ -59,3 +59,6 @@ unreachable = "deny"
 missing_docs_in_private_items = "deny"
 arithmetic_side_effects = "deny"
 
+# Patch hermes-ipfs to use local version with get_ipfs_file_cbor_with_providers
+[patch."https://github.com/input-output-hk/catalyst-libs.git"]
+hermes-ipfs = { path = "../hermes-ipfs-local" }

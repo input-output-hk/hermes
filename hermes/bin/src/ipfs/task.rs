@@ -1,14 +1,15 @@
 //! IPFS Task
-use std::{collections::HashSet, str::FromStr};
+use std::{collections::HashSet, str::FromStr, time::Duration};
 
 use hermes_ipfs::{
-    AddIpfsFile, Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
+    Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
     doc_sync::payload::{self, DocumentDisseminationBody},
     rust_ipfs::path::PathRoot,
 };
 use tokio::{
     sync::{mpsc, oneshot},
     task::JoinHandle,
+    time::timeout,
 };
 
 use super::HERMES_IPFS;
@@ -35,9 +36,15 @@ pub(crate) enum SubscriptionKind {
 /// IPFS Command
 pub(crate) enum IpfsCommand {
     /// Add a new IPFS file
-    AddFile(AddIpfsFile, oneshot::Sender<Result<PathIpfsFile, Errno>>),
-    /// Get a file from IPFS
-    GetFile(PathIpfsFile, oneshot::Sender<Result<Vec<u8>, Errno>>),
+    AddFile(Vec<u8>, oneshot::Sender<Result<PathIpfsFile, Errno>>),
+    /// Get a file from IPFS by CID
+    GetFile(Cid, oneshot::Sender<Result<Vec<u8>, Errno>>),
+    /// Get a file from IPFS by CID with specific providers
+    GetFileWithProviders(
+        Cid,
+        Vec<hermes_ipfs::PeerId>,
+        oneshot::Sender<Result<Vec<u8>, Errno>>,
+    ),
     /// Pin a file
     PinFile(Cid, oneshot::Sender<Result<bool, Errno>>),
     /// Un-pin a file
@@ -89,9 +96,16 @@ pub(crate) async fn ipfs_command_handler(
                     .map_err(|_| Errno::FileAddError);
                 send_response(response, tx);
             },
-            IpfsCommand::GetFile(ipfs_path, tx) => {
+            IpfsCommand::GetFile(cid, tx) => {
                 let response = hermes_node
-                    .get_ipfs_file(ipfs_path.into())
+                    .get_ipfs_file_cbor(&cid)
+                    .await
+                    .map_err(|_| Errno::FileGetError);
+                send_response(response, tx);
+            },
+            IpfsCommand::GetFileWithProviders(cid, providers, tx) => {
+                let response = hermes_node
+                    .get_ipfs_file_cbor_with_providers(&cid, &providers)
                     .await
                     .map_err(|_| Errno::FileGetError);
                 send_response(response, tx);
@@ -382,37 +396,101 @@ fn doc_sync_topic_message_handler(
         for cid in new_cids {
             tracing::info!("Processing CID: {}", cid.to_string());
 
-            // TODO - HACK - The conversion to CIDv0 is needed since the data is stored in UnixFS.
-            // UnixFS designs to use either raw or dag-pb codec. This whole section need to be
-            // revisited <https://github.com/input-output-hk/hermes/issues/736>
-            let storage_cid = hermes_ipfs::Cid::new_v0(*cid.hash())
-                .map_err(|e| {
-                    tracing::error!("Failed to convert CID to v0: {}", e);
-                    e
-                })
-                .ok();
+            // Timeout for DHT provider lookup
+            const DHT_PROVIDER_TIMEOUT: Duration = Duration::from_secs(10);
+            // Timeout for IPFS file fetch
+            const FILE_GET_TIMEOUT: Duration = Duration::from_secs(30);
 
-            let Some(storage_cid) = storage_cid else {
-                tracing::error!("Failed to convert CID {cid} to CIDv0, skipping");
-                continue;
-            };
-            let path = hermes_ipfs::IpfsPath::new(PathRoot::Ipld(storage_cid)).to_string();
-            tracing::debug!("Fetching content (protocol CID: {cid}, storage CID: {storage_cid})",);
-            let content = match ipfs.file_get_async(&path).await {
-                Ok(ipfs_file) => {
-                    if let Ok(content_str) = std::str::from_utf8(&ipfs_file) {
-                        tracing::info!("RECEIVED PubSub message content: {content_str}");
-                    }
-                    ipfs_file
-                },
-                Err(err) => {
-                    tracing::error!(
-                        %channel_name_owned, %cid, %err,
-                        "Failed to get content of the document after a successful IPFS pin"
+            // First, query DHT for providers of this CID
+            // This is the workaround for rust-ipfs not handling NeedBlock events
+            // Note: Must use cid.to_bytes() to match the key format used by dht_provide()
+            let dht_key = cid.to_bytes();
+            let providers: Vec<hermes_ipfs::PeerId> = match timeout(
+                DHT_PROVIDER_TIMEOUT,
+                ipfs.dht_get_providers_async(dht_key),
+            )
+            .await
+            {
+                Ok(Ok(provider_set)) => {
+                    let providers: Vec<_> = provider_set.into_iter().collect();
+                    tracing::info!(
+                        %cid,
+                        provider_count = providers.len(),
+                        "Found DHT providers for CID"
                     );
-                    continue;
+                    providers
+                },
+                Ok(Err(err)) => {
+                    tracing::warn!(
+                        %cid, %err,
+                        "DHT provider lookup failed, will try fetch without providers"
+                    );
+                    Vec::new()
+                },
+                Err(_) => {
+                    tracing::warn!(
+                        %cid,
+                        "DHT provider lookup timed out ({}s), will try fetch without providers",
+                        DHT_PROVIDER_TIMEOUT.as_secs()
+                    );
+                    Vec::new()
                 },
             };
+
+            // Fetch content using providers if available, otherwise fall back to regular fetch
+            tracing::debug!("Fetching content (CID: {cid}) with {} providers", providers.len());
+
+            let content = if providers.is_empty() {
+                // Fall back to regular fetch (will likely timeout due to NeedBlock issue)
+                let path = hermes_ipfs::IpfsPath::new(PathRoot::Ipld(cid)).to_string();
+                match timeout(FILE_GET_TIMEOUT, ipfs.file_get_async(&path)).await {
+                    Ok(Ok(ipfs_file)) => ipfs_file,
+                    Ok(Err(err)) => {
+                        tracing::error!(
+                            %channel_name_owned, %cid, %err,
+                            "Failed to get content (no providers available)"
+                        );
+                        continue;
+                    },
+                    Err(_) => {
+                        tracing::warn!(
+                            %channel_name_owned, %cid,
+                            "Timeout fetching content from IPFS ({}s), no providers available",
+                            FILE_GET_TIMEOUT.as_secs()
+                        );
+                        continue;
+                    },
+                }
+            } else {
+                // Fetch with providers - this should work!
+                match timeout(
+                    FILE_GET_TIMEOUT,
+                    ipfs.file_get_async_with_providers(&cid, providers),
+                )
+                .await
+                {
+                    Ok(Ok(ipfs_file)) => ipfs_file,
+                    Ok(Err(err)) => {
+                        tracing::error!(
+                            %channel_name_owned, %cid, %err,
+                            "Failed to get content even with providers"
+                        );
+                        continue;
+                    },
+                    Err(_) => {
+                        tracing::warn!(
+                            %channel_name_owned, %cid,
+                            "Timeout fetching content from IPFS ({}s) even with providers",
+                            FILE_GET_TIMEOUT.as_secs()
+                        );
+                        continue;
+                    },
+                }
+            };
+
+            if let Ok(content_str) = std::str::from_utf8(&content) {
+                tracing::info!("RECEIVED PubSub message content: {content_str}");
+            }
 
             contents.push(content);
         }
