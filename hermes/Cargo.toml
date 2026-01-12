@@ -59,6 +59,6 @@ unreachable = "deny"
 missing_docs_in_private_items = "deny"
 arithmetic_side_effects = "deny"
 
-# Patch hermes-ipfs to use local version with get_ipfs_file_cbor_with_providers
+# Patch hermes-ipfs to use branch with provider connection fix
 [patch."https://github.com/input-output-hk/catalyst-libs.git"]
-hermes-ipfs = { path = "../hermes-ipfs-local" }
+hermes-ipfs = { version = "0.0.11", git = "https://github.com/input-output-hk/catalyst-libs.git", branch = "fix/bitswap-provider-connection", features = ["doc-sync"] }

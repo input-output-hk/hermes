@@ -31,7 +31,7 @@ pub(crate) use api::{
 };
 use dashmap::DashMap;
 use hermes_ipfs::{
-    AddIpfsFile, Cid, HermesIpfs, HermesIpfsBuilder, IpfsPath as BaseIpfsPath,
+    Cid, HermesIpfs, HermesIpfsBuilder, IpfsPath as BaseIpfsPath,
     rust_ipfs::{Keypair, dummy},
 };
 use once_cell::sync::OnceCell;
@@ -145,6 +145,24 @@ async fn configure_listening_address(node: &hermes_ipfs::Ipfs) {
             }
         },
         Err(e) => tracing::error!("Invalid multiaddr format: {}", e),
+    }
+
+    // Configure external/announce address if specified.
+    // This tells other peers how to reach us (important in Docker/NAT environments).
+    // Without this, nodes may advertise 127.0.0.1 which causes peers to connect to
+    // themselves instead of the intended node.
+    if let Ok(announce_addr) = std::env::var("IPFS_ANNOUNCE_ADDRESS") {
+        match announce_addr.parse() {
+            Ok(multiaddr) => {
+                match node.add_external_address(multiaddr).await {
+                    Ok(()) => tracing::info!("IPFS announcing external address: {}", announce_addr),
+                    Err(e) => {
+                        tracing::error!("Failed to add external address {}: {}", announce_addr, e);
+                    },
+                }
+            },
+            Err(e) => tracing::error!("Invalid IPFS_ANNOUNCE_ADDRESS format '{}': {}", announce_addr, e),
+        }
     }
 }
 
@@ -498,10 +516,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         self.sender
             .as_ref()
             .ok_or(Errno::FileAddError)?
-            .blocking_send(IpfsCommand::AddFile(
-                AddIpfsFile::Stream((None, contents)),
-                cmd_tx,
-            ))
+            .blocking_send(IpfsCommand::AddFile(contents, cmd_tx))
             .map_err(|_| Errno::FileAddError)?;
         cmd_rx.blocking_recv().map_err(|_| Errno::FileAddError)?
     }
@@ -515,17 +530,19 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
     ///
     /// ## Errors
     /// - `Errno::InvalidIpfsPath`: Invalid IPFS path
+    /// - `Errno::InvalidCid`: Invalid CID in path
     /// - `Errno::FileGetError`: Failed to get the file
     pub(crate) fn file_get(
         &self,
         ipfs_path: &IpfsPath,
     ) -> Result<IpfsFile, Errno> {
         let ipfs_path = BaseIpfsPath::from_str(ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
+        let cid = ipfs_path.root().cid().ok_or(Errno::InvalidCid)?;
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()
             .ok_or(Errno::FileGetError)?
-            .blocking_send(IpfsCommand::GetFile(ipfs_path.clone(), cmd_tx))
+            .blocking_send(IpfsCommand::GetFile(*cid, cmd_tx))
             .map_err(|_| Errno::FileGetError)?;
         cmd_rx.blocking_recv().map_err(|_| Errno::FileGetError)?
     }
@@ -578,28 +595,25 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         cmd_rx.blocking_recv().map_err(|_| Errno::FilePinError)?
     }
 
-    /// Get file (async version)
+    /// Get file with DHT provider lookup (async version)
     ///
-    /// This is the async version of `file_get` that uses `send().await` instead of
-    /// `blocking_send()`. This is safe to call from async contexts like `PubSub`
-    /// handlers.
+    /// This method fetches a file from IPFS by first querying DHT for providers,
+    /// connecting to them, and then fetching via Bitswap.
     ///
     /// ## Parameters
-    /// - `ipfs_path`: The IPFS path of the file
+    /// - `cid`: The CID of the content to fetch
     ///
     /// ## Errors
-    /// - `Errno::InvalidIpfsPath`: Invalid IPFS path
     /// - `Errno::FileGetError`: Failed to get the file
-    pub(crate) async fn file_get_async(
+    pub(crate) async fn file_get_async_with_providers(
         &self,
-        ipfs_path: &IpfsPath,
+        cid: &hermes_ipfs::Cid,
     ) -> Result<IpfsFile, Errno> {
-        let ipfs_path = BaseIpfsPath::from_str(ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()
             .ok_or(Errno::FileGetError)?
-            .send(IpfsCommand::GetFile(ipfs_path.clone(), cmd_tx))
+            .send(IpfsCommand::GetFileWithProviders(*cid, cmd_tx))
             .await
             .map_err(|_| Errno::FileGetError)?;
         cmd_rx.await.map_err(|_| Errno::FileGetError)?

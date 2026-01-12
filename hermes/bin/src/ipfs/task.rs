@@ -4,7 +4,6 @@ use std::{collections::HashSet, str::FromStr, time::Duration};
 use hermes_ipfs::{
     Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
     doc_sync::payload::{self, DocumentDisseminationBody},
-    rust_ipfs::path::PathRoot,
 };
 use tokio::{
     sync::{mpsc, oneshot},
@@ -39,12 +38,8 @@ pub(crate) enum IpfsCommand {
     AddFile(Vec<u8>, oneshot::Sender<Result<PathIpfsFile, Errno>>),
     /// Get a file from IPFS by CID
     GetFile(Cid, oneshot::Sender<Result<Vec<u8>, Errno>>),
-    /// Get a file from IPFS by CID with specific providers
-    GetFileWithProviders(
-        Cid,
-        Vec<hermes_ipfs::PeerId>,
-        oneshot::Sender<Result<Vec<u8>, Errno>>,
-    ),
+    /// Get a file from IPFS by CID with DHT provider lookup
+    GetFileWithProviders(Cid, oneshot::Sender<Result<Vec<u8>, Errno>>),
     /// Pin a file
     PinFile(Cid, oneshot::Sender<Result<bool, Errno>>),
     /// Un-pin a file
@@ -103,9 +98,9 @@ pub(crate) async fn ipfs_command_handler(
                     .map_err(|_| Errno::FileGetError);
                 send_response(response, tx);
             },
-            IpfsCommand::GetFileWithProviders(cid, providers, tx) => {
+            IpfsCommand::GetFileWithProviders(cid, tx) => {
                 let response = hermes_node
-                    .get_ipfs_file_cbor_with_providers(&cid, &providers)
+                    .get_ipfs_file_cbor_with_providers(&cid)
                     .await
                     .map_err(|_| Errno::FileGetError);
                 send_response(response, tx);
@@ -396,96 +391,33 @@ fn doc_sync_topic_message_handler(
         for cid in new_cids {
             tracing::info!("Processing CID: {}", cid.to_string());
 
-            // Timeout for DHT provider lookup
-            const DHT_PROVIDER_TIMEOUT: Duration = Duration::from_secs(10);
-            // Timeout for IPFS file fetch
-            const FILE_GET_TIMEOUT: Duration = Duration::from_secs(30);
+            // Timeout for IPFS file fetch (includes DHT lookup and provider connection)
+            const FILE_GET_TIMEOUT: Duration = Duration::from_secs(45);
 
-            // First, query DHT for providers of this CID
-            // This is the workaround for rust-ipfs not handling NeedBlock events
-            // Note: Must use cid.to_bytes() to match the key format used by dht_provide()
-            let dht_key = cid.to_bytes();
-            let providers: Vec<hermes_ipfs::PeerId> = match timeout(
-                DHT_PROVIDER_TIMEOUT,
-                ipfs.dht_get_providers_async(dht_key),
+            // Fetch content using DHT provider lookup + Bitswap
+            // The hermes-ipfs library handles: DHT lookup -> provider connection -> Bitswap fetch
+            let content = match timeout(
+                FILE_GET_TIMEOUT,
+                ipfs.file_get_async_with_providers(&cid),
             )
             .await
             {
-                Ok(Ok(provider_set)) => {
-                    let providers: Vec<_> = provider_set.into_iter().collect();
-                    tracing::info!(
-                        %cid,
-                        provider_count = providers.len(),
-                        "Found DHT providers for CID"
-                    );
-                    providers
-                },
+                Ok(Ok(ipfs_file)) => ipfs_file,
                 Ok(Err(err)) => {
-                    tracing::warn!(
-                        %cid, %err,
-                        "DHT provider lookup failed, will try fetch without providers"
+                    tracing::error!(
+                        %channel_name_owned, %cid, %err,
+                        "Failed to get content from IPFS"
                     );
-                    Vec::new()
+                    continue;
                 },
                 Err(_) => {
                     tracing::warn!(
-                        %cid,
-                        "DHT provider lookup timed out ({}s), will try fetch without providers",
-                        DHT_PROVIDER_TIMEOUT.as_secs()
+                        %channel_name_owned, %cid,
+                        "Timeout fetching content from IPFS ({}s)",
+                        FILE_GET_TIMEOUT.as_secs()
                     );
-                    Vec::new()
+                    continue;
                 },
-            };
-
-            // Fetch content using providers if available, otherwise fall back to regular fetch
-            tracing::debug!("Fetching content (CID: {cid}) with {} providers", providers.len());
-
-            let content = if providers.is_empty() {
-                // Fall back to regular fetch (will likely timeout due to NeedBlock issue)
-                let path = hermes_ipfs::IpfsPath::new(PathRoot::Ipld(cid)).to_string();
-                match timeout(FILE_GET_TIMEOUT, ipfs.file_get_async(&path)).await {
-                    Ok(Ok(ipfs_file)) => ipfs_file,
-                    Ok(Err(err)) => {
-                        tracing::error!(
-                            %channel_name_owned, %cid, %err,
-                            "Failed to get content (no providers available)"
-                        );
-                        continue;
-                    },
-                    Err(_) => {
-                        tracing::warn!(
-                            %channel_name_owned, %cid,
-                            "Timeout fetching content from IPFS ({}s), no providers available",
-                            FILE_GET_TIMEOUT.as_secs()
-                        );
-                        continue;
-                    },
-                }
-            } else {
-                // Fetch with providers - this should work!
-                match timeout(
-                    FILE_GET_TIMEOUT,
-                    ipfs.file_get_async_with_providers(&cid, providers),
-                )
-                .await
-                {
-                    Ok(Ok(ipfs_file)) => ipfs_file,
-                    Ok(Err(err)) => {
-                        tracing::error!(
-                            %channel_name_owned, %cid, %err,
-                            "Failed to get content even with providers"
-                        );
-                        continue;
-                    },
-                    Err(_) => {
-                        tracing::warn!(
-                            %channel_name_owned, %cid,
-                            "Timeout fetching content from IPFS ({}s) even with providers",
-                            FILE_GET_TIMEOUT.as_secs()
-                        );
-                        continue;
-                    },
-                }
             };
 
             if let Ok(content_str) = std::str::from_utf8(&content) {
