@@ -341,9 +341,10 @@ impl HTTPEvent {
             .headers()
             .iter()
             .map(|(name, value)| {
-                (name.to_string(), vec![
-                    value.to_str().unwrap_or("").to_string(),
-                ])
+                (
+                    name.to_string(),
+                    vec![value.to_str().unwrap_or("").to_string()],
+                )
             })
             .collect();
 

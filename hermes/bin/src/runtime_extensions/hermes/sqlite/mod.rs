@@ -69,9 +69,13 @@ impl RteInitApp for RteSqlite {
         }
         .map_err(|err| {
             let errors = RuntimeExtensionErrors::new();
-            crate::add_rte_error!(errors, RteMetadata::none(), ImpossibleError {
-                description: err.to_string()
-            });
+            crate::add_rte_error!(
+                errors,
+                RteMetadata::none(),
+                ImpossibleError {
+                    description: err.to_string()
+                }
+            );
             errors
         })
     }

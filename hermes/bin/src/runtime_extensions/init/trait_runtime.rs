@@ -95,7 +95,9 @@ impl RteRuntime {
         reason = "Its not unnecessary, the init and fini need it boxed."
     )]
     pub fn new() -> Box<Self>
-    where Self: std::marker::Sized {
+    where
+        Self: std::marker::Sized,
+    {
         Box::new(Self)
     }
 }
@@ -131,9 +133,13 @@ impl RteInitRuntime for RteRuntime {
                 );
 
                 let errors = RuntimeExtensionErrors::new();
-                add_rte_error!(errors, RteMetadata::none(), ImpossibleError {
-                    description: msg.to_string(),
-                });
+                add_rte_error!(
+                    errors,
+                    RteMetadata::none(),
+                    ImpossibleError {
+                        description: msg.to_string(),
+                    }
+                );
                 Err(errors)
             },
         }
@@ -179,9 +185,13 @@ impl RteInitRuntime for RteRuntime {
                         );
 
                         let errors = RuntimeExtensionErrors::new();
-                        add_rte_error!(errors, RteMetadata::none(), ImpossibleError {
-                            description: msg.to_string(),
-                        });
+                        add_rte_error!(
+                            errors,
+                            RteMetadata::none(),
+                            ImpossibleError {
+                                description: msg.to_string(),
+                            }
+                        );
                         Err(errors)
                     },
                 }
@@ -194,9 +204,13 @@ impl RteInitRuntime for RteRuntime {
                 );
 
                 let errors = RuntimeExtensionErrors::new();
-                add_rte_error!(errors, RteMetadata::none(), ImpossibleError {
-                    description: msg.to_string(),
-                });
+                add_rte_error!(
+                    errors,
+                    RteMetadata::none(),
+                    ImpossibleError {
+                        description: msg.to_string(),
+                    }
+                );
                 Err(errors)
             },
         }

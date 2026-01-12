@@ -55,11 +55,9 @@ fn replace_app_manifest_with_modules(
     let mut app_manifest: AppManifest = serde_json::from_str(&manifest_content)?;
     let new_modules: Vec<ModuleEntry> = modules
         .iter()
-        .map(|module| {
-            ModuleEntry {
-                package: format!("{module}.hmod"),
-                name: module.to_string(),
-            }
+        .map(|module| ModuleEntry {
+            package: format!("{module}.hmod"),
+            name: module.to_string(),
         })
         .collect();
     app_manifest.modules = new_modules;

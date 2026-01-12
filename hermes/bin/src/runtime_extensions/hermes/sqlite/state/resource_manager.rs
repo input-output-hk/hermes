@@ -117,11 +117,9 @@ pub fn try_get_connection_resource(
     application_name: &ApplicationName,
     db_handle: DbHandle,
 ) -> Option<wasmtime::component::Resource<Sqlite>> {
-    try_get_app_state_with(application_name, |app_state| {
-        match app_state {
-            Some(app_state) => app_state.get_connection_resource(db_handle),
-            None => None,
-        }
+    try_get_app_state_with(application_name, |app_state| match app_state {
+        Some(app_state) => app_state.get_connection_resource(db_handle),
+        None => None,
     })
 }
 
@@ -168,16 +166,12 @@ pub fn get_connection_pointer(
     application_name: &ApplicationName,
     db_handle: DbHandle,
 ) -> Result<ObjectPointer, wasmtime::Error> {
-    try_get_app_state_with(application_name, |app_state| {
-        match app_state {
-            Some(app_state) => {
-                match app_state.connections.get_connection(db_handle) {
-                    Some(connection) => Ok(*connection),
-                    None => Err(connection_not_found_err()),
-                }
-            },
-            None => Err(app_not_found_err()),
-        }
+    try_get_app_state_with(application_name, |app_state| match app_state {
+        Some(app_state) => match app_state.connections.get_connection(db_handle) {
+            Some(connection) => Ok(*connection),
+            None => Err(connection_not_found_err()),
+        },
+        None => Err(app_not_found_err()),
     })
 }
 
@@ -199,20 +193,14 @@ pub fn get_statement_pointer(
     application_name: &ApplicationName,
     resource: &wasmtime::component::Resource<Statement>,
 ) -> Result<ObjectPointer, wasmtime::Error> {
-    try_get_app_state_with(application_name, |app_state| {
-        match app_state {
-            Some(app_state) => {
-                match app_state.statements.get_object(resource) {
-                    Ok(ptr) => Ok(*ptr),
-                    Err(e) => Err(e),
-                }
-            },
-            None => {
-                Err(wasmtime::Error::msg(
-                    "Application not found for statement resource",
-                ))
-            },
-        }
+    try_get_app_state_with(application_name, |app_state| match app_state {
+        Some(app_state) => match app_state.statements.get_object(resource) {
+            Ok(ptr) => Ok(*ptr),
+            Err(e) => Err(e),
+        },
+        None => Err(wasmtime::Error::msg(
+            "Application not found for statement resource",
+        )),
     })
 }
 
@@ -258,14 +246,10 @@ pub fn delete_statement_resource(
     application_name: &ApplicationName,
     resource: &wasmtime::component::Resource<Statement>,
 ) -> Result<ObjectPointer, wasmtime::Error> {
-    try_get_app_state_with(application_name, |app_state| {
-        match app_state {
-            Some(app_state) => app_state.statements.delete_resource(resource),
-            None => {
-                Err(wasmtime::Error::msg(
-                    "Application not found for statement resource",
-                ))
-            },
-        }
+    try_get_app_state_with(application_name, |app_state| match app_state {
+        Some(app_state) => app_state.statements.delete_resource(resource),
+        None => Err(wasmtime::Error::msg(
+            "Application not found for statement resource",
+        )),
     })
 }

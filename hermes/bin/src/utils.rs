@@ -26,9 +26,9 @@ mod tests {
         assert_eq!(parse_path(r"\a\b"), vec!["a".to_string(), "b".to_string()]);
 
         assert_eq!(parse_path("//a//b"), vec!["a".to_string(), "b".to_string()]);
-        assert_eq!(parse_path(r"\\a\\b"), vec![
-            "a".to_string(),
-            "b".to_string()
-        ]);
+        assert_eq!(
+            parse_path(r"\\a\\b"),
+            vec!["a".to_string(), "b".to_string()]
+        );
     }
 }

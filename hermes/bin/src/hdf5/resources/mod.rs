@@ -33,5 +33,6 @@ pub(crate) trait ResourceTrait: Display {
 
     /// Get directory content.
     fn get_directory_content(&self) -> anyhow::Result<Vec<Self>>
-    where Self: Sized;
+    where
+        Self: Sized;
 }

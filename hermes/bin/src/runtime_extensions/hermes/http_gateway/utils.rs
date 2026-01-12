@@ -9,9 +9,10 @@ pub(crate) fn extract_headers_kv(headers: &HeaderMap) -> HeadersKV {
     headers
         .iter()
         .map(|(name, value)| {
-            (name.to_string(), vec![
-                value.to_str().unwrap_or_default().to_string(),
-            ])
+            (
+                name.to_string(),
+                vec![value.to_str().unwrap_or_default().to_string()],
+            )
         })
         .collect()
 }

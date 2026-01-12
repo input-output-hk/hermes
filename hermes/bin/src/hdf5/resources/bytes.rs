@@ -53,7 +53,9 @@ impl ResourceTrait for BytesResource {
     }
 
     fn get_directory_content(&self) -> anyhow::Result<Vec<Self>>
-    where Self: Sized {
+    where
+        Self: Sized,
+    {
         Ok(Vec::new())
     }
 }

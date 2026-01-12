@@ -166,11 +166,9 @@ impl Statement<'_> {
                     .zip(1u32..)
                     .try_for_each(|(&p, i)| stmt.bind(i, p))
                     .context("Binding query parameters")
-                    .map(|()| {
-                        Rows {
-                            stmt: Some(stmt),
-                            current: None,
-                        }
+                    .map(|()| Rows {
+                        stmt: Some(stmt),
+                        current: None,
                     })
             })
             .context("Executing prepared query")
@@ -333,7 +331,9 @@ impl<'stmt> Rows<'stmt> {
     /// Same as [`Self::and_then`], but maps using [`TryFrom`].
     /// See [`Row::values_as`].
     pub fn map_as<T>(self) -> impl Iterator<Item = anyhow::Result<T>> + use<'stmt, T>
-    where T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error> {
+    where
+        T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error>,
+    {
         self.and_then(|row| row.and_then(TryInto::try_into))
     }
 }
@@ -409,7 +409,9 @@ impl Row<'_> {
     /// }
     /// ```
     pub fn values_as<T>(&self) -> anyhow::Result<T>
-    where T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error> {
+    where
+        T: for<'a> TryFrom<&'a Row<'a>, Error = anyhow::Error>,
+    {
         T::try_from(self)
     }
 }

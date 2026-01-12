@@ -138,13 +138,11 @@ mod serde_def {
                 modules: def
                     .modules
                     .into_iter()
-                    .map(|der| {
-                        super::ManifestModule {
-                            package: der.package,
-                            name: der.name,
-                            config: der.config,
-                            share: der.share,
-                        }
+                    .map(|der| super::ManifestModule {
+                        package: der.package,
+                        name: der.name,
+                        config: der.config,
+                        share: der.share,
                     })
                     .collect(),
                 www: def.www,
@@ -184,19 +182,22 @@ mod tests {
                 }).to_string();
             std::fs::write(&path, manifest_json_data).unwrap();
             let manifest = Manifest::from_file(&path).unwrap();
-            assert_eq!(manifest, Manifest {
-                name: "app_name".to_string(),
-                icon: ResourceBuilder::Fs(dir_path.join("icon.svg")),
-                metadata: ResourceBuilder::Fs(dir_path.join("metadata.json")),
-                modules: vec![ManifestModule {
-                    package: ResourceBuilder::Fs(dir_path.join("module.hmod")),
-                    name: Some("module_name".to_string()),
-                    config: Some(ResourceBuilder::Fs(dir_path.join("config.json"))),
+            assert_eq!(
+                manifest,
+                Manifest {
+                    name: "app_name".to_string(),
+                    icon: ResourceBuilder::Fs(dir_path.join("icon.svg")),
+                    metadata: ResourceBuilder::Fs(dir_path.join("metadata.json")),
+                    modules: vec![ManifestModule {
+                        package: ResourceBuilder::Fs(dir_path.join("module.hmod")),
+                        name: Some("module_name".to_string()),
+                        config: Some(ResourceBuilder::Fs(dir_path.join("config.json"))),
+                        share: Some(ResourceBuilder::Fs(dir_path.join("share"))),
+                    }],
+                    www: Some(ResourceBuilder::Fs(dir_path.join("www"))),
                     share: Some(ResourceBuilder::Fs(dir_path.join("share"))),
-                }],
-                www: Some(ResourceBuilder::Fs(dir_path.join("www"))),
-                share: Some(ResourceBuilder::Fs(dir_path.join("share"))),
-            });
+                }
+            );
         }
 
         {
@@ -217,19 +218,22 @@ mod tests {
                 }).to_string();
             std::fs::write(&path, manifest_json_data).unwrap();
             let manifest = Manifest::from_file(&path).unwrap();
-            assert_eq!(manifest, Manifest {
-                name: "app_name".to_string(),
-                icon: ResourceBuilder::Fs("/icon.svg".into()),
-                metadata: ResourceBuilder::Fs("/metadata.json".into()),
-                modules: vec![ManifestModule {
-                    package: ResourceBuilder::Fs("/module.hmod".into()),
-                    name: Some("module_name".to_string()),
-                    config: Some(ResourceBuilder::Fs("/config.json".into())),
+            assert_eq!(
+                manifest,
+                Manifest {
+                    name: "app_name".to_string(),
+                    icon: ResourceBuilder::Fs("/icon.svg".into()),
+                    metadata: ResourceBuilder::Fs("/metadata.json".into()),
+                    modules: vec![ManifestModule {
+                        package: ResourceBuilder::Fs("/module.hmod".into()),
+                        name: Some("module_name".to_string()),
+                        config: Some(ResourceBuilder::Fs("/config.json".into())),
+                        share: Some(ResourceBuilder::Fs("/share".into())),
+                    }],
+                    www: Some(ResourceBuilder::Fs("/www".into())),
                     share: Some(ResourceBuilder::Fs("/share".into())),
-                }],
-                www: Some(ResourceBuilder::Fs("/www".into())),
-                share: Some(ResourceBuilder::Fs("/share".into())),
-            });
+                }
+            );
         }
 
         {
@@ -247,19 +251,22 @@ mod tests {
                 }).to_string();
             std::fs::write(&path, manifest_json_data).unwrap();
             let manifest = Manifest::from_file(&path).unwrap();
-            assert_eq!(manifest, Manifest {
-                name: "app".to_string(),
-                icon: ResourceBuilder::Fs(dir_path.join("icon.svg")),
-                metadata: ResourceBuilder::Fs(dir_path.join("metadata.json")),
-                modules: vec![ManifestModule {
-                    package: ResourceBuilder::Fs(dir_path.join("module.hmod")),
-                    name: Some("module_name".to_string()),
-                    config: Some(ResourceBuilder::Fs(dir_path.join("config.json"))),
+            assert_eq!(
+                manifest,
+                Manifest {
+                    name: "app".to_string(),
+                    icon: ResourceBuilder::Fs(dir_path.join("icon.svg")),
+                    metadata: ResourceBuilder::Fs(dir_path.join("metadata.json")),
+                    modules: vec![ManifestModule {
+                        package: ResourceBuilder::Fs(dir_path.join("module.hmod")),
+                        name: Some("module_name".to_string()),
+                        config: Some(ResourceBuilder::Fs(dir_path.join("config.json"))),
+                        share: Some(ResourceBuilder::Fs(dir_path.join("share"))),
+                    }],
+                    www: Some(ResourceBuilder::Fs(dir_path.join("www"))),
                     share: Some(ResourceBuilder::Fs(dir_path.join("share"))),
-                }],
-                www: Some(ResourceBuilder::Fs(dir_path.join("www"))),
-                share: Some(ResourceBuilder::Fs(dir_path.join("share"))),
-            });
+                }
+            );
         }
 
         {

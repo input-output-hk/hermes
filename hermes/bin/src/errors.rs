@@ -64,7 +64,9 @@ impl Errors {
 
     /// Return a closure that adds an error to the `Errors`
     pub(crate) fn get_add_err_fn<E>(&mut self) -> impl FnOnce(E) + '_
-    where E: Into<anyhow::Error> {
+    where
+        E: Into<anyhow::Error>,
+    {
         |err| self.add_err(err)
     }
 

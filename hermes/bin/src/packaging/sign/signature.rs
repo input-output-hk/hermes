@@ -236,7 +236,8 @@ pub(crate) trait SignaturePayloadEncoding {
 
     /// Decode signature payload object from bytes.
     fn from_json(json: serde_json::Value) -> anyhow::Result<Self>
-    where Self: Sized;
+    where
+        Self: Sized;
 }
 
 impl SignaturePayloadEncoding for serde_json::Value {
@@ -245,7 +246,9 @@ impl SignaturePayloadEncoding for serde_json::Value {
     }
 
     fn from_json(json: serde_json::Value) -> anyhow::Result<Self>
-    where Self: Sized {
+    where
+        Self: Sized,
+    {
         Ok(json)
     }
 }

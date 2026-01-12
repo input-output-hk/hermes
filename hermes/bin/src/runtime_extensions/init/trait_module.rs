@@ -112,7 +112,9 @@ impl RteModule {
         reason = "Its not unnecessary, the init and fini need it boxed."
     )]
     pub fn new() -> Box<Self>
-    where Self: std::marker::Sized {
+    where
+        Self: std::marker::Sized,
+    {
         Box::new(Self)
     }
 

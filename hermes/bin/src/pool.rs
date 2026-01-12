@@ -60,7 +60,9 @@ pub(crate) fn init() -> Result<()> {
 ///
 /// * `task` - The closure to run concurrently
 pub(crate) fn execute<F>(task: F)
-where F: FnOnce() + Send + 'static {
+where
+    F: FnOnce() + Send + 'static,
+{
     TASK_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
     rayon::spawn(move || {

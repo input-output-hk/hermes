@@ -81,7 +81,9 @@ impl ResourceBuilder {
 
 impl<'de> Deserialize<'de> for ResourceBuilder {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where D: Deserializer<'de> {
+    where
+        D: Deserializer<'de>,
+    {
         let s = String::deserialize(deserializer)?;
         let uri = Uri::parse_from_str(&s);
         Self::from_uri(uri).map_err(|e| serde::de::Error::custom(e.to_string()))

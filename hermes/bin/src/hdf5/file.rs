@@ -163,12 +163,10 @@ impl std::io::Seek for File {
                 self.pos = n;
                 Ok(self.pos.try_into().map_err(map_to_io_error)?)
             },
-            None => {
-                Err(std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "Invalid seek to a negative or overflowing position",
-                ))
-            },
+            None => Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "Invalid seek to a negative or overflowing position",
+            )),
         }
     }
 

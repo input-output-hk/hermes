@@ -132,11 +132,9 @@ mod serde_def {
                 name: def.name,
                 metadata: def.metadata,
                 component: def.component,
-                config: def.config.map(|def| {
-                    super::ManifestConfig {
-                        file: def.file,
-                        schema: def.schema,
-                    }
+                config: def.config.map(|def| super::ManifestConfig {
+                    file: def.file,
+                    schema: def.schema,
                 }),
                 settings: def
                     .settings
@@ -176,21 +174,24 @@ mod tests {
                 }).to_string();
             std::fs::write(&path, manifest_json_data).unwrap();
             let manifest = Manifest::from_file(&path).unwrap();
-            assert_eq!(manifest, Manifest {
-                name: "module_name".to_string(),
-                metadata: ResourceBuilder::Fs(dir_path.join("metadata.json")),
-                component: ResourceBuilder::Fs(dir_path.join("module.wasm")),
-                config: ManifestConfig {
-                    file: Some(ResourceBuilder::Fs(dir_path.join("config.json"))),
-                    schema: ResourceBuilder::Fs(dir_path.join("config.schema.json")),
+            assert_eq!(
+                manifest,
+                Manifest {
+                    name: "module_name".to_string(),
+                    metadata: ResourceBuilder::Fs(dir_path.join("metadata.json")),
+                    component: ResourceBuilder::Fs(dir_path.join("module.wasm")),
+                    config: ManifestConfig {
+                        file: Some(ResourceBuilder::Fs(dir_path.join("config.json"))),
+                        schema: ResourceBuilder::Fs(dir_path.join("config.schema.json")),
+                    }
+                    .into(),
+                    settings: ManifestSettings {
+                        schema: ResourceBuilder::Fs(dir_path.join("settings.schema.json")),
+                    }
+                    .into(),
+                    share: Some(ResourceBuilder::Fs(dir_path.join("share"))),
                 }
-                .into(),
-                settings: ManifestSettings {
-                    schema: ResourceBuilder::Fs(dir_path.join("settings.schema.json")),
-                }
-                .into(),
-                share: Some(ResourceBuilder::Fs(dir_path.join("share"))),
-            });
+            );
         }
 
         {
@@ -210,21 +211,24 @@ mod tests {
                 }).to_string();
             std::fs::write(&path, manifest_json_data).unwrap();
             let manifest = Manifest::from_file(path).unwrap();
-            assert_eq!(manifest, Manifest {
-                name: "module".to_string(),
-                metadata: ResourceBuilder::Fs("/metadata.json".into()),
-                component: ResourceBuilder::Fs("/module.wasm".into()),
-                config: ManifestConfig {
-                    file: Some(ResourceBuilder::Fs("/config.json".into())),
-                    schema: ResourceBuilder::Fs("/config.schema.json".into()),
+            assert_eq!(
+                manifest,
+                Manifest {
+                    name: "module".to_string(),
+                    metadata: ResourceBuilder::Fs("/metadata.json".into()),
+                    component: ResourceBuilder::Fs("/module.wasm".into()),
+                    config: ManifestConfig {
+                        file: Some(ResourceBuilder::Fs("/config.json".into())),
+                        schema: ResourceBuilder::Fs("/config.schema.json".into()),
+                    }
+                    .into(),
+                    settings: ManifestSettings {
+                        schema: ResourceBuilder::Fs("/settings.schema.json".into()),
+                    }
+                    .into(),
+                    share: Some(ResourceBuilder::Fs("/share".into())),
                 }
-                .into(),
-                settings: ManifestSettings {
-                    schema: ResourceBuilder::Fs("/settings.schema.json".into()),
-                }
-                .into(),
-                share: Some(ResourceBuilder::Fs("/share".into())),
-            });
+            );
         }
 
         {
@@ -234,14 +238,17 @@ mod tests {
                 }).to_string();
             std::fs::write(&path, manifest_json_data).unwrap();
             let manifest = Manifest::from_file(&path).unwrap();
-            assert_eq!(manifest, Manifest {
-                name: "module".to_string(),
-                metadata: ResourceBuilder::Fs(dir_path.join("metadata.json")),
-                component: ResourceBuilder::Fs(dir_path.join("module.wasm")),
-                config: None,
-                settings: None,
-                share: None,
-            });
+            assert_eq!(
+                manifest,
+                Manifest {
+                    name: "module".to_string(),
+                    metadata: ResourceBuilder::Fs(dir_path.join("metadata.json")),
+                    component: ResourceBuilder::Fs(dir_path.join("module.wasm")),
+                    config: None,
+                    settings: None,
+                    share: None,
+                }
+            );
         }
     }
 }

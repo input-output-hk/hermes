@@ -108,14 +108,12 @@ impl ModulePackage {
         let mut errors = Errors::new();
 
         let app_name = match self.get_metadata() {
-            Ok(metadata) => {
-                match metadata.get_name() {
-                    Ok(name) => ApplicationName::new(&name),
-                    Err(e) => {
-                        errors.get_add_err_fn()(e);
-                        ApplicationName::new("UnknownAppName")
-                    },
-                }
+            Ok(metadata) => match metadata.get_name() {
+                Ok(name) => ApplicationName::new(&name),
+                Err(e) => {
+                    errors.get_add_err_fn()(e);
+                    ApplicationName::new("UnknownAppName")
+                },
             },
             Err(e) => {
                 errors.get_add_err_fn()(e);

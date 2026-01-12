@@ -314,22 +314,14 @@ impl WatElementMatcher {
         s: S,
     ) -> Option<WatMatch> {
         match self {
-            WatElementMatcher::Exact(sub) => {
-                s.as_ref().find(sub).map(|pos| {
-                    WatMatch {
-                        pos,
-                        len: sub.len(),
-                    }
-                })
-            },
-            WatElementMatcher::Regex(re) => {
-                re.find(s.as_ref()).map(|m| {
-                    WatMatch {
-                        pos: m.start(),
-                        len: m.end() - m.start(),
-                    }
-                })
-            },
+            WatElementMatcher::Exact(sub) => s.as_ref().find(sub).map(|pos| WatMatch {
+                pos,
+                len: sub.len(),
+            }),
+            WatElementMatcher::Regex(re) => re.find(s.as_ref()).map(|m| WatMatch {
+                pos: m.start(),
+                len: m.end() - m.start(),
+            }),
         }
     }
 }

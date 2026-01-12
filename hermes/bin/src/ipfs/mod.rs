@@ -138,11 +138,9 @@ async fn configure_listening_address(node: &hermes_ipfs::Ipfs) {
     let listen_addr = format!("/ip4/0.0.0.0/tcp/{listen_port}");
 
     match listen_addr.parse() {
-        Ok(multiaddr) => {
-            match node.add_listening_address(multiaddr).await {
-                Ok(addr) => tracing::info!("IPFS listening on: {}", addr),
-                Err(e) => tracing::error!("Failed to listen on port {}: {}", listen_port, e),
-            }
+        Ok(multiaddr) => match node.add_listening_address(multiaddr).await {
+            Ok(addr) => tracing::info!("IPFS listening on: {}", addr),
+            Err(e) => tracing::error!("Failed to listen on port {}: {}", listen_port, e),
         },
         Err(e) => tracing::error!("Invalid multiaddr format: {}", e),
     }
@@ -153,15 +151,17 @@ async fn configure_listening_address(node: &hermes_ipfs::Ipfs) {
     // themselves instead of the intended node.
     if let Ok(announce_addr) = std::env::var("IPFS_ANNOUNCE_ADDRESS") {
         match announce_addr.parse() {
-            Ok(multiaddr) => {
-                match node.add_external_address(multiaddr).await {
-                    Ok(()) => tracing::info!("IPFS announcing external address: {}", announce_addr),
-                    Err(e) => {
-                        tracing::error!("Failed to add external address {}: {}", announce_addr, e);
-                    },
-                }
+            Ok(multiaddr) => match node.add_external_address(multiaddr).await {
+                Ok(()) => tracing::info!("IPFS announcing external address: {}", announce_addr),
+                Err(e) => {
+                    tracing::error!("Failed to add external address {}: {}", announce_addr, e);
+                },
             },
-            Err(e) => tracing::error!("Invalid IPFS_ANNOUNCE_ADDRESS format '{}': {}", announce_addr, e),
+            Err(e) => tracing::error!(
+                "Invalid IPFS_ANNOUNCE_ADDRESS format '{}': {}",
+                announce_addr,
+                e
+            ),
         }
     }
 }
@@ -197,17 +197,15 @@ async fn connect_to_bootstrap_peers(
 
     for peer_addr in &peers {
         match peer_addr.parse::<hermes_ipfs::Multiaddr>() {
-            Ok(multiaddr) => {
-                match node.connect(multiaddr.clone()).await {
-                    Ok(_) => {
-                        tracing::info!("✓ Connected to bootstrap peer: {}", peer_addr);
-                        connected = connected.saturating_add(1);
-                    },
-                    Err(e) => {
-                        tracing::warn!("⚠ Initial connection failed for {}: {}", peer_addr, e);
-                        failed.push((peer_addr.clone(), multiaddr));
-                    },
-                }
+            Ok(multiaddr) => match node.connect(multiaddr.clone()).await {
+                Ok(_) => {
+                    tracing::info!("✓ Connected to bootstrap peer: {}", peer_addr);
+                    connected = connected.saturating_add(1);
+                },
+                Err(e) => {
+                    tracing::warn!("⚠ Initial connection failed for {}: {}", peer_addr, e);
+                    failed.push((peer_addr.clone(), multiaddr));
+                },
             },
             Err(e) => {
                 tracing::warn!("⚠ Invalid multiaddr {}: {}", peer_addr, e);
@@ -405,7 +403,8 @@ pub fn bootstrap(config: Config) -> anyhow::Result<()> {
 
 /// Hermes IPFS Internal Node
 pub(crate) struct HermesIpfsNode<N>
-where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send + Sync
+where
+    N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send + Sync,
 {
     /// Send events to the IPFS node.
     sender: Option<mpsc::Sender<IpfsCommand>>,
@@ -416,7 +415,8 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
 }
 
 impl<N> HermesIpfsNode<N>
-where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send + Sync
+where
+    N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send + Sync,
 {
     /// Create, initialize, and bootstrap a new `HermesIpfsNode`
     pub(crate) fn init(

@@ -194,7 +194,9 @@ impl SignaturePayloadEncoding for SignaturePayload {
     }
 
     fn from_json(json: serde_json::Value) -> anyhow::Result<Self>
-    where Self: Sized {
+    where
+        Self: Sized,
+    {
         let schema_validator = SchemaValidator::from_str(SIGNATURE_PAYLOAD_SCHEMA)?;
         schema_validator.validate(&json)?;
 

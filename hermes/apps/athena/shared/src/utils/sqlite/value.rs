@@ -100,7 +100,8 @@ impl TryFrom<cardano_blockchain_types::pallas_primitives::PolicyId> for Value {
 
 // Generic option conversion
 impl<T> From<Option<T>> for Value
-where T: Into<Value>
+where
+    T: Into<Value>,
 {
     fn from(opt: Option<T>) -> Self {
         opt.map_or(Value::Null, Into::into)
@@ -194,7 +195,8 @@ impl TryFrom<Value> for DateTime<Utc> {
 }
 
 impl<T> TryFrom<Value> for Option<T>
-where T: TryFrom<Value, Error = anyhow::Error>
+where
+    T: TryFrom<Value, Error = anyhow::Error>,
 {
     type Error = anyhow::Error;
 
@@ -250,10 +252,8 @@ impl TryFrom<Value> for cardano_blockchain_types::pallas_addresses::Address {
 
     fn try_from(v: Value) -> Result<Self, Self::Error> {
         match v {
-            Value::Blob(b) => {
-                cardano_blockchain_types::pallas_addresses::Address::from_bytes(&b)
-                    .map_err(Into::into)
-            },
+            Value::Blob(b) => cardano_blockchain_types::pallas_addresses::Address::from_bytes(&b)
+                .map_err(Into::into),
             _ => Err(anyhow::anyhow!("Value is not a Blob for Address")),
         }
     }
