@@ -55,6 +55,7 @@ cat-gateway-types = [
     "bech32",
     "cid"
 ]
+doc-sync = ["cat-gateway-types"]
 
 [dependencies]
 wit-bindgen = "0.46.0"
