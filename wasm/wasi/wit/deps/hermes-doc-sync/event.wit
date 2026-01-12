@@ -16,20 +16,22 @@
 /// Interface for handling incoming documents and local storage updates.
 interface event-on-new-doc {
     use api.{doc-data, channel-name};
-
     /// Triggered when a new document is broadcast or received on a specific topic.
     ///
-    /// Requirement: Upon receiving this event, the component should store the
-    /// document in its local storage so it can be retrieved for future SMT rebuilds.
+    /// Requirements & Use Cases:
+    /// 1. Persistence: The component should store the document in local storage
+    ///    so it can be retrieved for future SMT (Sparse Merkle Tree) rebuilds.
+    /// 2. Processing: This is the primary signal for the app to index data,
+    ///    perform business logic, or update the user interface with new content.
     ///
     /// - `channel`: The name of the synchronization channel/topic.
     /// - `doc`: The actual document data and associated metadata.
     on-new-doc: func(channel: channel-name, doc: doc-data);
 }
 
-/// Interface for retrieving Content Identifiers (CIDs) from the application's storage.
-interface event-return-cids {
-    use api.{channel-name};
+/// Interface for providing document information and data from local storage.
+interface event-document-provider {
+    use api.{channel-name, doc-data};
 
     /// A Content Identifier (CID) represented as a byte string.
     type ipfs-cid = list<u8>;
@@ -47,6 +49,23 @@ interface event-return-cids {
     ///
     /// Returns: A list of `ipfs-cid` representing all documents the app currently holds.
     return-cids: func(channel: channel-name) -> list<ipfs-cid>;
+
+    /// Retrieves the full document data associated with a specific CID.
+    ///
+    /// This is used by the host during the synchronization and pinning process:
+    /// 1. When the sync protocol identifies a CID that is not yet pinned in IPFS.
+    /// 2. To allow Hermes to serve the actual document content to the P2P network.
+    ///
+    /// Flow:
+    /// - Host calls `return-cids` to get the list of documents the app knows about.
+    /// - For any CID that needs to be made available/pinned, the host calls `retrieve-doc`.
+    /// - The host then "pins" the resulting data in the IPFS node.
+    ///
+    /// - `channel`: The synchronization channel/topic the document belongs to.
+    /// - `cid`: The unique Content Identifier of the document to retrieve.
+    ///
+    /// Returns: The full document data, or `none` if the document is no longer in storage.
+    retrieve-doc: func(channel: channel-name, cid: ipfs-cid) -> option<doc-data>;
 }
 
 /// The world defines the entry points for the host to interact with the component
@@ -55,7 +74,7 @@ world ipfs-event {
     /// Allows the host to push new documents to the app for storage and processing.
     export event-on-new-doc;
 
-    /// Allows the host to request the app's known hashes to rebuild the SMT
-    /// or reconcile the sync state.
-    export event-return-cids;
+    /// Host requests metadata (hashes) or raw data from the app to
+    /// satisfy sync protocols and IPFS pinning requirements.
+    export event-document-provider;
 }

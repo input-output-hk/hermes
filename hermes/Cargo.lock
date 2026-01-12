@@ -7727,6 +7727,7 @@ dependencies = [
  "cardano-blockchain-types",
  "catalyst-types 0.0.10",
  "chrono",
+ "cid",
  "derive_more",
  "ed25519-dalek",
  "hex",

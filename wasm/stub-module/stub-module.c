@@ -55,7 +55,11 @@ bool exports_hermes_http_gateway_event_auth_validate_auth(exports_hermes_http_ga
 void exports_hermes_doc_sync_event_on_new_doc_on_new_doc(exports_hermes_doc_sync_event_on_new_doc_channel_name_t *channel, exports_hermes_doc_sync_event_on_new_doc_doc_data_t *doc) {
 }
 
-void exports_hermes_doc_sync_event_return_cids_return_cids(exports_hermes_doc_sync_event_return_cids_channel_name_t *channel, exports_hermes_doc_sync_event_return_cids_doc_data_t *doc, hermes_list_ipfs_cid_t *ret) {
+void exports_hermes_doc_sync_event_document_provider_return_cids(exports_hermes_doc_sync_event_document_provider_channel_name_t *channel, hermes_list_ipfs_cid_t *ret) {
     ret->ptr = NULL;
     ret->len = 0;
+}
+
+bool exports_hermes_doc_sync_event_document_provider_retrieve_doc(exports_hermes_doc_sync_event_document_provider_channel_name_t *channel, exports_hermes_doc_sync_event_document_provider_ipfs_cid_t *cid, exports_hermes_doc_sync_event_document_provider_doc_data_t *ret) {
+  return false;
 }
