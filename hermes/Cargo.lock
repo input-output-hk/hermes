@@ -4511,7 +4511,7 @@ dependencies = [
 [[package]]
 name = "libp2p-relay-manager"
 version = "0.4.0"
-source = "git+https://github.com/dariusc93/rust-ipfs?rev=0a6269e05a4ccfaa547a47a56f92171e4abc0564#0a6269e05a4ccfaa547a47a56f92171e4abc0564"
+source = "git+https://github.com/cong-or/rust-ipfs?branch=fix%2Fbitswap-serve-late-arriving-peers#dc523597681be315a8cef700993c01cf312576cf"
 dependencies = [
  "anyhow",
  "futures",
@@ -6949,7 +6949,7 @@ dependencies = [
 [[package]]
 name = "rust-ipfs"
 version = "0.15.0"
-source = "git+https://github.com/dariusc93/rust-ipfs?rev=0a6269e05a4ccfaa547a47a56f92171e4abc0564#0a6269e05a4ccfaa547a47a56f92171e4abc0564"
+source = "git+https://github.com/cong-or/rust-ipfs?branch=fix%2Fbitswap-serve-late-arriving-peers#dc523597681be315a8cef700993c01cf312576cf"
 dependencies = [
  "anyhow",
  "async-rt",
@@ -7005,7 +7005,7 @@ dependencies = [
 [[package]]
 name = "rust-ipns"
 version = "0.8.0"
-source = "git+https://github.com/dariusc93/rust-ipfs?rev=0a6269e05a4ccfaa547a47a56f92171e4abc0564#0a6269e05a4ccfaa547a47a56f92171e4abc0564"
+source = "git+https://github.com/cong-or/rust-ipfs?branch=fix%2Fbitswap-serve-late-arriving-peers#dc523597681be315a8cef700993c01cf312576cf"
 dependencies = [
  "bytes",
  "chrono",
@@ -7021,7 +7021,7 @@ dependencies = [
 [[package]]
 name = "rust-unixfs"
 version = "0.5.0"
-source = "git+https://github.com/dariusc93/rust-ipfs?rev=0a6269e05a4ccfaa547a47a56f92171e4abc0564#0a6269e05a4ccfaa547a47a56f92171e4abc0564"
+source = "git+https://github.com/cong-or/rust-ipfs?branch=fix%2Fbitswap-serve-late-arriving-peers#dc523597681be315a8cef700993c01cf312576cf"
 dependencies = [
  "either",
  "filetime",
