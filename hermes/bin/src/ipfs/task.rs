@@ -38,8 +38,8 @@ pub(crate) enum IpfsCommand {
     AddFile(Vec<u8>, oneshot::Sender<Result<PathIpfsFile, Errno>>),
     /// Get a file from IPFS by CID
     GetFile(Cid, oneshot::Sender<Result<Vec<u8>, Errno>>),
-    /// Get a file from IPFS by CID with DHT provider lookup
-    GetFileWithProviders(Cid, oneshot::Sender<Result<Vec<u8>, Errno>>),
+    /// Get a file from IPFS by CID with specific providers
+    GetFileWithProviders(Cid, Vec<hermes_ipfs::PeerId>, oneshot::Sender<Result<Vec<u8>, Errno>>),
     /// Pin a file
     PinFile(Cid, oneshot::Sender<Result<bool, Errno>>),
     /// Un-pin a file
@@ -98,9 +98,9 @@ pub(crate) async fn ipfs_command_handler(
                     .map_err(|_| Errno::FileGetError);
                 send_response(response, tx);
             },
-            IpfsCommand::GetFileWithProviders(cid, tx) => {
+            IpfsCommand::GetFileWithProviders(cid, providers, tx) => {
                 let response = hermes_node
-                    .get_ipfs_file_cbor_with_providers(&cid)
+                    .get_ipfs_file_cbor_with_providers(&cid, &providers)
                     .await
                     .map_err(|_| Errno::FileGetError);
                 send_response(response, tx);
@@ -391,31 +391,51 @@ fn doc_sync_topic_message_handler(
         for cid in new_cids {
             tracing::info!("Processing CID: {}", cid.to_string());
 
-            // Timeout for IPFS file fetch (includes DHT lookup and provider connection)
-            const FILE_GET_TIMEOUT: Duration = Duration::from_secs(45);
+            const DHT_PROVIDER_TIMEOUT: Duration = Duration::from_secs(10);
+            const FILE_GET_TIMEOUT: Duration = Duration::from_secs(30);
 
-            // Fetch content using DHT provider lookup + Bitswap
-            // The hermes-ipfs library handles: DHT lookup -> provider connection -> Bitswap fetch
+            // Query DHT for providers using cid.to_bytes() to match publisher's key format
+            let dht_key = cid.to_bytes();
+            let providers: Vec<hermes_ipfs::PeerId> = match timeout(
+                DHT_PROVIDER_TIMEOUT,
+                ipfs.dht_get_providers_async(dht_key),
+            )
+            .await
+            {
+                Ok(Ok(provider_set)) => {
+                    let providers: Vec<_> = provider_set.into_iter().collect();
+                    tracing::info!(%cid, provider_count = providers.len(), "Found DHT providers");
+                    providers
+                },
+                Ok(Err(err)) => {
+                    tracing::warn!(%cid, %err, "DHT provider lookup failed");
+                    Vec::new()
+                },
+                Err(_) => {
+                    tracing::warn!(%cid, "DHT provider lookup timed out");
+                    Vec::new()
+                },
+            };
+
+            if providers.is_empty() {
+                tracing::error!(%channel_name_owned, %cid, "No providers found, skipping");
+                continue;
+            }
+
+            // Fetch content with providers (hermes-ipfs connects to them first)
             let content = match timeout(
                 FILE_GET_TIMEOUT,
-                ipfs.file_get_async_with_providers(&cid),
+                ipfs.file_get_async_with_providers(&cid, providers),
             )
             .await
             {
                 Ok(Ok(ipfs_file)) => ipfs_file,
                 Ok(Err(err)) => {
-                    tracing::error!(
-                        %channel_name_owned, %cid, %err,
-                        "Failed to get content from IPFS"
-                    );
+                    tracing::error!(%channel_name_owned, %cid, %err, "Failed to get content");
                     continue;
                 },
                 Err(_) => {
-                    tracing::warn!(
-                        %channel_name_owned, %cid,
-                        "Timeout fetching content from IPFS ({}s)",
-                        FILE_GET_TIMEOUT.as_secs()
-                    );
+                    tracing::warn!(%channel_name_owned, %cid, "Timeout fetching content ({}s)", FILE_GET_TIMEOUT.as_secs());
                     continue;
                 },
             };

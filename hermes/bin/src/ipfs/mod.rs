@@ -595,28 +595,50 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         cmd_rx.blocking_recv().map_err(|_| Errno::FilePinError)?
     }
 
-    /// Get file with DHT provider lookup (async version)
+    /// Get file with specific providers (async version)
     ///
-    /// This method fetches a file from IPFS by first querying DHT for providers,
-    /// connecting to them, and then fetching via Bitswap.
+    /// This method fetches a file from IPFS using specific providers.
     ///
     /// ## Parameters
     /// - `cid`: The CID of the content to fetch
+    /// - `providers`: List of peer IDs that have the content
     ///
     /// ## Errors
     /// - `Errno::FileGetError`: Failed to get the file
     pub(crate) async fn file_get_async_with_providers(
         &self,
         cid: &hermes_ipfs::Cid,
+        providers: Vec<hermes_ipfs::PeerId>,
     ) -> Result<IpfsFile, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()
             .ok_or(Errno::FileGetError)?
-            .send(IpfsCommand::GetFileWithProviders(*cid, cmd_tx))
+            .send(IpfsCommand::GetFileWithProviders(*cid, providers, cmd_tx))
             .await
             .map_err(|_| Errno::FileGetError)?;
         cmd_rx.await.map_err(|_| Errno::FileGetError)?
+    }
+
+    /// Get providers of a DHT value (async version)
+    ///
+    /// ## Parameters
+    /// - `key`: The DHT key to look up providers for
+    ///
+    /// ## Errors
+    /// - `Errno::DhtGetProvidersError`: Failed to get providers
+    pub(crate) async fn dht_get_providers_async(
+        &self,
+        key: DhtKey,
+    ) -> Result<HashSet<hermes_ipfs::PeerId>, Errno> {
+        let (cmd_tx, cmd_rx) = oneshot::channel();
+        self.sender
+            .as_ref()
+            .ok_or(Errno::DhtGetProvidersError)?
+            .send(IpfsCommand::DhtGetProviders(key, cmd_tx))
+            .await
+            .map_err(|_| Errno::DhtGetProvidersError)?;
+        cmd_rx.await.map_err(|_| Errno::DhtGetProvidersError)?
     }
 
     /// Put DHT Key-Value

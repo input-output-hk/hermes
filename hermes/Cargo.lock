@@ -3213,6 +3213,7 @@ dependencies = [
 [[package]]
 name = "hermes-ipfs"
 version = "0.0.11"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?branch=fix%2Fbitswap-provider-connection#d6b076b12c1352bd9674c5a55fdf3026d1a971cb"
 dependencies = [
  "anyhow",
  "blake3",
