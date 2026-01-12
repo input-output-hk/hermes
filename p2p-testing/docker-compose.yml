@@ -37,6 +37,8 @@ services:
 
     container_name: hermes-node1
     hostname: node1
+    mem_limit: 2g
+    memswap_limit: 2g
 
     environment:
       # HTTP Gateway Configuration
@@ -50,11 +52,14 @@ services:
       # info: General application events (startup, HTTP requests, module lifecycle)
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
 
+      # External address to announce (prevents 127.0.0.1 advertisement in Docker)
+      - IPFS_ANNOUNCE_ADDRESS=/ip4/172.20.0.10/tcp/4001
+
       # Bootstrap Peers (P2P Discovery)
       # Format: /ip4/<ip>/tcp/<port>/p2p/<peer-id>
       # Node 1 connects to nodes 2 and 3 to form initial mesh
       # These peer IDs are synced by 'just init-bootstrap' after volume changes
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWCqzcoEFJU592hcoTKJ4cdk431BY13mWL7ptipPfDzxEE,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWCMsrHhXG5FWDaMro9DkrVQpcNVsFMjJSqwMKaecv1ab7
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWKrNBh8UwuPgSA1b4tJXth4TzL9PAzomzf8Emgdefnuzx,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWRsNigUPWMiozoMEteH7zigNeNbwJweBwwvaS78BKAixP
 
     ports:
       # Format: "host:container"
@@ -81,6 +86,8 @@ services:
 
     container_name: hermes-node2
     hostname: node2
+    mem_limit: 2g
+    memswap_limit: 2g
 
     environment:
       - HERMES_HTTP_PORT=5000
@@ -88,9 +95,10 @@ services:
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
+      - IPFS_ANNOUNCE_ADDRESS=/ip4/172.20.0.11/tcp/4001
 
       # Node 2 connects to nodes 1 and 3
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWEWYKeT4ptw2hYKLP33CzBUNopXwEpUA7KFan7uHrX2Y2,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWCMsrHhXG5FWDaMro9DkrVQpcNVsFMjJSqwMKaecv1ab7
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWNwauZpWVDfAMT5rFCKRXdjndUATE6hzA133zNMJRyNHf,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWRsNigUPWMiozoMEteH7zigNeNbwJweBwwvaS78BKAixP
 
     ports:
       # Different host ports to avoid conflicts (all containers expose same internal ports)
@@ -115,6 +123,8 @@ services:
 
     container_name: hermes-node3
     hostname: node3
+    mem_limit: 2g
+    memswap_limit: 2g
 
     environment:
       - HERMES_HTTP_PORT=5000
@@ -122,9 +132,10 @@ services:
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
+      - IPFS_ANNOUNCE_ADDRESS=/ip4/172.20.0.12/tcp/4001
 
       # Node 3 connects to nodes 1 and 2
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWASCFfndfoG3CiQp15suXY47K2KgV3sm12Ed2T3QwGxnS,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooW9rXFf9Rq5SZgRDVFzGRX2pcuT4XC3HofntUNJ9whnpKw
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWNwauZpWVDfAMT5rFCKRXdjndUATE6hzA133zNMJRyNHf,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWKrNBh8UwuPgSA1b4tJXth4TzL9PAzomzf8Emgdefnuzx
 
     ports:
       - "5004:5000"
@@ -148,6 +159,8 @@ services:
 
     container_name: hermes-node4
     hostname: node4
+    mem_limit: 2g
+    memswap_limit: 2g
 
     environment:
       - HERMES_HTTP_PORT=5000
@@ -155,11 +168,12 @@ services:
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
+      - IPFS_ANNOUNCE_ADDRESS=/ip4/172.20.0.13/tcp/4001
 
       # Bootstrap nodes: Initial entry points for P2P mesh formation
       # Node 4 connects to nodes 1, 2, and 3 → discovers other peers → Gossipsub forms full 6-node mesh
       # Peer IDs synced by 'just init-bootstrap' after volume changes
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWEWYKeT4ptw2hYKLP33CzBUNopXwEpUA7KFan7uHrX2Y2,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWCqzcoEFJU592hcoTKJ4cdk431BY13mWL7ptipPfDzxEE,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWCMsrHhXG5FWDaMro9DkrVQpcNVsFMjJSqwMKaecv1ab7
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWNwauZpWVDfAMT5rFCKRXdjndUATE6hzA133zNMJRyNHf,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWKrNBh8UwuPgSA1b4tJXth4TzL9PAzomzf8Emgdefnuzx
 
     ports:
       - "5006:5000"
@@ -183,6 +197,8 @@ services:
 
     container_name: hermes-node5
     hostname: node5
+    mem_limit: 2g
+    memswap_limit: 2g
 
     environment:
       - HERMES_HTTP_PORT=5000
@@ -190,9 +206,10 @@ services:
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
+      - IPFS_ANNOUNCE_ADDRESS=/ip4/172.20.0.14/tcp/4001
 
-      # Node 5 connects to bootstrap nodes
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWEWYKeT4ptw2hYKLP33CzBUNopXwEpUA7KFan7uHrX2Y2,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWCqzcoEFJU592hcoTKJ4cdk431BY13mWL7ptipPfDzxEE,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWCMsrHhXG5FWDaMro9DkrVQpcNVsFMjJSqwMKaecv1ab7
+      # Node 5 connects to bootstrap nodes (1, 2, 3) for mesh resilience
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWNwauZpWVDfAMT5rFCKRXdjndUATE6hzA133zNMJRyNHf,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWKrNBh8UwuPgSA1b4tJXth4TzL9PAzomzf8Emgdefnuzx
 
     ports:
       - "5008:5000"
@@ -216,6 +233,8 @@ services:
 
     container_name: hermes-node6
     hostname: node6
+    mem_limit: 2g
+    memswap_limit: 2g
 
     environment:
       - HERMES_HTTP_PORT=5000
@@ -223,9 +242,10 @@ services:
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
       - RUST_LOG=hermes::ipfs=debug,rust_ipfs=debug,libp2p=debug,hermes=info
+      - IPFS_ANNOUNCE_ADDRESS=/ip4/172.20.0.15/tcp/4001
 
-      # Node 6 connects to bootstrap nodes
-      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWEWYKeT4ptw2hYKLP33CzBUNopXwEpUA7KFan7uHrX2Y2,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWCqzcoEFJU592hcoTKJ4cdk431BY13mWL7ptipPfDzxEE,/ip4/172.20.0.12/tcp/4001/p2p/12D3KooWCMsrHhXG5FWDaMro9DkrVQpcNVsFMjJSqwMKaecv1ab7
+      # Node 6 connects to bootstrap nodes (1, 2, 3) for mesh resilience
+      - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWNwauZpWVDfAMT5rFCKRXdjndUATE6hzA133zNMJRyNHf,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWKrNBh8UwuPgSA1b4tJXth4TzL9PAzomzf8Emgdefnuzx
 
     ports:
       - "5010:5000"

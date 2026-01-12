@@ -4,7 +4,7 @@
 //! - Publishes CBOR-encoded messages with CID lists to `PubSub` topics
 //! - Receiving nodes decode messages and fetch content from IPFS
 
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use hermes_ipfs::doc_sync::{
     payload::{CommonFields, DocumentDisseminationBody, New},
@@ -292,17 +292,18 @@ fn add_file(
 ) -> wasmtime::Result<Result<hermes_ipfs::Cid, Errno>> {
     const STEP: u8 = 1;
     match ctx.file_add(doc.clone())? {
-        Ok(FileAddResult { file_path, cid }) => {
-            // TODO - Should not convert CID here <https://github.com/input-output-hk/hermes/issues/736>
-            let mut hasher = Sha256::new();
-            hasher.update(doc);
-            let hash_digest = hasher.digest();
-            let multihash = multihash::Multihash::<64>::wrap(SHA2_256_CODE, &hash_digest)?;
-            let cbor_cid = hermes_ipfs::Cid::new_v1(CBOR_CODEC, multihash);
+        Ok(FileAddResult { file_path, cid: _ }) => {
+            // Extract CID from the returned file_path (PR #763 ensures consistent CBOR CID)
+            let ipfs_path = hermes_ipfs::IpfsPath::from_str(&file_path.to_string())
+                .map_err(|e| wasmtime::Error::msg(format!("Invalid IPFS path: {e}")))?;
+            let storage_cid = *ipfs_path
+                .root()
+                .cid()
+                .ok_or_else(|| wasmtime::Error::msg("No CID in IPFS path"))?;
             tracing::info!(
-                "✓ Step {STEP}/{POST_STEP_COUNT}: Added and pinned to IPFS (CID: {cbor_cid}, {cid:?}) → {file_path}"
+                "✓ Step {STEP}/{POST_STEP_COUNT}: Added and pinned to IPFS (CID: {storage_cid}) → {file_path}"
             );
-            Ok(Ok(cbor_cid))
+            Ok(Ok(storage_cid))
         },
         Err(e) => {
             tracing::error!(

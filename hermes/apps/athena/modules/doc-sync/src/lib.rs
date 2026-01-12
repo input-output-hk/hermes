@@ -74,10 +74,48 @@ fn format_message_preview(data: &[u8]) -> String {
 /// Returns any `SQLite` error that occurs while opening the connection,
 /// beginning the transaction, creating tables, or committing the transaction.
 fn init_db(in_memory: bool) -> anyhow::Result<()> {
-    let mut conn = sqlite::Connection::open(in_memory)?;
-    let mut tx = conn.begin()?;
-    shared::database::doc_sync::create_tables(&mut tx)?;
-    tx.commit()
+    info!(target: "doc_sync::init_db", "Opening SQLite connection (in_memory={})", in_memory);
+    let mut conn = match sqlite::Connection::open(in_memory) {
+        Ok(c) => {
+            info!(target: "doc_sync::init_db", "SQLite connection opened successfully");
+            c
+        },
+        Err(e) => {
+            error!(target: "doc_sync::init_db", "Failed to open SQLite connection: {e:?}");
+            return Err(e);
+        },
+    };
+
+    info!(target: "doc_sync::init_db", "Beginning transaction");
+    let mut tx = match conn.begin() {
+        Ok(t) => {
+            info!(target: "doc_sync::init_db", "Transaction begun successfully");
+            t
+        },
+        Err(e) => {
+            error!(target: "doc_sync::init_db", "Failed to begin transaction: {e:?}");
+            return Err(e);
+        },
+    };
+
+    info!(target: "doc_sync::init_db", "Creating doc_sync tables");
+    if let Err(e) = shared::database::doc_sync::create_tables(&mut tx) {
+        error!(target: "doc_sync::init_db", "Failed to create tables: {e:?}");
+        return Err(e);
+    }
+    info!(target: "doc_sync::init_db", "Tables created successfully");
+
+    info!(target: "doc_sync::init_db", "Committing transaction");
+    match tx.commit() {
+        Ok(()) => {
+            info!(target: "doc_sync::init_db", "Transaction committed successfully");
+            Ok(())
+        },
+        Err(e) => {
+            error!(target: "doc_sync::init_db", "Failed to commit transaction: {e:?}");
+            Err(e)
+        },
+    }
 }
 
 impl exports::hermes::init::event::Guest for Component {
@@ -231,8 +269,22 @@ pub mod channel {
 /// Stores the document in local `SQLite`: computes CID, stamps current time, and inserts
 /// into `document` table.
 fn store_in_db(doc: &DocData) -> anyhow::Result<()> {
-    let cid = compute_cid(doc)?;
+    info!(target: "doc_sync::store_in_db", "Starting store_in_db, doc size: {} bytes", doc.len());
+
+    info!(target: "doc_sync::store_in_db", "Computing CID for document");
+    let cid = match compute_cid(doc) {
+        Ok(c) => {
+            info!(target: "doc_sync::store_in_db", "CID computed successfully, {} bytes", c.len());
+            c
+        },
+        Err(e) => {
+            error!(target: "doc_sync::store_in_db", "Failed to compute CID: {e:?}");
+            return Err(e);
+        },
+    };
+
     let now = chrono::Utc::now();
+    info!(target: "doc_sync::store_in_db", "Creating InsertDocumentRow with timestamp: {now}");
     let row = InsertDocumentRow {
         cid,
         document: doc.clone(),
@@ -240,9 +292,29 @@ fn store_in_db(doc: &DocData) -> anyhow::Result<()> {
         metadata: None,
     };
 
-    let mut conn = sqlite::Connection::open(false)?;
-    shared::database::doc_sync::insert_document(&mut conn, [row]).map_err(|(_, err)| err)?;
-    Ok(())
+    info!(target: "doc_sync::store_in_db", "Opening SQLite connection (persistent)");
+    let mut conn = match sqlite::Connection::open(false) {
+        Ok(c) => {
+            info!(target: "doc_sync::store_in_db", "SQLite connection opened successfully");
+            c
+        },
+        Err(e) => {
+            error!(target: "doc_sync::store_in_db", "Failed to open SQLite connection: {e:?}");
+            return Err(e);
+        },
+    };
+
+    info!(target: "doc_sync::store_in_db", "Inserting document into database");
+    match shared::database::doc_sync::insert_document(&mut conn, [row]) {
+        Ok(count) => {
+            info!(target: "doc_sync::store_in_db", "Document inserted successfully, count: {count}");
+            Ok(())
+        },
+        Err((count, e)) => {
+            error!(target: "doc_sync::store_in_db", "Failed to insert document (inserted {count} before error): {e:?}");
+            Err(e)
+        },
+    }
 }
 
 /// Computes a `CIDv1` (CBOR codec, sha2-256 multihash) for the document bytes,
