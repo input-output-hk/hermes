@@ -1180,7 +1180,9 @@ _test-pubsub-execute:
     RESULTS_FILE="/tmp/p2p-test-results-$TIMESTAMP.txt"
     echo "TIMESTAMP=$TIMESTAMP" > "$RESULTS_FILE"
     echo "TEST_MESSAGE=\"$TEST_MESSAGE\"" >> "$RESULTS_FILE"
-    echo "CID=\"$CID\"" >> "$RESULTS_FILE"
+    # Base64 encode CID to handle binary data safely
+    CID_B64=$(echo -n "$CID" | base64 -w0)
+    echo "CID_B64=\"$CID_B64\"" >> "$RESULTS_FILE"
     echo "RECEIVED_COUNT=$RECEIVED_COUNT" >> "$RESULTS_FILE"
     echo "START_TIME=$START_TIME" >> "$RESULTS_FILE"
     for NODE in {2..6}; do
@@ -1204,6 +1206,9 @@ _test-pubsub-visualize:
 
     source "$RESULTS_FILE"
 
+    # Decode base64 CID
+    CID=$(echo -n "$CID_B64" | base64 -d 2>/dev/null || echo "unknown")
+
     declare -A NODE_STATUS NODE_RECEIVE_TIME
     for NODE in {2..6}; do
         eval "NODE_STATUS[$NODE]=\$NODE_STATUS_$NODE"
@@ -1213,7 +1218,7 @@ _test-pubsub-visualize:
     END_TIME=$(date +%s)
     TOTAL_TIME=$((END_TIME - START_TIME))
     MSG_SIZE=$(echo -n "$TEST_MESSAGE" | wc -c)
-    CID_SIZE=$(echo -n "$CID" | wc -c)
+    CID_SIZE=${#CID}
 
     # Timeline
     echo ""

@@ -1,14 +1,14 @@
 //! IPFS Task
-use std::{collections::HashSet, str::FromStr};
+use std::{collections::HashSet, str::FromStr, sync::Arc, time::Duration};
 
 use hermes_ipfs::{
     Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
     doc_sync::payload::{self, DocumentDisseminationBody},
-    rust_ipfs::path::PathRoot,
 };
 use tokio::{
     sync::{mpsc, oneshot},
     task::JoinHandle,
+    time::timeout,
 };
 
 use super::HERMES_IPFS;
@@ -33,8 +33,14 @@ pub(crate) enum SubscriptionKind {
 pub(crate) enum IpfsCommand {
     /// Add a new IPFS file
     AddFile(IpfsFile, oneshot::Sender<Result<PathIpfsFile, Errno>>),
-    /// Get a file from IPFS
-    GetFile(PathIpfsFile, oneshot::Sender<Result<Vec<u8>, Errno>>),
+    /// Get a file from IPFS by CID
+    GetFile(Cid, oneshot::Sender<Result<IpfsFile, Errno>>),
+    /// Get a file from IPFS by CID with specific providers
+    GetFileWithProviders(
+        Cid,
+        Vec<hermes_ipfs::PeerId>,
+        oneshot::Sender<Result<IpfsFile, Errno>>,
+    ),
     /// Pin a file
     PinFile(Cid, oneshot::Sender<Result<bool, Errno>>),
     /// Un-pin a file
@@ -73,6 +79,9 @@ pub(crate) async fn ipfs_command_handler(
     hermes_node: HermesIpfs,
     mut queue_rx: mpsc::Receiver<IpfsCommand>,
 ) -> anyhow::Result<()> {
+    // Wrap in Arc to allow sharing across spawned tasks
+    let hermes_node = Arc::new(hermes_node);
+
     while let Some(ipfs_command) = queue_rx.recv().await {
         tracing::debug!(
             "Received command: {:?}",
@@ -86,16 +95,24 @@ pub(crate) async fn ipfs_command_handler(
                     .map_err(|_| Errno::FileAddError);
                 send_response(response, tx);
             },
-            IpfsCommand::GetFile(ipfs_path, tx) => {
-                let cid = ipfs_path.root().cid().ok_or_else(|| {
-                    tracing::error!(ipfs_path = %ipfs_path, "Failed to get CID from IPFS path");
-                    Errno::GetCidError
-                })?;
+            IpfsCommand::GetFile(cid, tx) => {
                 let response = hermes_node
-                    .get_ipfs_file_cbor(cid)
+                    .get_ipfs_file_cbor(&cid)
                     .await
                     .map_err(|_| Errno::FileGetError);
                 send_response(response, tx);
+            },
+            IpfsCommand::GetFileWithProviders(cid, providers, tx) => {
+                // Spawn task to avoid blocking the command handler
+                // This allows concurrent file fetches and retry logic to work
+                let node = Arc::clone(&hermes_node);
+                tokio::spawn(async move {
+                    let response = node
+                        .get_ipfs_file_cbor_with_providers(&cid, &providers)
+                        .await
+                        .map_err(|_| Errno::FileGetError);
+                    send_response(response, tx);
+                });
             },
             IpfsCommand::PinFile(cid, tx) => {
                 let response = match hermes_node.insert_pin(&cid).await {
@@ -213,7 +230,11 @@ pub(crate) async fn ipfs_command_handler(
             },
         }
     }
-    hermes_node.stop().await;
+    // Try to stop the node - only works if this is the last reference
+    match Arc::try_unwrap(hermes_node) {
+        Ok(node) => node.stop().await,
+        Err(_) => tracing::warn!("Could not stop IPFS node - other references still exist"),
+    }
     Ok(())
 }
 
@@ -355,7 +376,7 @@ fn doc_sync_topic_message_handler(
         },
     };
 
-    // DO NOT remove this log, since it is use in test `_test-pubsub-execute`
+    // DO NOT remove this log, since it is used in test `_test-pubsub-execute`
     tracing::info!(
         "RECEIVED PubSub message with CIDs: {:?}",
         new_cids
@@ -363,6 +384,11 @@ fn doc_sync_topic_message_handler(
             .map(std::string::ToString::to_string)
             .collect::<Vec<_>>()
     );
+
+    // Use message.source (the publisher) as the provider - this is more reliable than DHT
+    // lookup because the publisher just published the content and DHT records may not have
+    // propagated yet.
+    let publisher = message.source;
 
     let channel_name_owned = channel_name.to_string();
     let topic_owned = topic.clone();
@@ -377,22 +403,87 @@ fn doc_sync_topic_message_handler(
         let mut contents = Vec::with_capacity(new_cids.len());
         for cid in new_cids {
             tracing::info!("Processing CID: {}", cid.to_string());
-            let path = hermes_ipfs::IpfsPath::new(PathRoot::Ipld(cid)).to_string();
-            let content = match ipfs.file_get_async(&path).await {
-                Ok(ipfs_file) => {
-                    if let Ok(content_str) = std::str::from_utf8(&ipfs_file) {
-                        tracing::info!("RECEIVED PubSub message content: {content_str}");
-                    }
-                    ipfs_file
+
+            // Use the message publisher as the provider (they just published the content)
+            // This avoids DHT lookup latency and propagation issues
+            let providers: Vec<hermes_ipfs::PeerId> = match publisher {
+                Some(peer_id) => {
+                    tracing::info!(%cid, %peer_id, "Using message publisher as provider");
+                    vec![peer_id]
                 },
-                Err(err) => {
-                    tracing::error!(
-                        %channel_name_owned, %cid, %err,
-                        "Failed to get content of the document after a successful IPFS pin"
-                    );
+                None => {
+                    tracing::warn!(%cid, "No message source, falling back to DHT lookup");
+                    // Fallback to DHT if message source is unavailable
+                    const DHT_PROVIDER_TIMEOUT: Duration = Duration::from_secs(10);
+                    let dht_key = cid.to_bytes();
+                    match timeout(DHT_PROVIDER_TIMEOUT, ipfs.dht_get_providers_async(dht_key)).await
+                    {
+                        Ok(Ok(provider_set)) => {
+                            let providers: Vec<_> = provider_set.into_iter().collect();
+                            tracing::info!(%cid, provider_count = providers.len(), "Found DHT providers");
+                            providers
+                        },
+                        Ok(Err(err)) => {
+                            tracing::warn!(%cid, %err, "DHT provider lookup failed");
+                            Vec::new()
+                        },
+                        Err(_) => {
+                            tracing::warn!(%cid, "DHT provider lookup timed out");
+                            Vec::new()
+                        },
+                    }
+                },
+            };
+
+            if providers.is_empty() {
+                tracing::error!(%channel_name_owned, %cid, "No providers found, skipping");
+                continue;
+            }
+
+            // Fetch content with providers (hermes-ipfs connects to them first)
+            // Use shorter timeout with retries to handle concurrent request contention
+            const MAX_RETRIES: u32 = 5;
+            const FETCH_TIMEOUT: Duration = Duration::from_secs(10);
+            const BACKOFF_MS: u64 = 200;
+            let mut content_result = None;
+
+            for attempt in 0..MAX_RETRIES {
+                if attempt > 0 {
+                    let backoff_ms = BACKOFF_MS * u64::from(attempt);
+                    tracing::info!(%cid, attempt, backoff_ms, "Retrying content fetch after backoff");
+                    tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
+                }
+
+                match timeout(
+                    FETCH_TIMEOUT,
+                    ipfs.file_get_async_with_providers(&cid, providers.clone()),
+                )
+                .await
+                {
+                    Ok(Ok(ipfs_file)) => {
+                        content_result = Some(ipfs_file);
+                        break;
+                    },
+                    Ok(Err(err)) => {
+                        tracing::warn!(%channel_name_owned, %cid, %err, attempt, "Failed to get content");
+                    },
+                    Err(_) => {
+                        tracing::warn!(%channel_name_owned, %cid, attempt, "Timeout fetching content ({}s)", FETCH_TIMEOUT.as_secs());
+                    },
+                }
+            }
+
+            let content = match content_result {
+                Some(c) => c,
+                None => {
+                    tracing::error!(%channel_name_owned, %cid, "Failed to get content after {} retries", MAX_RETRIES);
                     continue;
                 },
             };
+
+            if let Ok(content_str) = std::str::from_utf8(&content) {
+                tracing::info!("RECEIVED PubSub message content: {content_str}");
+            }
 
             contents.push(content);
         }
