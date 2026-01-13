@@ -48,7 +48,7 @@ pub(crate) fn hermes_ipfs_get_file(
 ) -> Result<IpfsFile, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     let content = ipfs.file_get(path)?;
-    tracing::debug!(app_name = %app_name, path = %path, "got IPFS file with content {content:?}");
+    tracing::debug!(app_name = %app_name, path = %path, "got IPFS file with content size {:?}", content.len());
     Ok(content)
 }
 
@@ -162,7 +162,9 @@ pub(crate) fn hermes_ipfs_subscribe(
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "added subscription topic stream");
     }
     ipfs.apps
-        .added_app_topic_subscription(kind, app_name.clone(), topic);
+        .added_app_topic_subscription(kind, app_name.clone(), topic.clone());
+    let module_ids = ipfs.apps.get_topic_module_ids(&topic);
+    ipfs.apps.add_topic_module_ids(&topic, module_ids);
     Ok(true)
 }
 

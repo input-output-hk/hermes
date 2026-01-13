@@ -153,6 +153,9 @@ impl HostSyncChannel for HermesRuntimeContext {
         }
         tracing::info!("Created Doc Sync Channel: {name}");
 
+        // DO NOT REMOVE THIS LOG, it is used in the test
+        tracing::info!("Subscribed to .new with base {name}");
+
         // When subscribe is successful, create and start the timer
         if channel_state.timers.is_none() {
             let timers = {
@@ -293,7 +296,7 @@ fn add_file(
     const STEP: u8 = 1;
     match ctx.file_add(doc.clone())? {
         Ok(FileAddResult { file_path, cid }) => {
-            let cid = match TryInto::<hermes_ipfs::Cid>::try_into(cid) {
+            let cid: hermes_ipfs::Cid = match cid.try_into() {
                 Ok(cid) => cid,
                 Err(e) => {
                     tracing::error!(
