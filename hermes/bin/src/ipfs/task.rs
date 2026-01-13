@@ -6,6 +6,7 @@ use hermes_ipfs::{
     doc_sync::{
         Blake3256,
         payload::{self, CommonFields, DocumentDisseminationBody},
+        syn_payload::MsgSyn,
     },
     rust_ipfs::path::PathRoot,
 };
@@ -378,6 +379,32 @@ fn perform_reconciliation(
     root: Blake3256,
     count: u64,
 ) {
+    let my_root = todo!();
+    if root == my_root {
+        tracing::info!(?my_root, ?root, "roots match, no reconciliation required");
+    }
+
+    let result1 = subscribe_to_diff();
+    let syn_payload = make_syn_payload();
+    let result2 = send_syn_payload(&syn_payload);
+}
+
+fn subscribe_to_diff() -> () {
+    todo!()
+}
+
+fn make_syn_payload() -> MsgSyn {
+    MsgSyn {
+        root: todo!(),
+        count: todo!(),
+        to: todo!(),
+        prefix: todo!(),
+        peer_root: todo!(),
+        peer_count: todo!(),
+    }
+}
+
+fn send_syn_payload(payload: &MsgSyn) -> () {
     todo!()
 }
 
