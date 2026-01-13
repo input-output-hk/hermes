@@ -3,7 +3,10 @@ use std::{collections::HashSet, str::FromStr};
 
 use hermes_ipfs::{
     Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
-    doc_sync::payload::{self, DocumentDisseminationBody},
+    doc_sync::{
+        Blake3256,
+        payload::{self, CommonFields, DocumentDisseminationBody},
+    },
     rust_ipfs::path::PathRoot,
 };
 use tokio::{
@@ -350,29 +353,32 @@ fn doc_sync_topic_message_handler(
         },
     };
 
-    let new_cids = match payload {
-        DocumentDisseminationBody::Docs { docs, .. } => docs,
+    match payload {
+        DocumentDisseminationBody::Docs {
+            docs,
+            common_fields: CommonFields { root, count, .. },
+        } => {
+            // DO NOT remove this log, since it is used in tests
+            tracing::info!("RECEIVED PubSub message with CIDs: {:?}", docs);
+
+            if docs.is_empty() {
+                perform_reconciliation(root, count);
+            } else {
+                process_broadcasted_cids(&topic, channel_name, docs);
+            }
+        },
         DocumentDisseminationBody::Manifest { .. } => {
             tracing::error!("Manifest is not supported in a .new payload");
             return;
         },
-    };
-
-    // DO NOT remove this log, since it is used in tests
-    tracing::info!(
-        "RECEIVED PubSub message with CIDs: {:?}",
-        new_cids
-            .iter()
-            .map(std::string::ToString::to_string)
-            .collect::<Vec<_>>()
-    );
-
-    if new_cids.is_empty() {
-        todo!();
-        return;
-    } else {
-        process_broadcasted_cids(&topic, channel_name, new_cids);
     }
+}
+
+fn perform_reconciliation(
+    root: Blake3256,
+    count: u64,
+) {
+    todo!()
 }
 
 fn process_broadcasted_cids(
