@@ -226,7 +226,10 @@ fn json_response(
 
 /// API for posting documents to IPFS `PubSub` channels.
 pub mod channel {
+    use shared::utils::log::error;
+
     use super::{DOC_SYNC_CHANNEL, DocData, SyncChannel, hermes};
+    use crate::store_in_db;
 
     /// Post a document to the "documents" channel. Returns the document's CID.
     ///
@@ -237,7 +240,19 @@ pub mod channel {
         // Create channel via host
         let channel = SyncChannel::new(DOC_SYNC_CHANNEL);
         // Post document via host (executes 4-step workflow in host)
-        channel.post(document_bytes)
+        match channel.post(document_bytes) {
+            Ok(cid) => {
+                // If successfully posted, store document in db
+                if let Err(err) = store_in_db(document_bytes) {
+                    error!(target: "doc_sync::channel::post", "Failed to store doc in db: {err:?}");
+                }
+                return Ok(cid);
+            },
+            Err(err) => {
+                error!(target: "doc_sync::channel::post", "Failed to post doc: {err:?}");
+                return Err(err);
+            },
+        }
     }
 }
 
