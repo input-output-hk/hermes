@@ -531,7 +531,8 @@ fn send_new_keepalive(
     app_name: &ApplicationName,
 ) -> anyhow::Result<()> {
     let new_topic = format!("{channel_name}.new");
-    // TODO: Use actual SMT root hash when available
+    // TODO: Use actual SMT root hash and count when available:
+    // "* re‑advertises the sender’s current `root` and `count` without referencing any CIDs,"
     // Sending .new keepalive message where `docs` is empty
     let payload = New::try_from(DocumentDisseminationBody::Docs {
         common_fields: CommonFields {
