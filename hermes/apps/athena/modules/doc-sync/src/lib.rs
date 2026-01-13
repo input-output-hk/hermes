@@ -152,14 +152,14 @@ impl exports::hermes::doc_sync::event_document_provider::Guest for Component {
         _channel: ChannelName,
         cid: IpfsCid,
     ) -> std::option::Option<DocData> {
-        get_document_by_cid(&channel, &cid).ok().flatten()
+        get_document_by_cid(&cid).ok().flatten()
     }
 }
 
 /// Helper function to get documents cids by topic.
 fn get_documents_cids(topic: &str) -> anyhow::Result<Vec<IpfsCid>> {
     let mut conn = sqlite::Connection::open(false)?;
-    let docs = shared::database::doc_sync::get_documents_cids_by_topic(&mut conn, channel)?;
+    let docs = shared::database::doc_sync::get_documents_cids_by_topic(&mut conn, topic)?;
     Ok(docs.into_iter().map(|cid| cid.0.to_bytes()).collect())
 }
 
