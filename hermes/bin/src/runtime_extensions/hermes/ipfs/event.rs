@@ -2,8 +2,10 @@
 use std::fmt::Display;
 
 use crate::{
-    event::HermesEventPayload,
+    app::ApplicationName,
+    event::{HermesEvent, HermesEventPayload},
     runtime_extensions::bindings::{hermes::ipfs::api::PubsubMessage, unchecked_exports},
+    wasm::module::ModuleId,
 };
 
 unchecked_exports::define! {
@@ -19,6 +21,35 @@ unchecked_exports::define! {
 pub(crate) struct OnTopicEvent {
     ///  Topic message received.
     pub(crate) message: PubsubMessage,
+}
+
+impl OnTopicEvent {
+    /// Create a new `OnTopicEvent` event from a message.
+    pub(crate) fn new(message: PubsubMessage) -> Self {
+        Self { message }
+    }
+
+    /// Build and send on-topic event.
+    pub(crate) fn build_and_send(
+        &self,
+        app_names: Vec<ApplicationName>,
+        module_ids: Vec<ModuleId>,
+    ) -> anyhow::Result<()> {
+        let event = HermesEvent::new(
+            self.clone(),
+            crate::event::TargetApp::List(app_names),
+            crate::event::TargetModule::List(module_ids),
+        );
+
+        crate::event::queue::send(event).map_err(|err| {
+            tracing::error!(
+                error = %err,
+                channel = %self.message.topic,
+                "Failed to send on-topic event"
+            );
+            err
+        })
+    }
 }
 
 impl Display for OnTopicEvent {

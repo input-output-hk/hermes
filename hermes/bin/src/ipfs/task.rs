@@ -12,14 +12,11 @@ use tokio::{
 };
 
 use super::HERMES_IPFS;
-use crate::{
-    event::{HermesEvent, queue::send},
-    runtime_extensions::{
-        bindings::hermes::ipfs::api::{
-            DhtKey, DhtValue, Errno, IpfsFile, MessageData, PeerId, PubsubMessage, PubsubTopic,
-        },
-        hermes::{doc_sync::OnNewDocEvent, ipfs::event::OnTopicEvent},
+use crate::runtime_extensions::{
+    bindings::hermes::ipfs::api::{
+        DhtKey, DhtValue, Errno, IpfsFile, MessageData, PeerId, PubsubMessage, PubsubTopic,
     },
+    hermes::{doc_sync::OnNewDocEvent, ipfs::event::OnTopicEvent},
 };
 
 /// Chooses how subscription messages are handled.
@@ -299,25 +296,15 @@ fn topic_message_handler(
 ) {
     if let Some(ipfs) = HERMES_IPFS.get() {
         let app_names = ipfs.apps.subscribed_apps(SubscriptionKind::Default, &topic);
-        let on_topic_event = OnTopicEvent {
-            message: PubsubMessage {
-                topic,
+
+        drop(
+            OnTopicEvent::new(PubsubMessage {
+                topic: topic.clone(),
                 message: message.data.into(),
                 publisher: message.source.map(|p| p.to_string()),
-            },
-        };
-        // Dispatch Hermes Event
-        if let Err(err) = send(HermesEvent::new(
-            on_topic_event.clone(),
-            crate::event::TargetApp::List(app_names),
-            crate::event::TargetModule::All,
-        )) {
-            tracing::error!(
-                on_topic_event = %on_topic_event,
-                err = err.to_string(),
-                "Failed to send on_topic_event.",
-            );
-        }
+            })
+            .build_and_send(app_names, ipfs.apps.get_topic_module_ids(&topic)),
+        );
     } else {
         tracing::error!("Failed to send on_topic_event. IPFS is uninitialized");
     }
@@ -414,16 +401,11 @@ fn doc_sync_topic_message_handler(
             .subscribed_apps(SubscriptionKind::DocSync, &topic_owned);
 
         for content in contents {
-            let event = HermesEvent::new(
-                OnNewDocEvent::new(&channel_name_owned, &content),
-                crate::event::TargetApp::List(app_names.clone()),
-                crate::event::TargetModule::All,
+            let module_ids = ipfs.apps.get_topic_module_ids(&topic_owned);
+            drop(
+                OnNewDocEvent::new(&channel_name_owned, &content)
+                    .build_and_send(app_names.clone(), module_ids),
             );
-
-            // Dispatch Hermes Event
-            if let Err(err) = send(event) {
-                tracing::error!(%channel_name_owned, %err, "Failed to send `on_new_doc` event");
-            }
         }
     });
 }
