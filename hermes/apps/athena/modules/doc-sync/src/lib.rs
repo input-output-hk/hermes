@@ -149,25 +149,22 @@ impl exports::hermes::doc_sync::event_document_provider::Guest for Component {
     }
 
     fn retrieve_doc(
-        channel: ChannelName,
+        _channel: ChannelName,
         cid: IpfsCid,
     ) -> std::option::Option<DocData> {
         get_document_by_cid(&channel, &cid).ok().flatten()
     }
 }
 
-/// Helper function to consume all errors appear.
-fn get_documents_cids(channel: &str) -> anyhow::Result<Vec<IpfsCid>> {
+/// Helper function to get documents cids by topic.
+fn get_documents_cids(topic: &str) -> anyhow::Result<Vec<IpfsCid>> {
     let mut conn = sqlite::Connection::open(false)?;
     let docs = shared::database::doc_sync::get_documents_cids_by_topic(&mut conn, channel)?;
     Ok(docs.into_iter().map(|cid| cid.0.to_bytes()).collect())
 }
 
-/// Helper function to consume all errors appear.
-fn get_document_by_cid(
-    _channel: &str,
-    cid: &[u8],
-) -> anyhow::Result<Option<Vec<u8>>> {
+/// Helper function to retrieve document by it's cid.
+fn get_document_by_cid(cid: &[u8]) -> anyhow::Result<Option<Vec<u8>>> {
     let mut conn = sqlite::Connection::open(false)?;
     let document_data = shared::database::doc_sync::get_document_by_cid(&mut conn, cid)?;
     Ok(document_data.map(|data| data.cid))

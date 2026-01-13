@@ -60,7 +60,7 @@ pub fn get_documents_cids_by_topic(
 
             let bytes = row
                 .get_as::<Vec<u8>>(0)
-                .map_err(|err| anyhow::anyhow!("get documents by cid error: {err}"))?;
+                .map_err(|err| anyhow::anyhow!("get cids by topic error: {err}"))?;
 
             let cid = Cid::try_from_bytes(&bytes)?;
 
