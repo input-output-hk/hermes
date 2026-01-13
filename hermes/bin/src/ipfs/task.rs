@@ -328,11 +328,6 @@ fn topic_message_handler(
 ///
 /// Uses async file operations (`file_get_async`) to avoid blocking the `PubSub` handler.
 /// Message format: `payload::New` → `DocumentDisseminationBody::Docs { docs: Vec<Cid> }`
-#[allow(
-    clippy::needless_pass_by_value,
-    clippy::too_many_lines,
-    reason = "The event will be eventually consumed in the handler"
-)]
 fn doc_sync_topic_message_handler(
     message: hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
