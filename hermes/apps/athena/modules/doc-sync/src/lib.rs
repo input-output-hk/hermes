@@ -16,7 +16,8 @@ shared::bindings_generate!({
 
             export hermes:init/event;
             export hermes:ipfs/event;        // Required: Receives `PubSub` messages via on-topic
-            export hermes:doc-sync/event;    // Optional: Doc-sync specific events
+            export hermes:doc-sync/event-on-new-doc;    // Optional: Doc-sync specific events
+            export hermes:doc-sync/event-document-provider;    // Optional: Doc-sync specific events
             export hermes:http-gateway/event;
         }
     ",
@@ -40,6 +41,8 @@ use shared::{
         sqlite,
     },
 };
+
+use crate::exports::hermes::doc_sync::event_document_provider::IpfsCid;
 
 /// Doc Sync component - thin wrapper calling host-side implementation.
 struct Component;
@@ -120,7 +123,7 @@ impl exports::hermes::ipfs::event::Guest for Component {
 ///
 /// This is for potential future doc-sync specific event types. Currently, all
 /// `PubSub` messages are received via the `on-topic` handler above.
-impl exports::hermes::doc_sync::event::Guest for Component {
+impl exports::hermes::doc_sync::event_on_new_doc::Guest for Component {
     fn on_new_doc(
         channel: ChannelName,
         doc: DocData,
@@ -134,10 +137,37 @@ impl exports::hermes::doc_sync::event::Guest for Component {
             format_message_preview(&doc)
         );
 
-        if let Err(err) = store_in_db(&doc) {
+        if let Err(err) = store_in_db(&doc, &channel) {
             error!(target: "doc_sync::on_new_doc", "Failed to store doc from channel {channel}: {err:?}");
         }
     }
+}
+
+impl exports::hermes::doc_sync::event_document_provider::Guest for Component {
+    fn return_cids(channel: ChannelName) -> Vec<IpfsCid> {
+        get_documents_cids(&channel).unwrap_or_default()
+    }
+
+    fn retrieve_doc(
+        _channel: ChannelName,
+        cid: IpfsCid,
+    ) -> std::option::Option<DocData> {
+        get_document_by_cid(&cid).ok().flatten()
+    }
+}
+
+/// Helper function to get documents cids by topic.
+fn get_documents_cids(topic: &str) -> anyhow::Result<Vec<IpfsCid>> {
+    let mut conn = sqlite::Connection::open(false)?;
+    let docs = shared::database::doc_sync::get_documents_cids_by_topic(&mut conn, topic)?;
+    Ok(docs.into_iter().map(|cid| cid.0.to_bytes()).collect())
+}
+
+/// Helper function to retrieve document by it's cid.
+fn get_document_by_cid(cid: &[u8]) -> anyhow::Result<Option<Vec<u8>>> {
+    let mut conn = sqlite::Connection::open(false)?;
+    let document_data = shared::database::doc_sync::get_document_by_cid(&mut conn, cid)?;
+    Ok(document_data.map(|data| data.cid))
 }
 
 /// HTTP Gateway endpoint for testing with curl.
@@ -230,13 +260,17 @@ pub mod channel {
 
 /// Stores the document in local `SQLite`: computes CID, stamps current time, and inserts
 /// into `document` table.
-fn store_in_db(doc: &DocData) -> anyhow::Result<()> {
+fn store_in_db(
+    doc: &DocData,
+    topic: &str,
+) -> anyhow::Result<()> {
     let cid = compute_cid(doc)?;
     let now = chrono::Utc::now();
     let row = InsertDocumentRow {
         cid,
         document: doc.clone(),
         inserted_at: now,
+        topic: topic.to_string(),
         metadata: None,
     };
 

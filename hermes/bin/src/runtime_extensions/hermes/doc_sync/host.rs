@@ -1,7 +1,8 @@
 //! Doc Sync host module.
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use hermes_ipfs::doc_sync::{
+    Blake3256,
     payload::{CommonFields, DocumentDisseminationBody, New},
     timers::{config::SyncTimersConfig, state::SyncTimersState},
 };
@@ -9,20 +10,20 @@ use minicbor::{Encode, Encoder, data::Tag, encode};
 use stringzilla::stringzilla::Sha256;
 use wasmtime::component::Resource;
 
-use super::ChannelState;
+use super::{
+    ChannelState, Cid, DOC_SYNC_STATE, Tree, channel_resource_id, current_smt_summary,
+    insert_cids_into_smt,
+};
 use crate::{
     app::ApplicationName,
     ipfs::{self, hermes_ipfs_publish, hermes_ipfs_subscribe},
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::{
-        bindings::hermes::{
-            doc_sync::api::{
-                ChannelName, DocData, DocLoc, DocProof, Errno, Host, HostSyncChannel, ProverId,
-                SyncChannel,
-            },
-            ipfs::api::{FileAddResult, Host as IpfsHost},
+    runtime_extensions::bindings::hermes::{
+        doc_sync::api::{
+            ChannelName, DocData, DocLoc, DocProof, Errno, Host, HostSyncChannel, ProverId,
+            SyncChannel,
         },
-        hermes::doc_sync::DOC_SYNC_STATE,
+        ipfs::api::{FileAddResult, Host as IpfsHost},
     },
 };
 
@@ -47,9 +48,6 @@ const SHA2_256_CODE: u64 = 0x12;
 /// See: <https://github.com/ipld/cid-cbor/>
 const CID_CBOR_TAG: u64 = 42;
 
-/// Wrapper for `hermes_ipfs::Cid` to implement `minicbor::Encode` for it.
-struct Cid(hermes_ipfs::Cid);
-
 impl Encode<()> for Cid {
     fn encode<W: encode::Write>(
         &self,
@@ -58,7 +56,7 @@ impl Encode<()> for Cid {
     ) -> Result<(), encode::Error<W::Error>> {
         // Encode as tag(42) containing the CID bytes
         e.tag(Tag::new(CID_CBOR_TAG))?;
-        e.bytes(&self.0.to_bytes())?;
+        e.bytes(&self.to_bytes())?;
         Ok(())
     }
 }
@@ -106,10 +104,6 @@ impl HostSyncChannel for HermesRuntimeContext {
         &mut self,
         name: ChannelName,
     ) -> wasmtime::Result<Resource<SyncChannel>> {
-        let hash = blake2b_simd::Params::new()
-            .hash_length(4)
-            .hash(name.as_bytes());
-
         // The digest is a 64-byte array ([u8; 64]) for 512-bit output.
         // Take the first 4 bytes to use them as resource id.
         //
@@ -118,11 +112,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         // acceptable but unlikely in practice. We use the first 4 bytes of
         // the cryptographically secure Blake2b hash as a fast, 32-bit ID
         // to minimize lock contention when accessing state via DOC_SYNC_STATE.
-        let prefix_bytes: &[u8; 4] = hash.as_bytes().try_into().map_err(|err| {
-            wasmtime::Error::msg(format!("BLAKE2b hash output length must be 4 bytes: {err}"))
-        })?;
-
-        let resource: u32 = u32::from_be_bytes(*prefix_bytes);
+        let resource: u32 = channel_resource_id(&name).map_err(wasmtime::Error::msg)?;
         let mut channel_state = DOC_SYNC_STATE
             .entry(resource)
             .or_insert(ChannelState::new(&name));
@@ -148,19 +138,29 @@ impl HostSyncChannel for HermesRuntimeContext {
         }
         tracing::info!("Created Doc Sync Channel: {name}");
 
+        let timers_to_start;
         // When subscribe is successful, create and start the timer
         if channel_state.timers.is_none() {
             let timers = {
                 let app_name = self.app_name().clone();
+                let channel_name = name.clone();
+                let smt = channel_state.smt.clone();
 
                 let callback = Arc::new(move || {
-                    send_new_keepalive(&name, &app_name).map_err(|e| anyhow::anyhow!("{e:?}",))
+                    send_new_keepalive(&smt, &channel_name, &app_name)
+                        .map_err(|e| anyhow::anyhow!("{e:?}"))
                 });
 
                 SyncTimersState::new(SyncTimersConfig::default(), callback)
             };
-            timers.start_quiet_timer();
+            timers_to_start = Some(timers.clone());
             channel_state.timers = Some(timers);
+        } else {
+            timers_to_start = None;
+        }
+        drop(channel_state);
+        if let Some(timers) = timers_to_start {
+            timers.start_quiet_timer();
         }
 
         Ok(wasmtime::component::Resource::new_own(resource))
@@ -196,13 +196,29 @@ impl HostSyncChannel for HermesRuntimeContext {
     ) -> wasmtime::Result<Result<DocLoc, Errno>> {
         tracing::info!("📤 Posting {} bytes to doc-sync channel", doc.len());
 
-        let cid = add_file(self, &doc)??;
+        let cid = add_document(self, &doc)??;
+        let channel_state = DOC_SYNC_STATE
+            .get(&sync_channel.rep())
+            .ok_or_else(|| wasmtime::Error::msg("Channel not found"))?
+            .clone();
+
         dht_provide(self, &cid)?;
         let peer_id = get_peer_id(self)??;
         ensure_provided(self, &cid, &peer_id)??;
-        publish(self, doc, sync_channel.rep())??;
 
-        Ok(Ok(cid.as_bytes().to_vec()))
+        // Update SMT and publish .new with root/count
+        let (root, count) = insert_cids_into_smt(&channel_state.smt, [cid.clone()])
+            .map_err(|err| wasmtime::Error::msg(format!("Failed to update SMT: {err}")))?;
+        let payload = build_new_payload(root, count, vec![cid.inner()]).map_err(|err| {
+            wasmtime::Error::msg(format!("Failed to build doc-sync payload: {err}"))
+        })?;
+        publish_new_payload(self, &channel_state, &payload)??;
+
+        if let Some(timers) = channel_state.timers {
+            timers.reset_quiet_timer();
+        }
+
+        Ok(Ok(cid.to_bytes()))
     }
 
     /// Prove a document is stored in the provers
@@ -281,16 +297,17 @@ impl HostSyncChannel for HermesRuntimeContext {
 /// Add document to IPFS (automatically pins)
 /// Note: `file_add` pins the document under the hood via the `hermes_ipfs` library,
 /// so no explicit `file_pin` call is needed.
-fn add_file(
+fn add_document(
     ctx: &mut HermesRuntimeContext,
     doc: &DocData,
-) -> wasmtime::Result<Result<String, Errno>> {
+) -> wasmtime::Result<Result<Cid, Errno>> {
     const STEP: u8 = 1;
     match ctx.file_add(doc.clone())? {
         Ok(FileAddResult { file_path, cid }) => {
+            let cid = Cid::from_bytes(&cid);
             tracing::info!(
                 "✓ Step {STEP}/{POST_STEP_COUNT}: Added and pinned to IPFS (CID: {}) → {}",
-                cid,
+                cid.0,
                 file_path
             );
             Ok(Ok(cid))
@@ -308,15 +325,15 @@ fn add_file(
 /// Announce being a provider of the given CID to the DHT.
 fn dht_provide(
     ctx: &mut HermesRuntimeContext,
-    cid: &str,
+    cid: &Cid,
 ) -> Result<(), Errno> {
     const STEP: u8 = 2;
     tracing::info!("⏭ Step {STEP}/{POST_STEP_COUNT}: Pre-publish");
-    match ctx.dht_provide(cid.into()) {
+    match ctx.dht_provide(cid.to_bytes()) {
         Ok(_) => {
             tracing::info!(
                 "✓ Step {STEP}/{POST_STEP_COUNT}: DHT provide successful (CID: {})",
-                cid
+                cid.0
             );
             Ok(())
         },
@@ -352,7 +369,7 @@ fn get_peer_id(ctx: &mut HermesRuntimeContext) -> wasmtime::Result<Result<String
 /// `peer_id`
 fn ensure_provided(
     ctx: &mut HermesRuntimeContext,
-    cid: &str,
+    cid: &Cid,
     peer_id: &str,
 ) -> wasmtime::Result<Result<(), Errno>> {
     const STEP: u8 = 4;
@@ -374,7 +391,7 @@ fn ensure_provided(
         .into_iter()
         .chain(std::iter::repeat_n(2000, 20));
     loop {
-        let providers = ctx.dht_get_providers(cid.into())??;
+        let providers = ctx.dht_get_providers(cid.to_bytes())??;
         tracing::debug!(
             "Step {STEP}/{POST_STEP_COUNT}: DHT query returned {} provider(s): {:?}",
             providers.len(),
@@ -406,7 +423,24 @@ fn ensure_provided(
     }
 }
 
-/// Publish to `PubSub`
+/// Build a `.new` payload from local SMT signature and doc list.
+fn build_new_payload(
+    root: Blake3256,
+    count: u64,
+    docs: Vec<hermes_ipfs::Cid>,
+) -> anyhow::Result<New> {
+    New::try_from(DocumentDisseminationBody::Docs {
+        common_fields: CommonFields {
+            root,
+            count,
+            in_reply_to: None,
+        },
+        docs,
+    })
+    .map_err(|e| anyhow::anyhow!("Failed to create payload::New: {e}"))
+}
+
+/// Publish encoded `.new` payload to `PubSub`.
 ///
 /// IMPORTANT: Gossipsub is a peer-to-peer protocol that requires at least one
 /// OTHER peer node to be subscribed to the topic before messages can be published.
@@ -418,18 +452,19 @@ fn ensure_provided(
 ///
 /// Since Step 1 (add + pin) already succeeded, the document is safely stored
 /// in IPFS. We treat "no peers" as a warning rather than a fatal error.
-fn publish(
+fn publish_new_payload(
     ctx: &mut HermesRuntimeContext,
-    doc: DocData,
-    rep: u32,
+    channel_state: &ChannelState,
+    payload: &New,
 ) -> wasmtime::Result<Result<(), Errno>> {
     const STEP: u8 = 5;
-    let channel_state = DOC_SYNC_STATE
-        .get(&rep)
-        .ok_or_else(|| wasmtime::Error::msg("Channel not found"))?
-        .clone();
-
     let topic_new = format!("{}.new", channel_state.channel_name);
+
+    let mut payload_bytes = Vec::new();
+    let mut enc = Encoder::new(&mut payload_bytes);
+    payload
+        .encode(&mut enc, &mut ())
+        .map_err(|e| wasmtime::Error::msg(format!("Failed to encode payload::New: {e}")))?;
 
     // The channel should already be subscribed to the `.new` topic (subscription
     // is performed in `new()`). Invoking the subscription again to ensure
@@ -443,35 +478,26 @@ fn publish(
     // Attempt to publish to PubSub
     tracing::info!(
         "📤 Attempting to publish {} bytes to topic: {}",
-        doc.len(),
+        payload_bytes.len(),
         topic_new
     );
 
-    match ctx.pubsub_publish(topic_new.clone(), doc)? {
+    match hermes_ipfs_publish(ctx.app_name(), &topic_new, payload_bytes) {
         Ok(()) => {
             tracing::info!("✅ Step {STEP}/{POST_STEP_COUNT}: Published to PubSub → {topic_new}");
+            if let Some(timers) = channel_state.timers.as_ref() {
+                timers.reset_quiet_timer();
+            }
+            Ok(Ok(()))
         },
         Err(e) => {
-            // Non-fatal: PubSub requires peer nodes to be subscribed to the topic.
-            // In a single-node environment, this is expected to fail with
-            // "NoPeersSubscribedToTopic". We treat this as a warning rather
-            // than a fatal error since Step 1 already succeeded.
             tracing::warn!(
-                "⚠ Step {STEP}/{POST_STEP_COUNT}: PubSub publish failed: {:?}",
-                e
+                error = ?e,
+                "Doc-sync publish failed (non-fatal: NoPeersSubscribedToTopic likely in single-node; doc already stored)"
             );
-            tracing::warn!(
-                "   Note: Gossipsub requires other nodes subscribing to '{topic_new}' to work",
-            );
-            tracing::info!("   Document is successfully stored in IPFS");
+            Ok(Err(Errno::DocErrorPlaceholder))
         },
     }
-
-    if let Some(timers) = channel_state.timers {
-        timers.reset_quiet_timer();
-    }
-
-    Ok(Ok(()))
 }
 
 /// This function is required cause reusage of `self.close`
@@ -512,28 +538,20 @@ fn is_pre_publish_completed(
 
 /// Sending new keep alive message for .new topic.
 fn send_new_keepalive(
+    smt: &Arc<Mutex<Tree<Cid>>>,
     channel_name: &str,
     app_name: &ApplicationName,
 ) -> anyhow::Result<()> {
-    let new_topic = format!("{channel_name}.new");
-    // TODO: Use actual SMT root hash when available
-    // Sending .new keepalive message where `docs` is empty
-    let payload = New::try_from(DocumentDisseminationBody::Docs {
-        common_fields: CommonFields {
-            root: [0u8; 32].into(),
-            count: 0,
-            in_reply_to: None,
-        },
-        docs: vec![],
-    })
-    .map_err(|e| anyhow::anyhow!("Failed to create payload::New: {e}"))?;
-
+    let (root, count) = current_smt_summary(smt)
+        .map_err(|err| anyhow::anyhow!("Failed to fetch SMT state: {err}"))?;
+    let payload = build_new_payload(root, count, vec![])?;
     let mut payload_bytes = Vec::new();
     let mut enc = Encoder::new(&mut payload_bytes);
     payload
         .encode(&mut enc, &mut ())
         .map_err(|e| anyhow::anyhow!("Failed to encode payload::New: {e}"))?;
 
+    let new_topic = format!("{channel_name}.new");
     hermes_ipfs_publish(app_name, &new_topic, payload_bytes)
         .map_err(|e| anyhow::Error::msg(format!("Keepalive publish failed: {e:?}")))?;
     Ok(())

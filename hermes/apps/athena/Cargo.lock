@@ -2261,6 +2261,7 @@ dependencies = [
  "cardano-blockchain-types",
  "catalyst-types",
  "chrono",
+ "cid",
  "derive_more",
  "ed25519-dalek",
  "hex",

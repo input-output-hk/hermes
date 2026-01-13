@@ -1,5 +1,6 @@
 //! Athena database access.
 
+#[cfg(feature = "doc-sync")]
 pub mod doc_sync;
 pub mod sql;
 pub mod staked_ada;
