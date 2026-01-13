@@ -43,12 +43,13 @@ impl OnNewDocEvent {
     pub fn build_and_send(
         &self,
         app_names: Vec<ApplicationName>,
-        module_ids: Vec<ModuleId>,
+        _module_ids: Vec<ModuleId>,
     ) -> anyhow::Result<()> {
+        // FIXME - Module All cause error
         let event = HermesEvent::new(
             self.clone(),
             crate::event::TargetApp::List(app_names),
-            crate::event::TargetModule::List(module_ids),
+            crate::event::TargetModule::All,
         );
 
         crate::event::queue::send(event).map_err(|err| {
