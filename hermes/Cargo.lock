@@ -1951,7 +1951,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d162beedaa69905488a8da94f5ac3edb4dd4788b732fadb7bd120b2625c1976"
 dependencies = [
  "data-encoding",
- "syn 2.0.114",
+ "syn 1.0.109",
 ]
 
 [[package]]
@@ -3149,7 +3149,7 @@ dependencies = [
  "keyed-lock",
  "libsqlite3-sys",
  "libtest-mimic",
- "minicbor 0.25.1",
+ "minicbor 0.26.5",
  "multihash",
  "num-traits",
  "num_cpus",
