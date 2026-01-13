@@ -155,13 +155,10 @@ pub(crate) async fn ipfs_command_handler(
                     .await
                     .map_err(|_| Errno::PubsubSubscribeError)?;
 
-                let message_handler = TopicMessageHandler::new(
-                    &topic,
-                    match kind {
-                        SubscriptionKind::Default => topic_message_handler,
-                        SubscriptionKind::DocSync => doc_sync_topic_message_handler,
-                    },
-                );
+                let message_handler = TopicMessageHandler::new(&topic, match kind {
+                    SubscriptionKind::Default => topic_message_handler,
+                    SubscriptionKind::DocSync => doc_sync_topic_message_handler,
+                });
 
                 let subscription_handler =
                     TopicSubscriptionStatusHandler::new(&topic, topic_subscription_handler);
@@ -200,10 +197,12 @@ pub(crate) async fn ipfs_command_handler(
             },
             IpfsCommand::Identity(peer_id, tx) => {
                 let peer_id = match peer_id {
-                    Some(peer_id) => Some(
-                        hermes_ipfs::PeerId::from_str(&peer_id)
-                            .map_err(|_| Errno::InvalidPeerId)?,
-                    ),
+                    Some(peer_id) => {
+                        Some(
+                            hermes_ipfs::PeerId::from_str(&peer_id)
+                                .map_err(|_| Errno::InvalidPeerId)?,
+                        )
+                    },
                     None => None,
                 };
 
@@ -222,8 +221,7 @@ pub(crate) async fn ipfs_command_handler(
 
 /// A handler for messages from the IPFS pubsub topic
 pub(super) struct TopicMessageHandler<T>
-where
-    T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static,
+where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static
 {
     /// The topic.
     topic: String,
@@ -233,8 +231,7 @@ where
 }
 
 impl<T> TopicMessageHandler<T>
-where
-    T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static,
+where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static
 {
     /// Creates the new handler.
     pub fn new(
@@ -258,8 +255,7 @@ where
 
 /// A handler for subscribe/unsubscribe events from the IPFS pubsub topic
 pub(super) struct TopicSubscriptionStatusHandler<T>
-where
-    T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static,
+where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static
 {
     /// The topic.
     topic: String,
@@ -269,8 +265,7 @@ where
 }
 
 impl<T> TopicSubscriptionStatusHandler<T>
-where
-    T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static,
+where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static
 {
     /// Creates the new handler.
     pub fn new(
@@ -368,7 +363,7 @@ fn doc_sync_topic_message_handler(
         },
     };
 
-    // DO NOT remove this log, since it is use in test `_test-pubsub-execute`
+    // DO NOT remove this log, since it is used in tests
     tracing::info!(
         "RECEIVED PubSub message with CIDs: {:?}",
         new_cids
@@ -377,18 +372,31 @@ fn doc_sync_topic_message_handler(
             .collect::<Vec<_>>()
     );
 
+    if new_cids.is_empty() {
+        todo!();
+        return;
+    } else {
+        process_broadcasted_cids(&topic, channel_name, new_cids);
+    }
+}
+
+fn process_broadcasted_cids(
+    topic: &str,
+    channel_name: &str,
+    cids: Vec<Cid>,
+) {
     let channel_name_owned = channel_name.to_string();
-    let topic_owned = topic.clone();
+    let topic_owned = topic.to_string();
     // Spawn async task to avoid blocking PubSub handler during file operations
     tokio::spawn(async move {
-        tracing::debug!("Inside spawned task, processing {} CIDs", new_cids.len());
+        tracing::debug!("Inside spawned task, processing {} CIDs", cids.len());
         let Some(ipfs) = HERMES_IPFS.get() else {
             tracing::error!("IPFS global instance is uninitialized");
             return;
         };
 
-        let mut contents = Vec::with_capacity(new_cids.len());
-        for cid in new_cids {
+        let mut contents = Vec::with_capacity(cids.len());
+        for cid in cids {
             tracing::info!("Processing CID: {}", cid.to_string());
             let path = hermes_ipfs::IpfsPath::new(PathRoot::Ipld(cid)).to_string();
             let content = match ipfs.file_get_async(&path).await {
