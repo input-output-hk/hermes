@@ -10,6 +10,7 @@ use hermes_ipfs::{
     },
     rust_ipfs::path::PathRoot,
 };
+use minicbor::{Encode, Encoder};
 use tokio::{
     sync::{mpsc, oneshot},
     task::JoinHandle,
@@ -18,6 +19,7 @@ use tokio::{
 use super::HERMES_IPFS;
 use crate::{
     event::{HermesEvent, queue::send},
+    ipfs::hermes_ipfs_publish,
     runtime_extensions::{
         bindings::hermes::ipfs::api::{
             DhtKey, DhtValue, Errno, IpfsFile, MessageData, PeerId, PubsubMessage, PubsubTopic,
@@ -404,8 +406,14 @@ fn make_syn_payload() -> MsgSyn {
     }
 }
 
-fn send_syn_payload(payload: &MsgSyn) -> () {
-    todo!()
+fn send_syn_payload(payload: &MsgSyn) -> anyhow::Result<()> {
+    let mut payload_bytes = Vec::new();
+    let mut enc = Encoder::new(&mut payload_bytes);
+    payload
+        .encode(&mut enc, &mut ())
+        .map_err(|e| anyhow::anyhow!("Failed to encode payload::New: {e}"))?;
+    hermes_ipfs_publish(todo!(), todo!(), payload_bytes)?;
+    Ok(())
 }
 
 fn process_broadcasted_cids(
