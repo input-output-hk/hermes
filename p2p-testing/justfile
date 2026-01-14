@@ -1287,7 +1287,9 @@ _test-pubsub-visualize:
         for OTHER in {1..6}; do
             [ $NODE -ne $OTHER ] && OTHERS+=("Node $OTHER")
         done
-        echo "${OTHERS[*]}" | sed 's/ /, /g'
+        # Use printf to join with ", " separator
+        printf "%s, " "${OTHERS[@]:0:${#OTHERS[@]}-1}"
+        echo "${OTHERS[-1]}"
     done
     echo ""
     echo -e "  ${BLUE}ℹ️  Each node maintains 5 peer connections (5 peers × 6 nodes = 30 total)${RESET}"
