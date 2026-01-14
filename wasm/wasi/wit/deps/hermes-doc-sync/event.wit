@@ -50,6 +50,12 @@ interface event-document-provider {
     /// Returns: A list of `ipfs-cid` representing all documents the app currently holds.
     return-cids: func(channel: channel-name) -> list<ipfs-cid>;
 
+
+    /// Requests a list of all channels known to the application.
+    ///
+    /// Returns: A list of `channel-name` representing all channels used by the application.
+    return-channels: func() -> list<channel-name>;
+
     /// Retrieves the full document data associated with a specific CID.
     ///
     /// This is used by the host during the synchronization and pinning process:

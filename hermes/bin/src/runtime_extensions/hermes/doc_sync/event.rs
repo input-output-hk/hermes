@@ -11,8 +11,22 @@ use crate::{
 unchecked_exports::define! {
     /// Extends [`wasmtime::component::Instance`] with guest functions for Doc Sync.
     trait ComponentInstanceExt {
-         #[wit("hermes:doc-sync/event", "on-new-doc")]
+         #[wit("hermes:doc-sync/event-on-new-doc", "on-new-doc")]
         fn hermes_doc_sync_event_on_new_doc(channel: &str, doc: &[u8]);
+    }
+}
+
+unchecked_exports::define! {
+    /// Extends [`wasmtime::component::Instance`] with guest functions for Doc Sync.
+    pub(crate) trait ReadComponentInstanceExt {
+         #[wit("hermes:doc-sync/event-document-provider", "return-cids")]
+        fn hermes_event_document_provider_return_cids(channel: &str) -> Vec<Vec<u8>>;
+
+         #[wit("hermes:doc-sync/event-document-provider", "retrieve-doc")]
+        fn hermes_event_document_provider_retrieve_doc(channel: &str, cid: &[u8]) -> Option<Vec<u8>>;
+
+         #[wit("hermes:doc-sync/event-document-provider", "return-channels")]
+        fn hermes_event_document_provider_return_channels() -> Vec<String>;
     }
 }
 

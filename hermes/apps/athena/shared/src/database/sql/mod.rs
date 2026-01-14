@@ -83,6 +83,7 @@ include_sql! {
         select_document_by_cid,
         select_documents_by_topic,
         select_documents_cids_by_topic,
+        select_topics,
     };
 }
 

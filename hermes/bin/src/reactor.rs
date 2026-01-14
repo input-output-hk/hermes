@@ -55,6 +55,19 @@ pub(crate) fn load_app(app: Application) -> anyhow::Result<()> {
     init_app(&app_name)
 }
 
+/// Initialized SMT having application name.
+///
+/// # Errors
+///
+/// - .
+pub(crate) fn initialize_smt(app_name: ApplicationName) -> anyhow::Result<()> {
+    let app = get_app(&app_name)?;
+    let _cids = app.try_get_cids()?;
+
+    // TODO: initialize SMT
+    Ok(())
+}
+
 /// Initialize the Application.
 pub(crate) fn init_app(app_name: &ApplicationName) -> anyhow::Result<()> {
     let app = get_app(app_name)?;
