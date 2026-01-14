@@ -1,4 +1,8 @@
 //! Hermes IPFS State API
+use std::sync::{Arc, Mutex};
+
+use catalyst_types::smt::Tree;
+
 use super::{HERMES_IPFS, SubscriptionKind, is_valid_dht_content, is_valid_pubsub_content};
 use crate::{
     app::ApplicationName,
@@ -151,13 +155,14 @@ pub(crate) fn hermes_ipfs_subscribe(
     kind: SubscriptionKind,
     app_name: &ApplicationName,
     topic: PubsubTopic,
+    tree: Option<Arc<Mutex<Tree<crate::runtime_extensions::hermes::doc_sync::Cid>>>>,
 ) -> Result<bool, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "subscribing to PubSub topic");
     if ipfs.apps.topic_subscriptions_contains(kind, &topic) {
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription stream already exists");
     } else {
-        let handle = ipfs.pubsub_subscribe(kind, &topic)?;
+        let handle = ipfs.pubsub_subscribe(kind, &topic, tree)?;
         ipfs.apps.added_topic_stream(kind, topic.clone(), handle);
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "added subscription topic stream");
     }

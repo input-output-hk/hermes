@@ -1,11 +1,16 @@
 //! Hermes IPFS service.
-#![allow(unreachable_code, unused_variables)]
+#![allow(unreachable_code, unused_variables, unused_imports, dead_code)]
 
 mod api;
 mod task;
 
 use std::{
-    collections::HashSet, convert::Infallible, marker::PhantomData, path::Path, str::FromStr,
+    collections::HashSet,
+    convert::Infallible,
+    marker::PhantomData,
+    path::Path,
+    str::FromStr,
+    sync::{Arc, Mutex},
 };
 
 /// Default IPFS listening port (configurable via `IPFS_LISTEN_PORT` env var)
@@ -31,6 +36,7 @@ pub(crate) use api::{
     hermes_ipfs_get_file, hermes_ipfs_get_peer_identity, hermes_ipfs_pin_file, hermes_ipfs_publish,
     hermes_ipfs_put_dht_value, hermes_ipfs_subscribe, hermes_ipfs_unpin_file,
 };
+use catalyst_types::smt::Tree;
 use dashmap::DashMap;
 use hermes_ipfs::{
     Cid, HermesIpfs, HermesIpfsBuilder, IpfsPath as BaseIpfsPath,
@@ -697,12 +703,13 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         &self,
         kind: SubscriptionKind,
         topic: &PubsubTopic,
+        tree: Option<Arc<Mutex<Tree<crate::runtime_extensions::hermes::doc_sync::Cid>>>>,
     ) -> Result<JoinHandle<()>, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()
             .ok_or(Errno::PubsubSubscribeError)?
-            .blocking_send(IpfsCommand::Subscribe(topic.clone(), kind, cmd_tx))
+            .blocking_send(IpfsCommand::Subscribe(topic.clone(), kind, tree, cmd_tx))
             .map_err(|_| Errno::PubsubSubscribeError)?;
         cmd_rx
             .blocking_recv()

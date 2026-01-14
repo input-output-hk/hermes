@@ -1,6 +1,11 @@
 //! IPFS Task
-use std::{collections::HashSet, str::FromStr};
+use std::{
+    collections::HashSet,
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
 
+use catalyst_types::smt::Tree;
 use hermes_ipfs::{
     Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
     doc_sync::{
@@ -65,6 +70,7 @@ pub(crate) enum IpfsCommand {
     Subscribe(
         PubsubTopic,
         SubscriptionKind,
+        Option<Arc<Mutex<Tree<crate::runtime_extensions::hermes::doc_sync::Cid>>>>,
         oneshot::Sender<Result<JoinHandle<()>, Errno>>,
     ),
     /// Evict Peer from node
@@ -155,16 +161,28 @@ pub(crate) async fn ipfs_command_handler(
                     });
                 send_response(result, tx);
             },
-            IpfsCommand::Subscribe(topic, kind, tx) => {
+            IpfsCommand::Subscribe(topic, kind, tree, tx) => {
                 let stream = hermes_node
                     .pubsub_subscribe(&topic)
                     .await
                     .map_err(|_| Errno::PubsubSubscribeError)?;
 
-                let message_handler = TopicMessageHandler::new(&topic, match kind {
-                    SubscriptionKind::Default => topic_message_handler,
-                    SubscriptionKind::DocSync => doc_sync_topic_message_handler,
-                });
+                let message_handler = match kind {
+                    SubscriptionKind::Default => {
+                        TopicMessageHandler::new(
+                            &topic,
+                            topic_message_handler,
+                            TopicMessageContext::default(),
+                        )
+                    },
+                    SubscriptionKind::DocSync => {
+                        TopicMessageHandler::new(
+                            &topic,
+                            doc_sync_topic_message_handler,
+                            TopicMessageContext::new(tree),
+                        )
+                    },
+                };
 
                 let subscription_handler =
                     TopicSubscriptionStatusHandler::new(&topic, topic_subscription_handler);
@@ -225,28 +243,53 @@ pub(crate) async fn ipfs_command_handler(
     Ok(())
 }
 
+#[derive(Default, Clone)]
+pub(super) struct TopicMessageContext {
+    tree: Option<Arc<Mutex<Tree<crate::runtime_extensions::hermes::doc_sync::Cid>>>>,
+}
+
+impl TopicMessageContext {
+    pub(crate) fn new(
+        tree: Option<Arc<Mutex<Tree<crate::runtime_extensions::hermes::doc_sync::Cid>>>>
+    ) -> Self {
+        Self { tree }
+    }
+}
+
 /// A handler for messages from the IPFS pubsub topic
-pub(super) struct TopicMessageHandler<T>
-where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static
-{
+pub(super) struct TopicMessageHandler {
     /// The topic.
     topic: String,
 
     /// The handler implementation.
-    callback: T,
+    callback: Box<
+        dyn Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, TopicMessageContext)
+            + Send
+            + Sync
+            + 'static,
+    >,
+
+    /// The context.
+    context: TopicMessageContext,
 }
 
-impl<T> TopicMessageHandler<T>
-where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static
-{
+impl TopicMessageHandler {
     /// Creates the new handler.
-    pub fn new(
+    pub fn new<F>(
         topic: &impl ToString,
-        callback: T,
-    ) -> Self {
+        callback: F,
+        context: TopicMessageContext,
+    ) -> Self
+    where
+        F: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, TopicMessageContext)
+            + Send
+            + Sync
+            + 'static,
+    {
         Self {
             topic: topic.to_string(),
-            callback,
+            callback: Box::new(callback),
+            context,
         }
     }
 
@@ -255,7 +298,7 @@ where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 's
         &self,
         msg: hermes_ipfs::rust_ipfs::GossipsubMessage,
     ) {
-        (self.callback)(msg, self.topic.clone());
+        (self.callback)(msg, self.topic.clone(), self.context.clone());
     }
 }
 
@@ -297,6 +340,7 @@ where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'stati
 fn topic_message_handler(
     message: hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
+    context: TopicMessageContext,
 ) {
     if let Some(ipfs) = HERMES_IPFS.get() {
         let app_names = ipfs.apps.subscribed_apps(SubscriptionKind::Default, &topic);
@@ -337,6 +381,7 @@ fn topic_message_handler(
 fn doc_sync_topic_message_handler(
     message: hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
+    context: TopicMessageContext,
 ) {
     if let Ok(msg_str) = std::str::from_utf8(&message.data) {
         tracing::info!("RECEIVED PubSub message on topic: {topic} - data: {msg_str}",);
@@ -345,6 +390,11 @@ fn doc_sync_topic_message_handler(
     // TODO: match the topic against a static list.
     let Some(channel_name) = topic.strip_suffix(".new") else {
         tracing::error!("Handling an IPFS message on a wrong channel.");
+        return;
+    };
+
+    let Some(tree) = &context.tree else {
+        tracing::error!("Context for the Doc Sync handler must contain an SMT.");
         return;
     };
 
@@ -365,7 +415,8 @@ fn doc_sync_topic_message_handler(
             tracing::info!("RECEIVED PubSub message with CIDs: {:?}", docs);
 
             if docs.is_empty() {
-                perform_reconciliation(root, count);
+                tracing::error!("XXXXX - going to perform reconciliation");
+                //perform_reconciliation(root, count);
             } else {
                 process_broadcasted_cids(&topic, channel_name, docs);
             }
@@ -388,11 +439,11 @@ fn perform_reconciliation(
     }
 
     // let mut channel_state = DOC_SYNC_STATE
-    //     .entry(resource)
-    //     .or_insert(ChannelState::new(&name));
+    // .entry(resource)
+    // .or_insert(ChannelState::new(&name));
 
     let result1 = subscribe_to_diff();
-    let syn_payload = make_syn_payload(channel_state.smt);
+    let syn_payload = make_syn_payload(/*channel_state.smt()*/);
     let result2 = send_syn_payload(&syn_payload);
 }
 
@@ -401,7 +452,7 @@ fn subscribe_to_diff() -> () {
     todo!()
 }
 
-fn make_syn_payload(smt: &Arc<Mutex<Tree<Cid>>>) -> MsgSyn {
+fn make_syn_payload(/*smt: &Arc<Mutex<Tree<Cid>>>*/) -> MsgSyn {
     tracing::error!("XXXXX - make_syn_payload");
     MsgSyn {
         root: todo!(),
