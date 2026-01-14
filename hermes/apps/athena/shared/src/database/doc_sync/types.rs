@@ -14,11 +14,13 @@ pub struct InsertDocumentRow {
     pub document: Vec<u8>,
     /// Timestamp when the document was inserted.
     pub inserted_at: DateTime<Utc>,
+    /// Document topic.
+    pub topic: String,
     /// Optional CBOR-encoded metadata associated with the document.
     pub metadata: Option<Vec<u8>>,
 }
 
-impl TryFrom<InsertDocumentRow> for [sqlite::Value; 4] {
+impl TryFrom<InsertDocumentRow> for [sqlite::Value; 5] {
     type Error = anyhow::Error;
 
     fn try_from(row: InsertDocumentRow) -> Result<Self, Self::Error> {
@@ -26,6 +28,7 @@ impl TryFrom<InsertDocumentRow> for [sqlite::Value; 4] {
             row.cid.into(),
             row.document.into(),
             sqlite::Value::try_from(row.inserted_at)?,
+            row.topic.into(),
             row.metadata.into(),
         ])
     }
@@ -35,20 +38,26 @@ impl TryFrom<InsertDocumentRow> for [sqlite::Value; 4] {
 pub struct DocumentRow {
     /// Document CBOR-encoded bytes.
     pub document: Vec<u8>,
+    /// Document cid.
+    pub cid: Vec<u8>,
     /// Timestamp when the document was inserted.
     pub inserted_at: DateTime<Utc>,
+    /// IPFS pubsub topic.
+    pub topic: String,
     /// Optional CBOR-encoded metadata associated with the document.
     pub metadata: Option<Vec<u8>>,
 }
 
 /// [`DocumentRow`] represented by a tuple.
-pub(super) type DocumentRowTuple = (Vec<u8>, DateTime<Utc>, Option<Vec<u8>>);
+pub(super) type DocumentRowTuple = (Vec<u8>, Vec<u8>, DateTime<Utc>, String, Option<Vec<u8>>);
 
 impl From<DocumentRowTuple> for DocumentRow {
-    fn from((document, inserted_at, metadata): DocumentRowTuple) -> Self {
+    fn from((document, cid, inserted_at, topic, metadata): DocumentRowTuple) -> Self {
         Self {
             document,
+            cid,
             inserted_at,
+            topic,
             metadata,
         }
     }

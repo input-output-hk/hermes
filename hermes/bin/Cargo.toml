@@ -34,21 +34,21 @@ path = "tests/integration/tests/mod.rs"
 hermes-ipfs = { version = "0.0.11", git = "https://github.com/input-output-hk/catalyst-libs.git", branch = "fix/hermes-736/add-file", features = ["doc-sync"] }
 cardano-blockchain-types = { version = "0.0.9", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "cardano-blockchain-types/v0.0.9" }
 cardano-chain-follower = { version = "0.0.19", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "cardano-chain-follower/v0.0.19" }
-catalyst-types = { version = "0.0.11", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "catalyst-types/v0.0.11" }
+catalyst-types = { version = "0.0.12", git = "https://github.com/input-output-hk/catalyst-libs.git", tag = "catalyst-types/v0.0.12" }
 
 # HDF5 is consumed using a git tag, because the latest release is very old, but the code is much more advanced.
 hdf5 = { package = "hdf5-metno", version = "0.10.1", features = [ "static", "blosc", "blosc-zstd" ] }
 # needs to enable blosc compression functionality for hdf5 crate
 blosc-src = { version = "0.3.6", features = ["lz4", "zlib", "zstd"] }
 
-wasmtime = { version = "39.0.1", default-features = false, features = ["runtime", "cranelift", "component-model"] }
+wasmtime = { version = "40.0.0", default-features = false, features = ["runtime", "cranelift", "component-model"] }
 criterion = { version = "0.8.0", optional = true }
 rusty_ulid = "2.0.0"
 anyhow = "1.0.99"
 hex-literal = "1.0.0"
 thiserror = "2.0.16"
 hex = "0.4.3"
-tracing = { version = "0.1.41", features = ["log"] }
+tracing = { version = "0.1.44", features = ["log"] }
 tracing-subscriber = { version = "0.3.20", features = ["fmt", "json", "time", "env-filter"] }
 libtest-mimic = "0.8.1"
 crossbeam-queue = "0.3.12"
@@ -61,7 +61,6 @@ dashmap = "6.1.0"
 once_cell = "1.21.3"
 clap = "4.5.46"
 ctrlc = "3.5.0"
-build-info = "0.0.42"
 derive_more = "2.0.1"
 chrono = { version = "0.4.41", features = ["now"] }
 chrono-tz = "0.10.4"
@@ -75,7 +74,7 @@ num_cpus = "1.17.0"
 console = "0.16.0"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.143"
-jsonschema = "0.33.0"
+jsonschema = "0.38.1"
 hyper = { version = "1.7.0", features = ["full"] }
 http-body-util = "0.1.3"
 hyper-util = { version = "0.1.16", features = ["server-auto"] }
@@ -103,19 +102,20 @@ keyed-lock = "0.2.3"
 wasmprinter = "0.243.0"
 wat = "1.239.0"
 multihash = { version = "0.19.3", features = ["serde-codec"] }
+const_format = "0.2.35"
 
 # Pinned to the catalyst_types minicbor version.
 minicbor = { version = "=0.25.1", features = ["std", "derive"] }
 
 [build-dependencies]
-build-info-build = "0.0.42"
+built = { version = "0.8.0", features = ["git2", "chrono"] }
 
 [dev-dependencies]
 serial_test = { version = "3.2.0", features = ["file_locks"] }
 # An override with the "wat" and "addr2line" features added (debug purposes).
-wasmtime = { version = "39.0.1", default-features = false, features = ["runtime", "cranelift", "component-model", "wat", "addr2line"] }
+wasmtime = { version = "40.0.0", default-features = false, features = ["runtime", "cranelift", "component-model", "wat", "addr2line"] }
 httpmock = "0.8.2"
-wasmtime-wasi = "39.0.1"
+wasmtime-wasi = "40.0.0"
 test-case = "3.3.1"
 
 [package.metadata.cargo-machete]

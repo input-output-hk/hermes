@@ -2,5 +2,6 @@ package hermes:doc-sync;
 
 world all {
     import api;
-    export event;
+    export event-on-new-doc;
+    export event-document-provider;
 }
