@@ -219,10 +219,12 @@ pub(crate) async fn ipfs_command_handler(
             },
             IpfsCommand::Identity(peer_id, tx) => {
                 let peer_id = match peer_id {
-                    Some(peer_id) => Some(
-                        hermes_ipfs::PeerId::from_str(&peer_id)
-                            .map_err(|_| Errno::InvalidPeerId)?,
-                    ),
+                    Some(peer_id) => {
+                        Some(
+                            hermes_ipfs::PeerId::from_str(&peer_id)
+                                .map_err(|_| Errno::InvalidPeerId)?,
+                        )
+                    },
                     None => None,
                 };
 
@@ -236,20 +238,20 @@ pub(crate) async fn ipfs_command_handler(
         }
     }
     // Try to stop the node - only works if this is the last reference
-    match Arc::try_unwrap(hermes_node) {
-        Ok(node) => node.stop().await,
-        Err(_) => tracing::warn!("Could not stop IPFS node - other references still exist"),
+    if let Ok(node) = Arc::try_unwrap(hermes_node) {
+        node.stop().await;
+    } else {
+        tracing::warn!("Could not stop IPFS node - other references still exist");
     }
     Ok(())
 }
 
 /// A handler for messages from the IPFS pubsub topic
 pub(super) struct TopicMessageHandler<T>
-where
-    T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, Option<Vec<ModuleId>>)
+where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, Option<Vec<ModuleId>>)
         + Send
         + Sync
-        + 'static,
+        + 'static
 {
     /// The topic.
     topic: String,
@@ -262,11 +264,10 @@ where
 }
 
 impl<T> TopicMessageHandler<T>
-where
-    T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, Option<Vec<ModuleId>>)
+where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, Option<Vec<ModuleId>>)
         + Send
         + Sync
-        + 'static,
+        + 'static
 {
     /// Creates the new handler.
     pub fn new(
@@ -286,14 +287,13 @@ where
         &self,
         msg: hermes_ipfs::rust_ipfs::GossipsubMessage,
     ) {
-        (self.callback)(msg, self.topic.clone(), self.module_ids.clone())
+        (self.callback)(msg, self.topic.clone(), self.module_ids.clone());
     }
 }
 
 /// A handler for subscribe/unsubscribe events from the IPFS pubsub topic
 pub(super) struct TopicSubscriptionStatusHandler<T>
-where
-    T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static,
+where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static
 {
     /// The topic.
     topic: String,
@@ -303,8 +303,7 @@ where
 }
 
 impl<T> TopicSubscriptionStatusHandler<T>
-where
-    T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static,
+where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static
 {
     /// Creates the new handler.
     pub fn new(
@@ -337,7 +336,7 @@ fn topic_message_handler(
 
         drop(
             OnTopicEvent::new(PubsubMessage {
-                topic: topic.clone(),
+                topic,
                 message: message.data.into(),
                 publisher: message.source.map(|p| p.to_string()),
             })
@@ -412,6 +411,15 @@ fn doc_sync_topic_message_handler(
     let topic_owned = topic.clone();
     // Spawn async task to avoid blocking PubSub handler during file operations
     tokio::spawn(async move {
+        // Fetch content with providers (hermes-ipfs connects to them first)
+        // Use shorter timeout with retries to handle concurrent request contention
+        /// Maximum number of retries
+        const MAX_RETRIES: u32 = 5;
+        /// How long to wait between retries
+        const FETCH_TIMEOUT: Duration = Duration::from_secs(10);
+        /// How long to wait between retries
+        const BACKOFF_MS: u64 = 200;
+
         tracing::debug!("Inside spawned task, processing {} CIDs", new_cids.len());
         let Some(ipfs) = HERMES_IPFS.get() else {
             tracing::error!("IPFS global instance is uninitialized");
@@ -424,33 +432,30 @@ fn doc_sync_topic_message_handler(
 
             // Use the message publisher as the provider (they just published the content)
             // This avoids DHT lookup latency and propagation issues
-            let providers: Vec<hermes_ipfs::PeerId> = match publisher {
-                Some(peer_id) => {
-                    tracing::info!(%cid, %peer_id, "Using message publisher as provider");
-                    vec![peer_id]
-                },
-                None => {
-                    tracing::warn!(%cid, "No message source, falling back to DHT lookup");
-                    // Fallback to DHT if message source is unavailable
-                    const DHT_PROVIDER_TIMEOUT: Duration = Duration::from_secs(10);
-                    let dht_key = cid.to_bytes();
-                    match timeout(DHT_PROVIDER_TIMEOUT, ipfs.dht_get_providers_async(dht_key)).await
-                    {
-                        Ok(Ok(provider_set)) => {
-                            let providers: Vec<_> = provider_set.into_iter().collect();
-                            tracing::info!(%cid, provider_count = providers.len(), "Found DHT providers");
-                            providers
-                        },
-                        Ok(Err(err)) => {
-                            tracing::warn!(%cid, %err, "DHT provider lookup failed");
-                            Vec::new()
-                        },
-                        Err(_) => {
-                            tracing::warn!(%cid, "DHT provider lookup timed out");
-                            Vec::new()
-                        },
-                    }
-                },
+            let providers: Vec<hermes_ipfs::PeerId> = if let Some(peer_id) = publisher {
+                tracing::info!(%cid, %peer_id, "Using message publisher as provider");
+                vec![peer_id]
+            } else {
+                /// Fallback to DHT if message source is unavailable
+                const DHT_PROVIDER_TIMEOUT: Duration = Duration::from_secs(10);
+
+                tracing::warn!(%cid, "No message source, falling back to DHT lookup");
+                let dht_key = cid.to_bytes();
+                match timeout(DHT_PROVIDER_TIMEOUT, ipfs.dht_get_providers_async(dht_key)).await {
+                    Ok(Ok(provider_set)) => {
+                        let providers: Vec<_> = provider_set.into_iter().collect();
+                        tracing::info!(%cid, provider_count = providers.len(), "Found DHT providers");
+                        providers
+                    },
+                    Ok(Err(err)) => {
+                        tracing::warn!(%cid, %err, "DHT provider lookup failed");
+                        Vec::new()
+                    },
+                    Err(_) => {
+                        tracing::warn!(%cid, "DHT provider lookup timed out");
+                        Vec::new()
+                    },
+                }
             };
 
             if providers.is_empty() {
@@ -458,16 +463,12 @@ fn doc_sync_topic_message_handler(
                 continue;
             }
 
-            // Fetch content with providers (hermes-ipfs connects to them first)
-            // Use shorter timeout with retries to handle concurrent request contention
-            const MAX_RETRIES: u32 = 5;
-            const FETCH_TIMEOUT: Duration = Duration::from_secs(10);
-            const BACKOFF_MS: u64 = 200;
             let mut content_result = None;
 
             for attempt in 0..MAX_RETRIES {
                 if attempt > 0 {
-                    let backoff_ms = BACKOFF_MS * u64::from(attempt);
+                    let backoff_ms = BACKOFF_MS.saturating_mul(u64::from(attempt));
+
                     tracing::info!(%cid, attempt, backoff_ms, "Retrying content fetch after backoff");
                     tokio::time::sleep(Duration::from_millis(backoff_ms)).await;
                 }
@@ -491,12 +492,9 @@ fn doc_sync_topic_message_handler(
                 }
             }
 
-            let content = match content_result {
-                Some(c) => c,
-                None => {
-                    tracing::error!(%channel_name_owned, %cid, "Failed to get content after {} retries", MAX_RETRIES);
-                    continue;
-                },
+            let Some(content) = content_result else {
+                tracing::error!(%channel_name_owned, %cid, "Failed to get content after {} retries", MAX_RETRIES);
+                continue;
             };
 
             if let Ok(content_str) = std::str::from_utf8(&content) {

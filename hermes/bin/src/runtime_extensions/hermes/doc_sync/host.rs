@@ -144,7 +144,7 @@ impl HostSyncChannel for HermesRuntimeContext {
         if let Err(err) = hermes_ipfs_subscribe(
             ipfs::SubscriptionKind::DocSync,
             self.app_name(),
-            topic_new.clone(),
+            &topic_new,
             Some(vec![self.module_id().clone()]),
         ) {
             DOC_SYNC_STATE.remove(&resource);

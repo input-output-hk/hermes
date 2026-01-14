@@ -167,7 +167,7 @@ async fn configure_listening_address(node: &hermes_ipfs::Ipfs) {
                     "Invalid IPFS_ANNOUNCE_ADDRESS format '{}': {}",
                     announce_addr,
                     e
-                )
+                );
             },
         }
     }

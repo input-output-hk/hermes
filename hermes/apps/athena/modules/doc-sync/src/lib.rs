@@ -164,24 +164,28 @@ impl exports::hermes::http_gateway::event::Guest for Component {
             ("POST", "/api/doc-sync/post") => {
                 // Call channel::post (executes 4-step workflow on host)
                 match channel::post(&body) {
-                    Ok(cid_bytes) => match TryInto::<Cid>::try_into(cid_bytes) {
-                        Ok(cid) => Some(json_response(
-                            200,
-                            &serde_json::json!({
-                                "success": true,
-                                "cid": cid.to_string()
-                            }),
-                        )),
-                        Err(e) => {
-                            error!(target: "doc_sync", "Failed to convert CID bytes to CID: {e:?}");
-                            Some(json_response(
-                                500,
-                                &serde_json::json!({
-                                    "success": false,
-                                    "error": "Failed to convert CID bytes to CID"
-                                }),
-                            ))
-                        },
+                    Ok(cid_bytes) => {
+                        match TryInto::<Cid>::try_into(cid_bytes) {
+                            Ok(cid) => {
+                                Some(json_response(
+                                    200,
+                                    &serde_json::json!({
+                                        "success": true,
+                                        "cid": cid.to_string()
+                                    }),
+                                ))
+                            },
+                            Err(e) => {
+                                error!(target: "doc_sync", "Failed to convert CID bytes to CID: {e:?}");
+                                Some(json_response(
+                                    500,
+                                    &serde_json::json!({
+                                        "success": false,
+                                        "error": "Failed to convert CID bytes to CID"
+                                    }),
+                                ))
+                            },
+                        }
                     },
                     Err(e) => {
                         error!(target: "doc_sync", "Failed to post document: {e:?}");
@@ -195,10 +199,12 @@ impl exports::hermes::http_gateway::event::Guest for Component {
                     },
                 }
             },
-            _ => Some(json_response(
-                404,
-                &serde_json::json!({"error": "Not found"}),
-            )),
+            _ => {
+                Some(json_response(
+                    404,
+                    &serde_json::json!({"error": "Not found"}),
+                ))
+            },
         }
     }
 }
@@ -210,10 +216,9 @@ fn json_response(
 ) -> HttpGatewayResponse {
     HttpGatewayResponse::Http(HttpResponse {
         code,
-        headers: vec![(
-            "content-type".to_string(),
-            vec!["application/json".to_string()],
-        )],
+        headers: vec![("content-type".to_string(), vec![
+            "application/json".to_string(),
+        ])],
         body: Bstr::from(body.to_string()),
     })
 }
