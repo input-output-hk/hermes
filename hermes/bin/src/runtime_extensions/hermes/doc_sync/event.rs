@@ -28,7 +28,7 @@ pub(crate) struct OnNewDocEvent {
 }
 
 impl OnNewDocEvent {
-    /// Create the event from IPFS topic and document data.
+    /// Create the `OnNewDocEvent` from IPFS channel and document data.
     pub fn new(
         channel: &str,
         doc: &[u8],

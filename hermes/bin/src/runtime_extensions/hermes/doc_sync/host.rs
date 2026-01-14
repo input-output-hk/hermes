@@ -313,10 +313,7 @@ fn add_file(
             Ok(Ok(cid))
         },
         Err(e) => {
-            tracing::error!(
-                "✗ Step {STEP}/{POST_STEP_COUNT} failed: file_add error: {:?}",
-                e
-            );
+            tracing::error!("✗ Step {STEP}/{POST_STEP_COUNT} failed: file_add error: {e:?}");
             Ok(Err(Errno::DocErrorPlaceholder))
         },
     }

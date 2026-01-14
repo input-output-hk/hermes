@@ -3213,7 +3213,7 @@ dependencies = [
 [[package]]
 name = "hermes-ipfs"
 version = "0.0.11"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?branch=fix%2Fhermes-736%2Fadd-file#661b4ab3ba6cbdb8c0a8f323a4d8d8e8b2a61be2"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?branch=fix%2Fbitswap-provider-connection#d6b076b12c1352bd9674c5a55fdf3026d1a971cb"
 dependencies = [
  "anyhow",
  "blake3",
@@ -4512,7 +4512,7 @@ dependencies = [
 [[package]]
 name = "libp2p-relay-manager"
 version = "0.4.0"
-source = "git+https://github.com/dariusc93/rust-ipfs?rev=0a6269e05a4ccfaa547a47a56f92171e4abc0564#0a6269e05a4ccfaa547a47a56f92171e4abc0564"
+source = "git+https://github.com/cong-or/rust-ipfs?branch=fix%2Fbitswap-serve-late-arriving-peers#dc523597681be315a8cef700993c01cf312576cf"
 dependencies = [
  "anyhow",
  "futures",
@@ -6955,7 +6955,7 @@ dependencies = [
 [[package]]
 name = "rust-ipfs"
 version = "0.15.0"
-source = "git+https://github.com/dariusc93/rust-ipfs?rev=0a6269e05a4ccfaa547a47a56f92171e4abc0564#0a6269e05a4ccfaa547a47a56f92171e4abc0564"
+source = "git+https://github.com/cong-or/rust-ipfs?branch=fix%2Fbitswap-serve-late-arriving-peers#dc523597681be315a8cef700993c01cf312576cf"
 dependencies = [
  "anyhow",
  "async-rt",
@@ -7011,7 +7011,7 @@ dependencies = [
 [[package]]
 name = "rust-ipns"
 version = "0.8.0"
-source = "git+https://github.com/dariusc93/rust-ipfs?rev=0a6269e05a4ccfaa547a47a56f92171e4abc0564#0a6269e05a4ccfaa547a47a56f92171e4abc0564"
+source = "git+https://github.com/cong-or/rust-ipfs?branch=fix%2Fbitswap-serve-late-arriving-peers#dc523597681be315a8cef700993c01cf312576cf"
 dependencies = [
  "bytes",
  "chrono",
@@ -7027,7 +7027,7 @@ dependencies = [
 [[package]]
 name = "rust-unixfs"
 version = "0.5.0"
-source = "git+https://github.com/dariusc93/rust-ipfs?rev=0a6269e05a4ccfaa547a47a56f92171e4abc0564#0a6269e05a4ccfaa547a47a56f92171e4abc0564"
+source = "git+https://github.com/cong-or/rust-ipfs?branch=fix%2Fbitswap-serve-late-arriving-peers#dc523597681be315a8cef700993c01cf312576cf"
 dependencies = [
  "either",
  "filetime",

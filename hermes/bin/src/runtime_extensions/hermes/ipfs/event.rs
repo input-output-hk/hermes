@@ -25,12 +25,12 @@ pub(crate) struct OnTopicEvent {
 
 impl OnTopicEvent {
     /// Create a new `OnTopicEvent` event from a message.
-    pub(crate) fn new(message: PubsubMessage) -> Self {
+    pub fn new(message: PubsubMessage) -> Self {
         Self { message }
     }
 
     /// Build and send on-topic event.
-    pub(crate) fn build_and_send(
+    pub fn build_and_send(
         &self,
         app_names: Vec<ApplicationName>,
         module_ids: Option<Vec<ModuleId>>,

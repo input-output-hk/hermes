@@ -141,8 +141,8 @@ async fn configure_listening_address(node: &hermes_ipfs::Ipfs) {
     match listen_addr.parse() {
         Ok(multiaddr) => {
             match node.add_listening_address(multiaddr).await {
-                Ok(addr) => tracing::info!("IPFS listening on: {}", addr),
-                Err(e) => tracing::error!("Failed to listen on port {}: {}", listen_port, e),
+                Ok(addr) => tracing::info!("IPFS listening on: {addr}"),
+                Err(e) => tracing::error!("Failed to listen on port {listen_port}: {e}"),
             }
         },
         Err(e) => tracing::error!("Invalid multiaddr format: {}", e),
@@ -156,18 +156,14 @@ async fn configure_listening_address(node: &hermes_ipfs::Ipfs) {
         match announce_addr.parse() {
             Ok(multiaddr) => {
                 match node.add_external_address(multiaddr).await {
-                    Ok(()) => tracing::info!("IPFS announcing external address: {}", announce_addr),
+                    Ok(()) => tracing::info!("IPFS announcing external address: {announce_addr}"),
                     Err(e) => {
-                        tracing::error!("Failed to add external address {}: {}", announce_addr, e);
+                        tracing::error!("Failed to add external address {announce_addr}: {e}");
                     },
                 }
             },
             Err(e) => {
-                tracing::error!(
-                    "Invalid IPFS_ANNOUNCE_ADDRESS format '{}': {}",
-                    announce_addr,
-                    e
-                );
+                tracing::error!("Invalid IPFS_ANNOUNCE_ADDRESS format '{announce_addr}': {e}");
             },
         }
     }

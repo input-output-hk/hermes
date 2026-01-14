@@ -493,7 +493,7 @@ fn doc_sync_topic_message_handler(
             }
 
             let Some(content) = content_result else {
-                tracing::error!(%channel_name_owned, %cid, "Failed to get content after {} retries", MAX_RETRIES);
+                tracing::error!(%channel_name_owned, %cid, "Failed to get content after {MAX_RETRIES} retries");
                 continue;
             };
 
