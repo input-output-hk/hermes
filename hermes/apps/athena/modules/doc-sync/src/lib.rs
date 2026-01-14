@@ -220,6 +220,7 @@ fn json_response(
 
 /// API for posting documents to IPFS `PubSub` channels.
 pub mod channel {
+    use cardano_blockchain_types::pallas_codec::minicbor;
     use shared::utils::log::error;
 
     use super::{DOC_SYNC_CHANNEL, DocData, SyncChannel, hermes};
@@ -233,11 +234,14 @@ pub mod channel {
     pub fn post(document_bytes: &DocData) -> Result<Vec<u8>, hermes::doc_sync::api::Errno> {
         // Create channel via host
         let channel = SyncChannel::new(DOC_SYNC_CHANNEL);
+        // Encode the document to CBOR
+        let document_bytes_cbor = minicbor::to_vec(document_bytes)
+            .map_err(|_| hermes::doc_sync::api::Errno::DocErrorPlaceholder)?;
         // Post document via host (executes 4-step workflow in host)
-        match channel.post(document_bytes) {
+        match channel.post(&document_bytes) {
             Ok(cid) => {
                 // If successfully posted, store document in db
-                if let Err(err) = store_in_db(document_bytes) {
+                if let Err(err) = store_in_db(&document_bytes_cbor) {
                     error!(target: "doc_sync::channel::post", "Failed to store doc in db: {err:?}");
                 }
                 return Ok(cid);
@@ -252,12 +256,12 @@ pub mod channel {
 
 /// Stores the document in local `SQLite`: computes CID, stamps current time, and inserts
 /// into `document` table.
-fn store_in_db(doc: &DocData) -> anyhow::Result<()> {
-    let cid = compute_cid(doc)?;
+fn store_in_db(doc_cbor: &DocData) -> anyhow::Result<()> {
+    let cid = compute_cid(doc_cbor)?;
     let now = chrono::Utc::now();
     let row = InsertDocumentRow {
         cid,
-        document: doc.clone(),
+        document: doc_cbor.clone(),
         inserted_at: now,
         metadata: None,
     };
@@ -268,12 +272,12 @@ fn store_in_db(doc: &DocData) -> anyhow::Result<()> {
 }
 
 /// Computes a `CIDv1` (CBOR codec, sha2-256 multihash) for the document bytes,
-fn compute_cid(doc: &DocData) -> anyhow::Result<String> {
+fn compute_cid(doc_cbor: &DocData) -> anyhow::Result<String> {
     const CBOR_CODEC: u64 = 0x51;
     const SHA2_256_CODE: u64 = 0x12;
 
     // `doc` is already in CBOR
-    let hash = Sha256::digest(&doc);
+    let hash = Sha256::digest(&doc_cbor);
     let digest = Multihash::wrap(SHA2_256_CODE, &hash)?;
     let cid = Cid::new_v1(CBOR_CODEC, digest);
     Ok(cid.to_string())
