@@ -381,21 +381,28 @@ fn perform_reconciliation(
     root: Blake3256,
     count: u64,
 ) {
+    tracing::error!("XXXXX - perform_reconciliation");
     let my_root = todo!();
     if root == my_root {
         tracing::info!(?my_root, ?root, "roots match, no reconciliation required");
     }
 
+    // let mut channel_state = DOC_SYNC_STATE
+    //     .entry(resource)
+    //     .or_insert(ChannelState::new(&name));
+
     let result1 = subscribe_to_diff();
-    let syn_payload = make_syn_payload();
+    let syn_payload = make_syn_payload(channel_state.smt);
     let result2 = send_syn_payload(&syn_payload);
 }
 
 fn subscribe_to_diff() -> () {
+    tracing::error!("XXXXX - subscribe_to_diff");
     todo!()
 }
 
-fn make_syn_payload() -> MsgSyn {
+fn make_syn_payload(smt: &Arc<Mutex<Tree<Cid>>>) -> MsgSyn {
+    tracing::error!("XXXXX - make_syn_payload");
     MsgSyn {
         root: todo!(),
         count: todo!(),
@@ -407,6 +414,7 @@ fn make_syn_payload() -> MsgSyn {
 }
 
 fn send_syn_payload(payload: &MsgSyn) -> anyhow::Result<()> {
+    tracing::error!("XXXXX - send_syn_payload");
     let mut payload_bytes = Vec::new();
     let mut enc = Encoder::new(&mut payload_bytes);
     payload
