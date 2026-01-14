@@ -741,12 +741,18 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         &self,
         kind: SubscriptionKind,
         topic: &PubsubTopic,
+        module_ids: Option<Vec<ModuleId>>,
     ) -> Result<JoinHandle<()>, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()
             .ok_or(Errno::PubsubSubscribeError)?
-            .blocking_send(IpfsCommand::Subscribe(topic.clone(), kind, cmd_tx))
+            .blocking_send(IpfsCommand::Subscribe(
+                topic.clone(),
+                kind,
+                module_ids,
+                cmd_tx,
+            ))
             .map_err(|_| Errno::PubsubSubscribeError)?;
         cmd_rx
             .blocking_recv()
@@ -786,8 +792,6 @@ struct AppIpfsState {
     doc_sync_subscriptions_streams: DashMap<PubsubTopic, JoinHandle<()>>,
     /// List of evicted peers per app.
     evicted_peers: DashMap<ApplicationName, HashSet<PeerId>>,
-    /// Module IDs per topic.
-    topic_module_ids: DashMap<PubsubTopic, Vec<ModuleId>>,
 }
 
 impl AppIpfsState {
@@ -801,7 +805,6 @@ impl AppIpfsState {
             subscriptions_streams: DashMap::default(),
             doc_sync_subscriptions_streams: DashMap::default(),
             evicted_peers: DashMap::default(),
-            topic_module_ids: DashMap::default(),
         }
     }
 
@@ -934,27 +937,6 @@ impl AppIpfsState {
             .or_default()
             .value_mut()
             .insert(peer_id);
-    }
-
-    /// Add `module_ids` for a topic.
-    fn add_topic_module_ids(
-        &self,
-        topic: &PubsubTopic,
-        module_ids: Vec<ModuleId>,
-    ) {
-        self.topic_module_ids
-            .entry(topic.clone())
-            .insert(module_ids);
-    }
-
-    /// Get `module_ids` for a topic.
-    fn get_topic_module_ids(
-        &self,
-        topic: &PubsubTopic,
-    ) -> Vec<ModuleId> {
-        self.topic_module_ids
-            .get(topic)
-            .map_or(vec![], |module_ids| module_ids.clone())
     }
 }
 

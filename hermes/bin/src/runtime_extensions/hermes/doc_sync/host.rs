@@ -145,6 +145,7 @@ impl HostSyncChannel for HermesRuntimeContext {
             ipfs::SubscriptionKind::DocSync,
             self.app_name(),
             topic_new.clone(),
+            Some(vec![self.module_id().clone()]),
         ) {
             DOC_SYNC_STATE.remove(&resource);
             return Err(wasmtime::Error::msg(format!(

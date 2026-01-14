@@ -33,12 +33,17 @@ impl OnTopicEvent {
     pub(crate) fn build_and_send(
         &self,
         app_names: Vec<ApplicationName>,
-        module_ids: Vec<ModuleId>,
+        module_ids: Option<Vec<ModuleId>>,
     ) -> anyhow::Result<()> {
+        let target_module = match module_ids {
+            Some(module_ids) => crate::event::TargetModule::List(module_ids),
+            None => crate::event::TargetModule::All,
+        };
+
         let event = HermesEvent::new(
             self.clone(),
             crate::event::TargetApp::List(app_names),
-            crate::event::TargetModule::List(module_ids),
+            target_module,
         );
 
         crate::event::queue::send(event).map_err(|err| {

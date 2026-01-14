@@ -12,11 +12,14 @@ use tokio::{
 };
 
 use super::HERMES_IPFS;
-use crate::runtime_extensions::{
-    bindings::hermes::ipfs::api::{
-        DhtKey, DhtValue, Errno, IpfsFile, MessageData, PeerId, PubsubMessage, PubsubTopic,
+use crate::{
+    runtime_extensions::{
+        bindings::hermes::ipfs::api::{
+            DhtKey, DhtValue, Errno, IpfsFile, MessageData, PeerId, PubsubMessage, PubsubTopic,
+        },
+        hermes::{doc_sync::OnNewDocEvent, ipfs::event::OnTopicEvent},
     },
-    hermes::{doc_sync::OnNewDocEvent, ipfs::event::OnTopicEvent},
+    wasm::module::ModuleId,
 };
 
 /// Chooses how subscription messages are handled.
@@ -62,6 +65,7 @@ pub(crate) enum IpfsCommand {
     Subscribe(
         PubsubTopic,
         SubscriptionKind,
+        Option<Vec<ModuleId>>,
         oneshot::Sender<Result<JoinHandle<()>, Errno>>,
     ),
     /// Evict Peer from node
@@ -163,7 +167,7 @@ pub(crate) async fn ipfs_command_handler(
                     });
                 send_response(result, tx);
             },
-            IpfsCommand::Subscribe(topic, kind, tx) => {
+            IpfsCommand::Subscribe(topic, kind, module_ids, tx) => {
                 let stream = hermes_node
                     .pubsub_subscribe(&topic)
                     .await
@@ -175,6 +179,7 @@ pub(crate) async fn ipfs_command_handler(
                         SubscriptionKind::Default => topic_message_handler,
                         SubscriptionKind::DocSync => doc_sync_topic_message_handler,
                     },
+                    module_ids,
                 );
 
                 let subscription_handler =
@@ -241,27 +246,38 @@ pub(crate) async fn ipfs_command_handler(
 /// A handler for messages from the IPFS pubsub topic
 pub(super) struct TopicMessageHandler<T>
 where
-    T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static,
+    T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, Option<Vec<ModuleId>>)
+        + Send
+        + Sync
+        + 'static,
 {
     /// The topic.
     topic: String,
 
     /// The handler implementation.
     callback: T,
+
+    /// Module IDs
+    module_ids: Option<Vec<ModuleId>>,
 }
 
 impl<T> TopicMessageHandler<T>
 where
-    T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String) + Send + Sync + 'static,
+    T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, Option<Vec<ModuleId>>)
+        + Send
+        + Sync
+        + 'static,
 {
     /// Creates the new handler.
     pub fn new(
         topic: &impl ToString,
         callback: T,
+        module_ids: Option<Vec<ModuleId>>,
     ) -> Self {
         Self {
             topic: topic.to_string(),
             callback,
+            module_ids,
         }
     }
 
@@ -270,7 +286,7 @@ where
         &self,
         msg: hermes_ipfs::rust_ipfs::GossipsubMessage,
     ) {
-        (self.callback)(msg, self.topic.clone());
+        (self.callback)(msg, self.topic.clone(), self.module_ids.clone())
     }
 }
 
@@ -314,6 +330,7 @@ where
 fn topic_message_handler(
     message: hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
+    module_ids: Option<Vec<ModuleId>>,
 ) {
     if let Some(ipfs) = HERMES_IPFS.get() {
         let app_names = ipfs.apps.subscribed_apps(SubscriptionKind::Default, &topic);
@@ -324,7 +341,7 @@ fn topic_message_handler(
                 message: message.data.into(),
                 publisher: message.source.map(|p| p.to_string()),
             })
-            .build_and_send(app_names, ipfs.apps.get_topic_module_ids(&topic)),
+            .build_and_send(app_names, module_ids),
         );
     } else {
         tracing::error!("Failed to send on_topic_event. IPFS is uninitialized");
@@ -349,6 +366,7 @@ fn topic_message_handler(
 fn doc_sync_topic_message_handler(
     message: hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
+    module_ids: Option<Vec<ModuleId>>,
 ) {
     if let Ok(msg_str) = std::str::from_utf8(&message.data) {
         tracing::info!("RECEIVED PubSub message on topic: {topic} - data: {msg_str}",);
@@ -492,10 +510,9 @@ fn doc_sync_topic_message_handler(
             .subscribed_apps(SubscriptionKind::DocSync, &topic_owned);
 
         for content in contents {
-            let module_ids = ipfs.apps.get_topic_module_ids(&topic_owned);
             drop(
                 OnNewDocEvent::new(&channel_name_owned, &content)
-                    .build_and_send(app_names.clone(), module_ids),
+                    .build_and_send(app_names.clone(), module_ids.clone()),
             );
         }
     });
