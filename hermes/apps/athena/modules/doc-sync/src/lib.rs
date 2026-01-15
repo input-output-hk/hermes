@@ -276,7 +276,7 @@ pub mod channel {
         match channel.post(&document_bytes) {
             Ok(cid) => {
                 // If successfully posted, store document in db
-                if let Err(err) = store_in_db(&document_bytes_cbor, "fixme") {
+                if let Err(err) = store_in_db(&document_bytes_cbor, DOC_SYNC_CHANNEL) {
                     error!(target: "doc_sync::channel::post", "Failed to store doc in db: {err:?}");
                 }
                 return Ok(cid);
