@@ -33,6 +33,8 @@ use crate::{
     },
 };
 
+const DOC_SYNC_PREFIXES_THRESHOLD: u64 = 64;
+
 /// Chooses how subscription messages are handled.
 #[derive(Copy, Clone, Debug, Default)]
 pub(crate) enum SubscriptionKind {
@@ -421,19 +423,15 @@ fn doc_sync_topic_message_handler(
 
             if docs.is_empty() {
                 tracing::error!("XXXXX - going to perform reconciliation");
-                let Ok(tree) = tree.lock() else {
-                    tracing::error!("SMT lock poisoned");
-                    return;
+                match tree_state(Arc::clone(&tree)) {
+                    Ok((our_root, our_count, prefixes)) => {
+                        perform_reconciliation(their_root, their_count, our_root, our_count)
+                    },
+                    Err(err) => {
+                        tracing::error!(%err, "Failed to get SMT state");
+                        return;
+                    },
                 };
-
-                let our_root = tree.root();
-                let maybe_our_root_bytes: Result<[u8; 32], _> = our_root.as_slice().try_into();
-                let Ok(our_root_bytes) = maybe_our_root_bytes else {
-                    tracing::error!("SMT root should be 32 bytes");
-                    return;
-                };
-                let our_root = Blake3256::from(our_root_bytes);
-                perform_reconciliation(their_root, their_count, our_root);
             }
         },
         DocumentDisseminationBody::Manifest { .. } => {
@@ -443,10 +441,57 @@ fn doc_sync_topic_message_handler(
     }
 }
 
+fn tree_state(
+    tree: Arc<Mutex<Tree<crate::runtime_extensions::hermes::doc_sync::Cid>>>
+) -> anyhow::Result<(Blake3256, u64, Vec<Option<Blake3256>>)> {
+    let Ok(tree) = tree.lock() else {
+        return Err(anyhow::anyhow!("SMT lock poisoned"));
+    };
+
+    let our_root = tree.root();
+    let maybe_our_root_bytes: Result<[u8; 32], _> = our_root.as_slice().try_into();
+    let Ok(our_root_bytes) = maybe_our_root_bytes else {
+        return Err(anyhow::anyhow!("SMT root should be 32 bytes"));
+    };
+    let our_root = Blake3256::from(our_root_bytes);
+    let our_count = tree.count();
+
+    let Ok(our_count) = our_count.try_into() else {
+        return Err(anyhow::anyhow!(
+            "Tree element count must be representable as u64"
+        ));
+    };
+
+    let prefixes = if our_count > DOC_SYNC_PREFIXES_THRESHOLD {
+        let coarse_height = tree.coarse_height();
+        let prefixes = tree
+            .horizontal_slice_at(coarse_height)?
+            .map(|hash| {
+                hash.map(|x| {
+                    match x {
+                        Some(hash) => {
+                            let bytes: Result<[u8; 32], _> = hash.as_slice().try_into();
+                            let Ok(bytes) = bytes else { todo!() };
+                            Some(Blake3256::from(bytes))
+                        },
+                        None => None,
+                    }
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        prefixes
+    } else {
+        vec![]
+    };
+
+    Ok((our_root, our_count, prefixes))
+}
+
 fn perform_reconciliation(
     their_root: Blake3256,
     their_count: u64,
     our_root: Blake3256,
+    our_count: u64,
 ) {
     tracing::error!("XXXXX - perform_reconciliation");
     if their_root == our_root {
@@ -456,6 +501,8 @@ fn perform_reconciliation(
             "roots match, no reconciliation required"
         );
     }
+
+    let prefixes = if our_count > DOC_SYNC_PREFIXES_THRESHOLD {};
 
     // let mut channel_state = DOC_SYNC_STATE
     // .entry(resource)
