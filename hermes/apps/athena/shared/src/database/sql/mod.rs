@@ -80,7 +80,9 @@ include_sql! {
     pub const DOC_SYNC: _ = DocSync {
         delete_document_by_cid,
         insert_document,
-        select_document_by_cid
+        select_document_by_cid,
+        select_documents_by_topic,
+        select_documents_cids_by_topic,
     };
 }
 

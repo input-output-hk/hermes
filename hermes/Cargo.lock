@@ -626,6 +626,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "blake2b-ref"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "294d17c72e0ba59fad763caa112368d0672083779cdebbb97164f4bb4c1e339a"
+
+[[package]]
 name = "blake2b_simd"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1033,6 +1039,31 @@ dependencies = [
  "orx-concurrent-vec",
  "serde",
  "serde_json",
+ "strum 0.27.2",
+ "thiserror 2.0.17",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "catalyst-types"
+version = "0.0.12"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=catalyst-types%2Fv0.0.12#36d1f307f51063d1976d22216f87b9ef4f7e9d68"
+dependencies = [
+ "base64-url",
+ "blake3",
+ "chrono",
+ "displaydoc",
+ "ed25519-dalek",
+ "fluent-uri 0.3.2",
+ "fmmap",
+ "jsonschema 0.37.4",
+ "minicbor 0.25.1",
+ "num-traits",
+ "orx-concurrent-vec",
+ "serde",
+ "serde_json",
+ "sparse-merkle-tree",
  "strum 0.27.2",
  "thiserror 2.0.17",
  "tracing",
@@ -2357,6 +2388,17 @@ dependencies = [
 
 [[package]]
 name = "fancy-regex"
+version = "0.16.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "998b056554fbe42e03ae0e152895cd1a7e1002aec800fdc6635d20270260c46f"
+dependencies = [
+ "bit-set",
+ "regex-automata",
+ "regex-syntax",
+]
+
+[[package]]
+name = "fancy-regex"
 version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72cf461f865c862bb7dc573f643dd6a2b6842f7c30b07882b56bd148cc2761b8"
@@ -3072,7 +3114,7 @@ dependencies = [
  "built",
  "cardano-blockchain-types",
  "cardano-chain-follower",
- "catalyst-types 0.0.11",
+ "catalyst-types 0.0.12",
  "chrono",
  "chrono-tz",
  "clap",
@@ -3880,6 +3922,33 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "uuid-simd",
+]
+
+[[package]]
+name = "jsonschema"
+version = "0.37.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73c9ffb2b5c56d58030e1b532d8e8389da94590515f118cf35b5cb68e4764a7e"
+dependencies = [
+ "ahash",
+ "bytecount",
+ "data-encoding",
+ "email_address",
+ "fancy-regex 0.16.2",
+ "fraction",
+ "getrandom 0.3.4",
+ "idna",
+ "itoa",
+ "num-cmp",
+ "num-traits",
+ "percent-encoding",
+ "referencing 0.37.4",
+ "regex",
+ "regex-syntax",
+ "serde",
+ "serde_json",
+ "unicode-general-category",
  "uuid-simd",
 ]
 
@@ -6684,6 +6753,21 @@ dependencies = [
 
 [[package]]
 name = "referencing"
+version = "0.37.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4283168a506f0dcbdce31c9f9cce3129c924da4c6bca46e46707fcb746d2d70c"
+dependencies = [
+ "ahash",
+ "fluent-uri 0.4.1",
+ "getrandom 0.3.4",
+ "hashbrown 0.16.1",
+ "parking_lot",
+ "percent-encoding",
+ "serde_json",
+]
+
+[[package]]
+name = "referencing"
 version = "0.38.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "15a8af0c6bb8eaf8b07cb06fc31ff30ca6fe19fb99afa476c276d8b24f365b0b"
@@ -7638,6 +7722,7 @@ dependencies = [
  "cardano-blockchain-types",
  "catalyst-types 0.0.10",
  "chrono",
+ "cid",
  "derive_more",
  "ed25519-dalek",
  "hex",
@@ -7804,6 +7889,16 @@ dependencies = [
  "log",
  "rand 0.8.5",
  "sha1",
+]
+
+[[package]]
+name = "sparse-merkle-tree"
+version = "0.6.2"
+source = "git+https://github.com/nervosnetwork/sparse-merkle-tree.git?rev=b74ea1bd57a397df82fcf32f2639de7e5248659f#b74ea1bd57a397df82fcf32f2639de7e5248659f"
+dependencies = [
+ "blake2b-ref",
+ "cc",
+ "cfg-if",
 ]
 
 [[package]]
