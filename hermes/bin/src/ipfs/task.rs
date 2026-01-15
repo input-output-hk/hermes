@@ -465,21 +465,18 @@ fn tree_state(
 
     let prefixes = if our_count > DOC_SYNC_PREFIXES_THRESHOLD {
         let coarse_height = tree.coarse_height();
-        let prefixes = tree
-            .horizontal_slice_at(coarse_height)?
-            .map(|hash| {
-                hash.map(|x| {
-                    match x {
-                        Some(hash) => {
-                            let bytes: Result<[u8; 32], _> = hash.as_slice().try_into();
-                            let Ok(bytes) = bytes else { todo!() };
-                            Some(Blake3256::from(bytes))
-                        },
-                        None => None,
-                    }
-                })
-            })
-            .collect::<Result<Vec<_>, _>>()?;
+        let slice = tree.horizontal_slice_at(coarse_height)?;
+        let mut prefixes = Vec::with_capacity(2_usize.pow(coarse_height as u32));
+        for node in slice {
+            let maybe_node = node?;
+            match maybe_node {
+                Some(node) => {
+                    let node_bytes: [u8; 32] = node.as_slice().try_into()?;
+                    prefixes.push(Some(Blake3256::from(node_bytes)))
+                },
+                None => prefixes.push(None),
+            }
+        }
         prefixes
     } else {
         vec![]
