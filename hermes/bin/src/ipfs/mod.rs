@@ -53,9 +53,9 @@ use tokio::{
 
 use crate::{
     app::ApplicationName,
-    runtime_extensions::bindings::hermes::ipfs::api::{
+    runtime_extensions::{bindings::hermes::ipfs::api::{
         DhtKey, DhtValue, Errno, IpfsFile, IpfsPath, MessageData, PeerId, PubsubTopic,
-    },
+    }, hermes::doc_sync},
 };
 
 /// Hermes IPFS Internal Node
@@ -703,7 +703,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         &self,
         kind: SubscriptionKind,
         topic: &PubsubTopic,
-        tree: Option<Arc<Mutex<Tree<crate::runtime_extensions::hermes::doc_sync::Cid>>>>,
+        tree: Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
     ) -> Result<JoinHandle<()>, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender

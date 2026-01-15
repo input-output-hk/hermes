@@ -29,7 +29,10 @@ use crate::{
         bindings::hermes::ipfs::api::{
             DhtKey, DhtValue, Errno, IpfsFile, MessageData, PeerId, PubsubMessage, PubsubTopic,
         },
-        hermes::{doc_sync::OnNewDocEvent, ipfs::event::OnTopicEvent},
+        hermes::{
+            doc_sync::{self, OnNewDocEvent},
+            ipfs::event::OnTopicEvent,
+        },
     },
 };
 
@@ -72,7 +75,7 @@ pub(crate) enum IpfsCommand {
     Subscribe(
         PubsubTopic,
         SubscriptionKind,
-        Option<Arc<Mutex<Tree<crate::runtime_extensions::hermes::doc_sync::Cid>>>>,
+        Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
         oneshot::Sender<Result<JoinHandle<()>, Errno>>,
     ),
     /// Evict Peer from node
@@ -247,13 +250,11 @@ pub(crate) async fn ipfs_command_handler(
 
 #[derive(Default, Clone)]
 pub(super) struct TopicMessageContext {
-    tree: Option<Arc<Mutex<Tree<crate::runtime_extensions::hermes::doc_sync::Cid>>>>,
+    tree: Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
 }
 
 impl TopicMessageContext {
-    pub(crate) fn new(
-        tree: Option<Arc<Mutex<Tree<crate::runtime_extensions::hermes::doc_sync::Cid>>>>
-    ) -> Self {
+    pub(crate) fn new(tree: Option<Arc<Mutex<Tree<doc_sync::Cid>>>>) -> Self {
         Self { tree }
     }
 }
@@ -442,7 +443,7 @@ fn doc_sync_topic_message_handler(
 }
 
 fn tree_state(
-    tree: Arc<Mutex<Tree<crate::runtime_extensions::hermes::doc_sync::Cid>>>
+    tree: Arc<Mutex<Tree<doc_sync::Cid>>>
 ) -> anyhow::Result<(Blake3256, u64, Vec<Option<Blake3256>>)> {
     let Ok(tree) = tree.lock() else {
         return Err(anyhow::anyhow!("SMT lock poisoned"));
