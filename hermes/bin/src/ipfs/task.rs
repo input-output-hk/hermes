@@ -444,7 +444,10 @@ fn doc_sync_topic_message_handler(
                                 return;
                             },
                             DocReconciliation::Needed(doc_reconciliation_data) => {
-                                start_reconciliation(doc_reconciliation_data)
+                                if let Err(err) = start_reconciliation(doc_reconciliation_data) {
+                                    tracing::error!(%err, "Failed to start reconciliation");
+                                    return;
+                                }
                             },
                         }
                     },
@@ -514,36 +517,33 @@ fn create_reconciliation_state(
     }))
 }
 
-fn start_reconciliation(
+fn start_reconciliation(doc_reconciliation_data: DocReconciliationData) -> anyhow::Result<()> {
+    tracing::error!("XXXXX - perform_reconciliation");
+
+    subscribe_to_diff()?;
+    let syn_payload = make_syn_payload(doc_reconciliation_data);
+    let result2 = send_syn_payload(&syn_payload);
+    Ok(())
+}
+
+fn subscribe_to_diff() -> anyhow::Result<()> {
+    tracing::error!("XXXXX - subscribe_to_diff");
+    todo!()
+}
+
+fn make_syn_payload(
     DocReconciliationData {
         our_root,
         our_count,
         prefixes,
     }: DocReconciliationData
-) {
-    tracing::error!("XXXXX - perform_reconciliation");
-
-    // let mut channel_state = DOC_SYNC_STATE
-    // .entry(resource)
-    // .or_insert(ChannelState::new(&name));
-
-    let result1 = subscribe_to_diff();
-    let syn_payload = make_syn_payload(/*channel_state.smt()*/);
-    let result2 = send_syn_payload(&syn_payload);
-}
-
-fn subscribe_to_diff() -> () {
-    tracing::error!("XXXXX - subscribe_to_diff");
-    todo!()
-}
-
-fn make_syn_payload(/*smt: &Arc<Mutex<Tree<Cid>>>*/) -> MsgSyn {
+) -> MsgSyn {
     tracing::error!("XXXXX - make_syn_payload");
     MsgSyn {
-        root: todo!(),
-        count: todo!(),
+        root: our_root,
+        count: our_count,
         to: todo!(),
-        prefix: todo!(),
+        prefixes: (!prefixes.is_empty()).then_some(prefixes),
         peer_root: todo!(),
         peer_count: todo!(),
     }
