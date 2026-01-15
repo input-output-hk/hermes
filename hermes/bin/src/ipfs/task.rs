@@ -409,16 +409,31 @@ fn doc_sync_topic_message_handler(
     match payload {
         DocumentDisseminationBody::Docs {
             docs,
-            common_fields: CommonFields { root, count, .. },
+            common_fields:
+                CommonFields {
+                    root: their_root,
+                    count: their_count,
+                    ..
+                },
         } => {
             // DO NOT remove this log, since it is used in tests
             tracing::info!("RECEIVED PubSub message with CIDs: {:?}", docs);
 
             if docs.is_empty() {
                 tracing::error!("XXXXX - going to perform reconciliation");
-                //perform_reconciliation(root, count);
-            } else {
-                process_broadcasted_cids(&topic, channel_name, docs);
+                let Ok(tree) = tree.lock() else {
+                    tracing::error!("SMT lock poisoned");
+                    return;
+                };
+
+                let our_root = tree.root();
+                let maybe_our_root_bytes: Result<[u8; 32], _> = our_root.as_slice().try_into();
+                let Ok(our_root_bytes) = maybe_our_root_bytes else {
+                    tracing::error!("SMT root should be 32 bytes");
+                    return;
+                };
+                let our_root = Blake3256::from(our_root_bytes);
+                perform_reconciliation(their_root, their_count, our_root);
             }
         },
         DocumentDisseminationBody::Manifest { .. } => {
@@ -429,13 +444,17 @@ fn doc_sync_topic_message_handler(
 }
 
 fn perform_reconciliation(
-    root: Blake3256,
-    count: u64,
+    their_root: Blake3256,
+    their_count: u64,
+    our_root: Blake3256,
 ) {
     tracing::error!("XXXXX - perform_reconciliation");
-    let my_root = todo!();
-    if root == my_root {
-        tracing::info!(?my_root, ?root, "roots match, no reconciliation required");
+    if their_root == our_root {
+        tracing::info!(
+            ?our_root,
+            ?their_root,
+            "roots match, no reconciliation required"
+        );
     }
 
     // let mut channel_state = DOC_SYNC_STATE
