@@ -144,7 +144,8 @@ impl HostSyncChannel for HermesRuntimeContext {
         if let Err(err) = hermes_ipfs_subscribe(
             ipfs::SubscriptionKind::DocSync,
             self.app_name(),
-            topic_new.clone(),
+            &topic_new,
+            Some(vec![self.module_id().clone()]),
         ) {
             DOC_SYNC_STATE.remove(&resource);
             return Err(wasmtime::Error::msg(format!(
@@ -152,6 +153,9 @@ impl HostSyncChannel for HermesRuntimeContext {
             )));
         }
         tracing::info!("Created Doc Sync Channel: {name}");
+
+        // DO NOT REMOVE THIS LOG, it is used in the test
+        tracing::info!("Subscribed to .new with base {name}");
 
         // When subscribe is successful, create and start the timer
         if channel_state.timers.is_none() {
@@ -293,22 +297,23 @@ fn add_file(
     const STEP: u8 = 1;
     match ctx.file_add(doc.clone())? {
         Ok(FileAddResult { file_path, cid }) => {
-            // TODO - Should not convert CID here <https://github.com/input-output-hk/hermes/issues/736>
-            let mut hasher = Sha256::new();
-            hasher.update(doc);
-            let hash_digest = hasher.digest();
-            let multihash = multihash::Multihash::<64>::wrap(SHA2_256_CODE, &hash_digest)?;
-            let cbor_cid = hermes_ipfs::Cid::new_v1(CBOR_CODEC, multihash);
+            let cid: hermes_ipfs::Cid = match cid.try_into() {
+                Ok(cid) => cid,
+                Err(e) => {
+                    tracing::error!(
+                        "✗ Step {STEP}/{POST_STEP_COUNT} failed: CID conversion error: {e:?}",
+                    );
+                    return Ok(Err(Errno::DocErrorPlaceholder));
+                },
+            };
             tracing::info!(
-                "✓ Step {STEP}/{POST_STEP_COUNT}: Added and pinned to IPFS (CID: {cbor_cid}, {cid:?}) → {file_path}"
+                "✓ Step {STEP}/{POST_STEP_COUNT}: Added and pinned to IPFS (CID: {}) → {file_path}.",
+                cid.to_string(),
             );
-            Ok(Ok(cbor_cid))
+            Ok(Ok(cid))
         },
         Err(e) => {
-            tracing::error!(
-                "✗ Step {STEP}/{POST_STEP_COUNT} failed: file_add error: {:?}",
-                e
-            );
+            tracing::error!("✗ Step {STEP}/{POST_STEP_COUNT} failed: file_add error: {e:?}");
             Ok(Err(Errno::DocErrorPlaceholder))
         },
     }

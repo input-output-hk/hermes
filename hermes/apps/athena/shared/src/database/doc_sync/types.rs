@@ -9,7 +9,7 @@ use crate::utils::sqlite;
 #[derive(From)]
 pub struct InsertDocumentRow {
     /// CID calculated over document bytes.
-    pub cid: Vec<u8>,
+    pub cid: String,
     /// Document CBOR-encoded bytes.
     pub document: Vec<u8>,
     /// Timestamp when the document was inserted.

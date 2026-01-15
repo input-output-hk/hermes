@@ -25,7 +25,6 @@ shared::bindings_generate!({
 
 export!(Component);
 
-use cardano_blockchain_types::pallas_codec::minicbor::{self, Encoder, data::Tag};
 use cid::{Cid, multihash::Multihash};
 use hermes::{
     doc_sync::api::{DocData, SyncChannel},
@@ -166,14 +165,27 @@ impl exports::hermes::http_gateway::event::Guest for Component {
                 // Call channel::post (executes 4-step workflow on host)
                 match channel::post(&body) {
                     Ok(cid_bytes) => {
-                        let cid = String::from_utf8_lossy(&cid_bytes);
-                        Some(json_response(
-                            200,
-                            &serde_json::json!({
-                                "success": true,
-                                "cid": cid
-                            }),
-                        ))
+                        match TryInto::<Cid>::try_into(cid_bytes) {
+                            Ok(cid) => {
+                                Some(json_response(
+                                    200,
+                                    &serde_json::json!({
+                                        "success": true,
+                                        "cid": cid.to_string()
+                                    }),
+                                ))
+                            },
+                            Err(e) => {
+                                error!(target: "doc_sync", "Failed to convert CID bytes to CID: {e:?}");
+                                Some(json_response(
+                                    500,
+                                    &serde_json::json!({
+                                        "success": false,
+                                        "error": "Failed to convert CID bytes to CID"
+                                    }),
+                                ))
+                            },
+                        }
                     },
                     Err(e) => {
                         error!(target: "doc_sync", "Failed to post document: {e:?}");
@@ -213,7 +225,11 @@ fn json_response(
 
 /// API for posting documents to IPFS `PubSub` channels.
 pub mod channel {
+    use cardano_blockchain_types::pallas_codec::minicbor;
+    use shared::utils::log::error;
+
     use super::{DOC_SYNC_CHANNEL, DocData, SyncChannel, hermes};
+    use crate::store_in_db;
 
     /// Post a document to the "documents" channel. Returns the document's CID.
     ///
@@ -223,19 +239,34 @@ pub mod channel {
     pub fn post(document_bytes: &DocData) -> Result<Vec<u8>, hermes::doc_sync::api::Errno> {
         // Create channel via host
         let channel = SyncChannel::new(DOC_SYNC_CHANNEL);
+        // Encode the document to CBOR
+        let document_bytes_cbor = minicbor::to_vec(document_bytes)
+            .map_err(|_| hermes::doc_sync::api::Errno::DocErrorPlaceholder)?;
         // Post document via host (executes 4-step workflow in host)
-        channel.post(document_bytes)
+        match channel.post(&document_bytes) {
+            Ok(cid) => {
+                // If successfully posted, store document in db
+                if let Err(err) = store_in_db(&document_bytes_cbor) {
+                    error!(target: "doc_sync::channel::post", "Failed to store doc in db: {err:?}");
+                }
+                return Ok(cid);
+            },
+            Err(err) => {
+                error!(target: "doc_sync::channel::post", "Failed to post doc: {err:?}");
+                return Err(err);
+            },
+        }
     }
 }
 
 /// Stores the document in local `SQLite`: computes CID, stamps current time, and inserts
 /// into `document` table.
-fn store_in_db(doc: &DocData) -> anyhow::Result<()> {
-    let cid = compute_cid(doc)?;
+fn store_in_db(doc_cbor: &DocData) -> anyhow::Result<()> {
+    let cid = compute_cid(doc_cbor)?;
     let now = chrono::Utc::now();
     let row = InsertDocumentRow {
         cid,
-        document: doc.clone(),
+        document: doc_cbor.clone(),
         inserted_at: now,
         metadata: None,
     };
@@ -246,20 +277,13 @@ fn store_in_db(doc: &DocData) -> anyhow::Result<()> {
 }
 
 /// Computes a `CIDv1` (CBOR codec, sha2-256 multihash) for the document bytes,
-/// wraps it in the IPLD CID CBOR tag (42) and returns the tagged bytes.
-fn compute_cid(doc: &DocData) -> anyhow::Result<Vec<u8>> {
+fn compute_cid(doc_cbor: &DocData) -> anyhow::Result<String> {
     const CBOR_CODEC: u64 = 0x51;
-    const CID_CBOR_TAG: u64 = 42;
     const SHA2_256_CODE: u64 = 0x12;
 
-    let doc_bytes = minicbor::to_vec(doc)?;
-    let hash = Sha256::digest(&doc_bytes);
+    // `doc` is already in CBOR
+    let hash = Sha256::digest(&doc_cbor);
     let digest = Multihash::wrap(SHA2_256_CODE, &hash)?;
     let cid = Cid::new_v1(CBOR_CODEC, digest);
-
-    let mut encoder = Encoder::new(Vec::new());
-    encoder.tag(Tag::new(CID_CBOR_TAG))?;
-    encoder.bytes(&cid.to_bytes())?;
-
-    Ok(encoder.into_writer())
+    Ok(cid.to_string())
 }
