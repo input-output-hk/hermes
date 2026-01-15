@@ -259,6 +259,17 @@ impl TopicMessageContext {
     }
 }
 
+enum DocReconciliation {
+    NotNeeded,
+    Needed(DocReconciliationData),
+}
+
+struct DocReconciliationData {
+    our_root: Blake3256,
+    our_count: u64,
+    prefixes: Vec<Option<Blake3256>>,
+}
+
 /// A handler for messages from the IPFS pubsub topic
 pub(super) struct TopicMessageHandler {
     /// The topic.
@@ -423,13 +434,22 @@ fn doc_sync_topic_message_handler(
             tracing::info!("RECEIVED PubSub message with CIDs: {:?}", docs);
 
             if docs.is_empty() {
-                tracing::error!("XXXXX - going to perform reconciliation");
-                match tree_state(Arc::clone(&tree)) {
-                    Ok((our_root, our_count, prefixes)) => {
-                        perform_reconciliation(their_root, their_count, our_root, our_count)
+                tracing::error!("XXXXX - will try to perform reconciliation");
+                match create_reconciliation_state(their_root, Arc::clone(&tree)) {
+                    Ok(doc_reconciliation) => {
+                        match doc_reconciliation {
+                            DocReconciliation::NotNeeded => {
+                                tracing::error!("XXXXX - reconciliation not needed");
+                                tracing::info!("Reconciliation not needed");
+                                return;
+                            },
+                            DocReconciliation::Needed(doc_reconciliation_data) => {
+                                start_reconciliation(doc_reconciliation_data)
+                            },
+                        }
                     },
                     Err(err) => {
-                        tracing::error!(%err, "Failed to get SMT state");
+                        tracing::error!(%err, "Failed to create reconciliation state");
                         return;
                     },
                 };
@@ -442,9 +462,10 @@ fn doc_sync_topic_message_handler(
     }
 }
 
-fn tree_state(
-    tree: Arc<Mutex<Tree<doc_sync::Cid>>>
-) -> anyhow::Result<(Blake3256, u64, Vec<Option<Blake3256>>)> {
+fn create_reconciliation_state(
+    their_root: Blake3256,
+    tree: Arc<Mutex<Tree<doc_sync::Cid>>>,
+) -> anyhow::Result<DocReconciliation> {
     let Ok(tree) = tree.lock() else {
         return Err(anyhow::anyhow!("SMT lock poisoned"));
     };
@@ -455,8 +476,12 @@ fn tree_state(
         return Err(anyhow::anyhow!("SMT root should be 32 bytes"));
     };
     let our_root = Blake3256::from(our_root_bytes);
-    let our_count = tree.count();
 
+    if our_root == their_root {
+        return Ok(DocReconciliation::NotNeeded);
+    }
+
+    let our_count = tree.count();
     let Ok(our_count) = our_count.try_into() else {
         return Err(anyhow::anyhow!(
             "Tree element count must be representable as u64"
@@ -482,25 +507,21 @@ fn tree_state(
         vec![]
     };
 
-    Ok((our_root, our_count, prefixes))
+    Ok(DocReconciliation::Needed(DocReconciliationData {
+        our_root,
+        our_count,
+        prefixes,
+    }))
 }
 
-fn perform_reconciliation(
-    their_root: Blake3256,
-    their_count: u64,
-    our_root: Blake3256,
-    our_count: u64,
+fn start_reconciliation(
+    DocReconciliationData {
+        our_root,
+        our_count,
+        prefixes,
+    }: DocReconciliationData
 ) {
     tracing::error!("XXXXX - perform_reconciliation");
-    if their_root == our_root {
-        tracing::info!(
-            ?our_root,
-            ?their_root,
-            "roots match, no reconciliation required"
-        );
-    }
-
-    let prefixes = if our_count > DOC_SYNC_PREFIXES_THRESHOLD {};
 
     // let mut channel_state = DOC_SYNC_STATE
     // .entry(resource)
