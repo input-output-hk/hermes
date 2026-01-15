@@ -5,6 +5,7 @@ use crate::{
     runtime_extensions::bindings::hermes::ipfs::api::{
         DhtKey, DhtValue, Errno, IpfsContent, IpfsFile, IpfsPath, MessageData, PeerId, PubsubTopic,
     },
+    wasm::module::ModuleId,
 };
 
 /// Add File to IPFS
@@ -48,7 +49,7 @@ pub(crate) fn hermes_ipfs_get_file(
 ) -> Result<IpfsFile, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     let content = ipfs.file_get(path)?;
-    tracing::debug!(app_name = %app_name, path = %path, "got IPFS file with content {content:?}");
+    tracing::debug!(app_name = %app_name, path = %path, "got IPFS file with content size {:?}", content.len());
     Ok(content)
 }
 
@@ -150,19 +151,20 @@ pub(crate) fn hermes_ipfs_get_peer_identity(
 pub(crate) fn hermes_ipfs_subscribe(
     kind: SubscriptionKind,
     app_name: &ApplicationName,
-    topic: PubsubTopic,
+    topic: &PubsubTopic,
+    module_ids: Option<Vec<ModuleId>>,
 ) -> Result<bool, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "subscribing to PubSub topic");
-    if ipfs.apps.topic_subscriptions_contains(kind, &topic) {
+    if ipfs.apps.topic_subscriptions_contains(kind, topic) {
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription stream already exists");
     } else {
-        let handle = ipfs.pubsub_subscribe(kind, &topic)?;
+        let handle = ipfs.pubsub_subscribe(kind, topic, module_ids)?;
         ipfs.apps.added_topic_stream(kind, topic.clone(), handle);
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "added subscription topic stream");
     }
     ipfs.apps
-        .added_app_topic_subscription(kind, app_name.clone(), topic);
+        .added_app_topic_subscription(kind, app_name.clone(), topic.clone());
     Ok(true)
 }
 

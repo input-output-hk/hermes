@@ -16,7 +16,8 @@ shared::bindings_generate!({
 
             export hermes:init/event;
             export hermes:ipfs/event;        // Required: Receives `PubSub` messages via on-topic
-            export hermes:doc-sync/event;    // Optional: Doc-sync specific events
+            export hermes:doc-sync/event-on-new-doc;    // Optional: Doc-sync specific events
+            export hermes:doc-sync/event-document-provider;    // Optional: Doc-sync specific events
             export hermes:http-gateway/event;
         }
     ",
@@ -39,6 +40,8 @@ use shared::{
         sqlite,
     },
 };
+
+use crate::exports::hermes::doc_sync::event_document_provider::IpfsCid;
 
 /// Doc Sync component - thin wrapper calling host-side implementation.
 struct Component;
@@ -119,7 +122,7 @@ impl exports::hermes::ipfs::event::Guest for Component {
 ///
 /// This is for potential future doc-sync specific event types. Currently, all
 /// `PubSub` messages are received via the `on-topic` handler above.
-impl exports::hermes::doc_sync::event::Guest for Component {
+impl exports::hermes::doc_sync::event_on_new_doc::Guest for Component {
     fn on_new_doc(
         channel: ChannelName,
         doc: DocData,
@@ -133,10 +136,37 @@ impl exports::hermes::doc_sync::event::Guest for Component {
             format_message_preview(&doc)
         );
 
-        if let Err(err) = store_in_db(&doc) {
+        if let Err(err) = store_in_db(&doc, &channel) {
             error!(target: "doc_sync::on_new_doc", "Failed to store doc from channel {channel}: {err:?}");
         }
     }
+}
+
+impl exports::hermes::doc_sync::event_document_provider::Guest for Component {
+    fn return_cids(channel: ChannelName) -> Vec<IpfsCid> {
+        get_documents_cids(&channel).unwrap_or_default()
+    }
+
+    fn retrieve_doc(
+        _channel: ChannelName,
+        cid: IpfsCid,
+    ) -> std::option::Option<DocData> {
+        get_document_by_cid(&cid).ok().flatten()
+    }
+}
+
+/// Helper function to get documents cids by topic.
+fn get_documents_cids(topic: &str) -> anyhow::Result<Vec<IpfsCid>> {
+    let mut conn = sqlite::Connection::open(false)?;
+    let docs = shared::database::doc_sync::get_documents_cids_by_topic(&mut conn, topic)?;
+    Ok(docs.into_iter().map(|cid| cid.0.to_bytes()).collect())
+}
+
+/// Helper function to retrieve document by it's cid.
+fn get_document_by_cid(cid: &[u8]) -> anyhow::Result<Option<Vec<u8>>> {
+    let mut conn = sqlite::Connection::open(false)?;
+    let document_data = shared::database::doc_sync::get_document_by_cid(&mut conn, cid)?;
+    Ok(document_data.map(|data| data.cid))
 }
 
 /// HTTP Gateway endpoint for testing with curl.
@@ -164,28 +194,24 @@ impl exports::hermes::http_gateway::event::Guest for Component {
             ("POST", "/api/doc-sync/post") => {
                 // Call channel::post (executes 4-step workflow on host)
                 match channel::post(&body) {
-                    Ok(cid_bytes) => {
-                        match TryInto::<Cid>::try_into(cid_bytes) {
-                            Ok(cid) => {
-                                Some(json_response(
-                                    200,
-                                    &serde_json::json!({
-                                        "success": true,
-                                        "cid": cid.to_string()
-                                    }),
-                                ))
-                            },
-                            Err(e) => {
-                                error!(target: "doc_sync", "Failed to convert CID bytes to CID: {e:?}");
-                                Some(json_response(
-                                    500,
-                                    &serde_json::json!({
-                                        "success": false,
-                                        "error": "Failed to convert CID bytes to CID"
-                                    }),
-                                ))
-                            },
-                        }
+                    Ok(cid_bytes) => match TryInto::<Cid>::try_into(cid_bytes) {
+                        Ok(cid) => Some(json_response(
+                            200,
+                            &serde_json::json!({
+                                "success": true,
+                                "cid": cid.to_string()
+                            }),
+                        )),
+                        Err(e) => {
+                            error!(target: "doc_sync", "Failed to convert CID bytes to CID: {e:?}");
+                            Some(json_response(
+                                500,
+                                &serde_json::json!({
+                                    "success": false,
+                                    "error": "Failed to convert CID bytes to CID"
+                                }),
+                            ))
+                        },
                     },
                     Err(e) => {
                         error!(target: "doc_sync", "Failed to post document: {e:?}");
@@ -199,12 +225,10 @@ impl exports::hermes::http_gateway::event::Guest for Component {
                     },
                 }
             },
-            _ => {
-                Some(json_response(
-                    404,
-                    &serde_json::json!({"error": "Not found"}),
-                ))
-            },
+            _ => Some(json_response(
+                404,
+                &serde_json::json!({"error": "Not found"}),
+            )),
         }
     }
 }
@@ -216,16 +240,21 @@ fn json_response(
 ) -> HttpGatewayResponse {
     HttpGatewayResponse::Http(HttpResponse {
         code,
-        headers: vec![("content-type".to_string(), vec![
-            "application/json".to_string(),
-        ])],
+        headers: vec![(
+            "content-type".to_string(),
+            vec!["application/json".to_string()],
+        )],
         body: Bstr::from(body.to_string()),
     })
 }
 
 /// API for posting documents to IPFS `PubSub` channels.
 pub mod channel {
+    use cardano_blockchain_types::pallas_codec::minicbor;
+    use shared::utils::log::error;
+
     use super::{DOC_SYNC_CHANNEL, DocData, SyncChannel, hermes};
+    use crate::store_in_db;
 
     /// Post a document to the "documents" channel. Returns the document's CID.
     ///
@@ -235,20 +264,39 @@ pub mod channel {
     pub fn post(document_bytes: &DocData) -> Result<Vec<u8>, hermes::doc_sync::api::Errno> {
         // Create channel via host
         let channel = SyncChannel::new(DOC_SYNC_CHANNEL);
+        // Encode the document to CBOR
+        let document_bytes_cbor = minicbor::to_vec(document_bytes)
+            .map_err(|_| hermes::doc_sync::api::Errno::DocErrorPlaceholder)?;
         // Post document via host (executes 4-step workflow in host)
-        channel.post(document_bytes)
+        match channel.post(&document_bytes) {
+            Ok(cid) => {
+                // If successfully posted, store document in db
+                if let Err(err) = store_in_db(&document_bytes_cbor, DOC_SYNC_CHANNEL) {
+                    error!(target: "doc_sync::channel::post", "Failed to store doc in db: {err:?}");
+                }
+                return Ok(cid);
+            },
+            Err(err) => {
+                error!(target: "doc_sync::channel::post", "Failed to post doc: {err:?}");
+                return Err(err);
+            },
+        }
     }
 }
 
 /// Stores the document in local `SQLite`: computes CID, stamps current time, and inserts
 /// into `document` table.
-fn store_in_db(doc: &DocData) -> anyhow::Result<()> {
-    let cid = compute_cid(doc)?;
+fn store_in_db(
+    doc_cbor: &DocData,
+    topic: &str,
+) -> anyhow::Result<()> {
+    let cid = compute_cid(doc_cbor)?;
     let now = chrono::Utc::now();
     let row = InsertDocumentRow {
         cid,
-        document: doc.clone(),
+        document: doc_cbor.clone(),
         inserted_at: now,
+        topic: topic.to_string(),
         metadata: None,
     };
 
@@ -258,12 +306,12 @@ fn store_in_db(doc: &DocData) -> anyhow::Result<()> {
 }
 
 /// Computes a `CIDv1` (CBOR codec, sha2-256 multihash) for the document bytes,
-fn compute_cid(doc: &DocData) -> anyhow::Result<String> {
+fn compute_cid(doc_cbor: &DocData) -> anyhow::Result<String> {
     const CBOR_CODEC: u64 = 0x51;
     const SHA2_256_CODE: u64 = 0x12;
 
     // `doc` is already in CBOR
-    let hash = Sha256::digest(&doc);
+    let hash = Sha256::digest(doc_cbor);
     let digest = Multihash::wrap(SHA2_256_CODE, &hash)?;
     let cid = Cid::new_v1(CBOR_CODEC, digest);
     Ok(cid.to_string())

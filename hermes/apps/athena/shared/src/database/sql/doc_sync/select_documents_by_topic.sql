@@ -5,4 +5,4 @@ SELECT
     topic,
     metadata
 FROM document
-WHERE cid = ?;
+WHERE topic = ?;
