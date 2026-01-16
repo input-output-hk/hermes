@@ -474,6 +474,8 @@ fn doc_sync_topic_message_handler(
                         return;
                     },
                 };
+            } else {
+                process_broadcasted_cids(&topic, channel_name, docs);
             }
         },
         DocumentDisseminationBody::Manifest { .. } => {
