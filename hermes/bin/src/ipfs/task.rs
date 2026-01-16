@@ -452,11 +452,16 @@ fn doc_sync_topic_message_handler(
                                 return;
                             },
                             DocReconciliation::Needed(doc_reconciliation_data) => {
+                                let Some(channel_name) = topic.strip_suffix(".new") else {
+                                    tracing::error!(%topic, "Wrong topic, expected .new");
+                                    return;
+                                };
+
                                 if let Err(err) = start_reconciliation(
                                     doc_reconciliation_data,
                                     context.app_name,
                                     Arc::clone(&tree),
-                                    topic,
+                                    channel_name,
                                 ) {
                                     tracing::error!(%err, "Failed to start reconciliation");
                                     return;
@@ -537,34 +542,28 @@ fn start_reconciliation(
     doc_reconciliation_data: DocReconciliationData,
     app_name: ApplicationName,
     tree: Arc<Mutex<Tree<doc_sync::Cid>>>,
-    topic: String,
+    channel: &str,
 ) -> anyhow::Result<()> {
     tracing::error!("XXXXX - perform_reconciliation");
 
-    subscribe_to_diff(app_name, tree, topic)?;
+    subscribe_to_diff(&app_name, tree, channel)?;
     let syn_payload = make_syn_payload(doc_reconciliation_data);
-    let result2 = send_syn_payload(&syn_payload);
+    send_syn_payload(&syn_payload, &app_name, channel)?;
     Ok(())
 }
 
 fn subscribe_to_diff(
-    app_name: ApplicationName,
+    app_name: &ApplicationName,
     tree: Arc<Mutex<Tree<doc_sync::Cid>>>,
-    topic: String,
+    channel: &str,
 ) -> anyhow::Result<()> {
     tracing::error!("XXXXX - subscribe_to_diff");
 
-    let Some(channel_name) = topic.strip_suffix(".new") else {
-        return Err(anyhow::anyhow!(
-            "Handling an IPFS message on a wrong channel."
-        ));
-    };
-
-    let channel_diff = format!("{channel_name}.dif");
+    let topic = format!("{channel}.dif");
     hermes_ipfs_subscribe(
         ipfs::SubscriptionKind::DocSync,
         &app_name,
-        channel_diff,
+        topic,
         Some(tree),
     )?;
     Ok(())
@@ -592,14 +591,19 @@ fn make_syn_payload(
     }
 }
 
-fn send_syn_payload(payload: &MsgSyn) -> anyhow::Result<()> {
+fn send_syn_payload(
+    payload: &MsgSyn,
+    app_name: &ApplicationName,
+    channel: &str,
+) -> anyhow::Result<()> {
     tracing::error!("XXXXX - send_syn_payload");
     let mut payload_bytes = Vec::new();
+    let topic = format!("{channel}.syn");
     let mut enc = Encoder::new(&mut payload_bytes);
     payload
         .encode(&mut enc, &mut ())
-        .map_err(|e| anyhow::anyhow!("Failed to encode payload::New: {e}"))?;
-    hermes_ipfs_publish(todo!(), todo!(), payload_bytes)?;
+        .map_err(|e| anyhow::anyhow!("Failed to encode syn_payload::MsgSyn: {e}"))?;
+    hermes_ipfs_publish(&app_name, &topic, payload_bytes)?;
     Ok(())
 }
 
