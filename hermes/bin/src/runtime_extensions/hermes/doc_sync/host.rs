@@ -557,6 +557,23 @@ fn send_new_keepalive(
     Ok(())
 }
 
+pub fn add_cids_to_channel_smt(
+    channel: &str,
+    cids: Vec<Cid>,
+) -> anyhow::Result<()> {
+    tracing::info!("📤 Adding {} cids to {channel} channel", cids.len());
+    let resource: u32 = channel_resource_id(&channel).map_err(wasmtime::Error::msg)?;
+    let channel_state = DOC_SYNC_STATE
+        .get(&resource)
+        .ok_or_else(|| wasmtime::Error::msg("Channel not found"))?
+        .clone();
+
+    _ = insert_cids_into_smt(&channel_state.smt, cids)
+        .map_err(|err| wasmtime::Error::msg(format!("Failed to update SMT: {err}")))?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use test_case::test_case;

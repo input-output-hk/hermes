@@ -186,7 +186,7 @@ impl Module {
         Ok(())
     }
 
-    /// Initializes the WASM module by calling its `init` function.
+    /// Extracts cids with their channels to initialize smt.
     pub(crate) fn try_get_cids(
         &self,
         vfs: Arc<Vfs>,

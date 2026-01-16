@@ -123,13 +123,17 @@ impl Application {
     }
 
     /// Tries to get SMT from every app module.
-    pub(crate) fn try_get_cids(&self) -> anyhow::Result<Vec<Cid>> {
+    pub(crate) fn try_get_cids(&self) -> anyhow::Result<Vec<(String, Vec<Cid>)>> {
+        let mut cids = vec![];
         for module in self.indexed_modules.values() {
-            if let Err(e) = module.try_get_cids(self.vfs.clone()) {
-                anyhow::bail!("Failed to initialize module {}: {:#}", module.id(), e)
+            match module.try_get_cids(self.vfs.clone()) {
+                Ok(inner_cids) => cids.extend_from_slice(&inner_cids),
+                Err(e) => {
+                    tracing::debug!("Failed to get cids for module {}: {:#}", module.id(), e)
+                },
             }
         }
-        Ok(vec![])
+        Ok(cids)
     }
 
     /// Dispatch event for the target module by the `module_id`.
