@@ -9,7 +9,7 @@ use catalyst_types::smt::Tree;
 use hermes_ipfs::{
     Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
     doc_sync::{
-        Blake3256,
+        Blake3256, PublicKey,
         payload::{self, CommonFields, DocumentDisseminationBody},
         syn_payload::MsgSyn,
     },
@@ -549,7 +549,9 @@ fn make_syn_payload(
     MsgSyn {
         root: our_root,
         count: our_count,
-        to: todo!(),
+        // TODO: Use `fn identity(peer_id)` to get the identity which contains the PublicKey.
+        // We want to send this message back to the guy who sent the initial keepalive ping.
+        to: None,
         prefixes: (!prefixes.is_empty()).then_some(prefixes),
         peer_root: their_root,
         peer_count: their_count,
