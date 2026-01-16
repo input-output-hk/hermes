@@ -23,8 +23,9 @@ use tokio::{
 
 use super::HERMES_IPFS;
 use crate::{
+    app::{self, ApplicationName},
     event::{HermesEvent, queue::send},
-    ipfs::hermes_ipfs_publish,
+    ipfs::{self, hermes_ipfs_publish, hermes_ipfs_subscribe},
     runtime_extensions::{
         bindings::hermes::ipfs::api::{
             DhtKey, DhtValue, Errno, IpfsFile, MessageData, PeerId, PubsubMessage, PubsubTopic,
@@ -76,6 +77,7 @@ pub(crate) enum IpfsCommand {
         PubsubTopic,
         SubscriptionKind,
         Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
+        ApplicationName,
         oneshot::Sender<Result<JoinHandle<()>, Errno>>,
     ),
     /// Evict Peer from node
@@ -166,7 +168,7 @@ pub(crate) async fn ipfs_command_handler(
                     });
                 send_response(result, tx);
             },
-            IpfsCommand::Subscribe(topic, kind, tree, tx) => {
+            IpfsCommand::Subscribe(topic, kind, tree, app_name, tx) => {
                 let stream = hermes_node
                     .pubsub_subscribe(&topic)
                     .await
@@ -177,14 +179,14 @@ pub(crate) async fn ipfs_command_handler(
                         TopicMessageHandler::new(
                             &topic,
                             topic_message_handler,
-                            TopicMessageContext::default(),
+                            TopicMessageContext::new(None, app_name),
                         )
                     },
                     SubscriptionKind::DocSync => {
                         TopicMessageHandler::new(
                             &topic,
                             doc_sync_topic_message_handler,
-                            TopicMessageContext::new(tree),
+                            TopicMessageContext::new(tree, app_name),
                         )
                     },
                 };
@@ -248,14 +250,18 @@ pub(crate) async fn ipfs_command_handler(
     Ok(())
 }
 
-#[derive(Default, Clone)]
+#[derive(Clone)]
 pub(super) struct TopicMessageContext {
     tree: Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
+    app_name: ApplicationName,
 }
 
 impl TopicMessageContext {
-    pub(crate) fn new(tree: Option<Arc<Mutex<Tree<doc_sync::Cid>>>>) -> Self {
-        Self { tree }
+    pub(crate) fn new(
+        tree: Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
+        app_name: ApplicationName,
+    ) -> Self {
+        Self { tree, app_name }
     }
 }
 
@@ -446,7 +452,12 @@ fn doc_sync_topic_message_handler(
                                 return;
                             },
                             DocReconciliation::Needed(doc_reconciliation_data) => {
-                                if let Err(err) = start_reconciliation(doc_reconciliation_data) {
+                                if let Err(err) = start_reconciliation(
+                                    doc_reconciliation_data,
+                                    context.app_name,
+                                    Arc::clone(&tree),
+                                    topic,
+                                ) {
                                     tracing::error!(%err, "Failed to start reconciliation");
                                     return;
                                 }
@@ -522,18 +533,41 @@ fn create_reconciliation_state(
     }))
 }
 
-fn start_reconciliation(doc_reconciliation_data: DocReconciliationData) -> anyhow::Result<()> {
+fn start_reconciliation(
+    doc_reconciliation_data: DocReconciliationData,
+    app_name: ApplicationName,
+    tree: Arc<Mutex<Tree<doc_sync::Cid>>>,
+    topic: String,
+) -> anyhow::Result<()> {
     tracing::error!("XXXXX - perform_reconciliation");
 
-    subscribe_to_diff()?;
+    subscribe_to_diff(app_name, tree, topic)?;
     let syn_payload = make_syn_payload(doc_reconciliation_data);
     let result2 = send_syn_payload(&syn_payload);
     Ok(())
 }
 
-fn subscribe_to_diff() -> anyhow::Result<()> {
+fn subscribe_to_diff(
+    app_name: ApplicationName,
+    tree: Arc<Mutex<Tree<doc_sync::Cid>>>,
+    topic: String,
+) -> anyhow::Result<()> {
     tracing::error!("XXXXX - subscribe_to_diff");
-    todo!()
+
+    let Some(channel_name) = topic.strip_suffix(".new") else {
+        return Err(anyhow::anyhow!(
+            "Handling an IPFS message on a wrong channel."
+        ));
+    };
+
+    let channel_diff = format!("{channel_name}.dif");
+    hermes_ipfs_subscribe(
+        ipfs::SubscriptionKind::DocSync,
+        &app_name,
+        channel_diff,
+        Some(tree),
+    )?;
+    Ok(())
 }
 
 fn make_syn_payload(

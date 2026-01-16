@@ -166,7 +166,7 @@ pub(crate) fn hermes_ipfs_subscribe(
     if ipfs.apps.topic_subscriptions_contains(kind, &topic) {
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription stream already exists");
     } else {
-        let handle = ipfs.pubsub_subscribe(kind, &topic, tree)?;
+        let handle = ipfs.pubsub_subscribe(kind, &topic, tree, app_name)?;
         ipfs.apps.added_topic_stream(kind, topic.clone(), handle);
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "added subscription topic stream");
     }
