@@ -267,6 +267,8 @@ enum DocReconciliation {
 struct DocReconciliationData {
     our_root: Blake3256,
     our_count: u64,
+    their_root: Blake3256,
+    their_count: u64,
     prefixes: Vec<Option<Blake3256>>,
 }
 
@@ -435,7 +437,7 @@ fn doc_sync_topic_message_handler(
 
             if docs.is_empty() {
                 tracing::error!("XXXXX - will try to perform reconciliation");
-                match create_reconciliation_state(their_root, Arc::clone(&tree)) {
+                match create_reconciliation_state(their_root, their_count, Arc::clone(&tree)) {
                     Ok(doc_reconciliation) => {
                         match doc_reconciliation {
                             DocReconciliation::NotNeeded => {
@@ -467,6 +469,7 @@ fn doc_sync_topic_message_handler(
 
 fn create_reconciliation_state(
     their_root: Blake3256,
+    their_count: u64,
     tree: Arc<Mutex<Tree<doc_sync::Cid>>>,
 ) -> anyhow::Result<DocReconciliation> {
     let Ok(tree) = tree.lock() else {
@@ -514,6 +517,8 @@ fn create_reconciliation_state(
         our_root,
         our_count,
         prefixes,
+        their_root,
+        their_count,
     }))
 }
 
@@ -536,6 +541,8 @@ fn make_syn_payload(
         our_root,
         our_count,
         prefixes,
+        their_root,
+        their_count,
     }: DocReconciliationData
 ) -> MsgSyn {
     tracing::error!("XXXXX - make_syn_payload");
@@ -544,8 +551,8 @@ fn make_syn_payload(
         count: our_count,
         to: todo!(),
         prefixes: (!prefixes.is_empty()).then_some(prefixes),
-        peer_root: todo!(),
-        peer_count: todo!(),
+        peer_root: their_root,
+        peer_count: their_count,
     }
 }
 
