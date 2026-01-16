@@ -61,14 +61,14 @@ pub(crate) fn load_app(app: Application) -> anyhow::Result<()> {
 /// # Errors
 ///
 /// - .
-pub(crate) fn initialize_smt(app_name: ApplicationName) -> anyhow::Result<()> {
-    let app = get_app(&app_name)?;
-    let cids_with_channels = app.try_get_cids()?;
+pub(crate) fn initialize_smt(app_name: &ApplicationName) -> anyhow::Result<()> {
+    let app = get_app(app_name)?;
+    let cids_with_channels = app.get_cids();
 
     for (channel, cids) in cids_with_channels {
         let cids = cids.into_iter().map(Cid).collect();
         if let Err(e) = add_cids_to_channel_smt(&channel, cids) {
-            tracing::debug!("error adding cids to {} channel: {e}", channel)
+            tracing::debug!("error adding cids to {} channel: {e}", channel);
         }
     }
 
