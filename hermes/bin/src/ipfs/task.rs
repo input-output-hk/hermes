@@ -9,7 +9,7 @@ use catalyst_types::smt::Tree;
 use hermes_ipfs::{
     Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
     doc_sync::{
-        Blake3256, PublicKey,
+        Blake3256,
         payload::{self, CommonFields, DocumentDisseminationBody},
         syn_payload::MsgSyn,
     },
@@ -23,7 +23,7 @@ use tokio::{
 
 use super::HERMES_IPFS;
 use crate::{
-    app::{self, ApplicationName},
+    app::ApplicationName,
     event::{HermesEvent, queue::send},
     ipfs::{self, hermes_ipfs_publish, hermes_ipfs_subscribe},
     runtime_extensions::{
@@ -362,7 +362,7 @@ where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'stati
 fn topic_message_handler(
     message: hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
-    context: TopicMessageContext,
+    _context: TopicMessageContext,
 ) {
     if let Some(ipfs) = HERMES_IPFS.get() {
         let app_names = ipfs.apps.subscribed_apps(SubscriptionKind::Default, &topic);

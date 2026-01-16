@@ -1,6 +1,4 @@
 //! Hermes IPFS service.
-#![allow(unreachable_code, unused_variables, unused_imports, dead_code)]
-
 mod api;
 mod task;
 
