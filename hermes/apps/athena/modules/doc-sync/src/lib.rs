@@ -151,8 +151,12 @@ impl exports::hermes::doc_sync::event_document_provider::Guest for Component {
     fn retrieve_doc(
         _channel: ChannelName,
         cid: IpfsCid,
-    ) -> std::option::Option<DocData> {
+    ) -> Option<DocData> {
         get_document_by_cid(&cid).ok().flatten()
+    }
+
+    fn return_channels() -> Vec<ChannelName> {
+        get_channels().unwrap_or_default()
     }
 }
 
@@ -168,6 +172,12 @@ fn get_document_by_cid(cid: &[u8]) -> anyhow::Result<Option<Vec<u8>>> {
     let mut conn = sqlite::Connection::open(false)?;
     let document_data = shared::database::doc_sync::get_document_by_cid(&mut conn, cid)?;
     Ok(document_data.map(|data| data.cid))
+}
+
+/// Helper function to retrieve document by it's cid.
+fn get_channels() -> anyhow::Result<Vec<String>> {
+    let mut conn = sqlite::Connection::open(false)?;
+    shared::database::doc_sync::get_channels(&mut conn)
 }
 
 /// HTTP Gateway endpoint for testing with curl.
