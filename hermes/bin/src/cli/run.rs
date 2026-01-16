@@ -109,7 +109,7 @@ impl Run {
         // TODO[RC]: Currently, when a module fails to initialize, the whole app fails to run.
         reactor::load_app(app)?;
 
-        let _ = reactor::initialize_smt(app_name);
+        reactor::initialize_smt(app_name)?;
 
         let exit = if let Some(timeout_ms) = self.rt_config.timeout_ms {
             exit_lock.wait_timeout(Duration::from_millis(timeout_ms))
