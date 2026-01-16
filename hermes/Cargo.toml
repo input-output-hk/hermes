@@ -59,3 +59,6 @@ unreachable = "deny"
 missing_docs_in_private_items = "deny"
 arithmetic_side_effects = "deny"
 
+[patch."https://github.com/dariusc93/rust-ipfs"]
+rust-ipfs = { git = "https://github.com/cong-or/rust-ipfs", branch = "fix/bitswap-serve-late-arriving-peers" }
+

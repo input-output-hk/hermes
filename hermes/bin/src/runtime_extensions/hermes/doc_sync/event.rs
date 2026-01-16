@@ -1,11 +1,13 @@
 //! Doc Sync events module.
 
 use crate::{
-    event::HermesEventPayload,
+    app::ApplicationName,
+    event::{HermesEvent, HermesEventPayload},
     runtime_extensions::bindings::{
         hermes::doc_sync::api::{ChannelName, DocData},
         unchecked_exports,
     },
+    wasm::module::ModuleId,
 };
 
 unchecked_exports::define! {
@@ -17,7 +19,7 @@ unchecked_exports::define! {
 }
 
 /// Event payload for the `on-http-response` event.
-#[allow(dead_code, reason = "sending an event is unimplemented")]
+#[derive(Clone)]
 pub(crate) struct OnNewDocEvent {
     /// Channel name associated.
     pub(super) channel: ChannelName,
@@ -26,15 +28,41 @@ pub(crate) struct OnNewDocEvent {
 }
 
 impl OnNewDocEvent {
-    /// Create the event from IPFS topic and message.
+    /// Create the `OnNewDocEvent` from IPFS channel and document data.
     pub fn new(
         channel: &str,
-        message: &[u8],
+        doc: &[u8],
     ) -> Self {
         Self {
             channel: channel.to_owned(),
-            doc: message.to_vec(),
+            doc: doc.to_vec(),
         }
+    }
+
+    /// Build and send on-new-doc event.
+    pub fn build_and_send(
+        &self,
+        app_names: Vec<ApplicationName>,
+        module_ids: Option<Vec<ModuleId>>,
+    ) -> anyhow::Result<()> {
+        let target_module = match module_ids {
+            Some(module_ids) => crate::event::TargetModule::List(module_ids),
+            None => crate::event::TargetModule::All,
+        };
+
+        let event = HermesEvent::new(
+            self.clone(),
+            crate::event::TargetApp::List(app_names),
+            target_module,
+        );
+        crate::event::queue::send(event).map_err(|err| {
+            tracing::error!(
+                error = %err,
+                channel = %self.channel,
+                "Failed to send on-new-doc event"
+            );
+            err
+        })
     }
 }
 

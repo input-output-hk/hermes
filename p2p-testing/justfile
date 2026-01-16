@@ -819,9 +819,11 @@ init-bootstrap:
     # Node 2: bootstrap from nodes 1,3
     sed -i.tmp "s|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/[^,]*,/ip4/172.20.0.12/tcp/4001/p2p/[^\"]*|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/$PEER_ID_1,/ip4/172.20.0.12/tcp/4001/p2p/$PEER_ID_3|g" docker-compose.yml
 
-    # Nodes 3-6: bootstrap from nodes 1,2,3
-    sed -i.tmp "s|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/[^,]*,/ip4/172.20.0.11/tcp/4001/p2p/[^,]*,/ip4/172.20.0.12/tcp/4001/p2p/[^\"]*|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/$PEER_ID_1,/ip4/172.20.0.11/tcp/4001/p2p/$PEER_ID_2,/ip4/172.20.0.12/tcp/4001/p2p/$PEER_ID_3|g" docker-compose.yml
+    # Node 3: bootstrap from nodes 1,2 (only 2 peers, not 3)
+    sed -i.tmp "s|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/[^,]*,/ip4/172.20.0.11/tcp/4001/p2p/[^\"]*|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/$PEER_ID_1,/ip4/172.20.0.11/tcp/4001/p2p/$PEER_ID_2|g" docker-compose.yml
 
+    # Nodes 4-6: bootstrap from nodes 1,2,3 (3 peers)
+    sed -i.tmp "s|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/[^,]*,/ip4/172.20.0.11/tcp/4001/p2p/[^,]*,/ip4/172.20.0.12/tcp/4001/p2p/[^\"]*|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/$PEER_ID_1,/ip4/172.20.0.11/tcp/4001/p2p/$PEER_ID_2,/ip4/172.20.0.12/tcp/4001/p2p/$PEER_ID_3|g" docker-compose.yml    
     rm -f docker-compose.yml.tmp
 
     echo "   ✅ docker-compose.yml updated (backup saved as docker-compose.yml.backup)"
@@ -1151,7 +1153,9 @@ _test-pubsub-execute:
     for SECOND in $(seq 1 $MAX_WAIT); do
         for NODE in {2..6}; do
             if [ "${NODE_STATUS[$NODE]}" = "⏳" ]; then
-                if docker compose logs "hermes-node$NODE" 2>&1 | grep "RECEIVED PubSub message" | grep -q "$TIMESTAMP"; then
+                # Check if the node has received the message should non-empty CIDs array
+                GREP_RESULT=$(docker compose logs "hermes-node$NODE" 2>&1 | grep 'RECEIVED PubSub message with CIDs: \[' | grep -v '\[\]' | wc -l)                
+                if [ "$GREP_RESULT" -gt 0 ]; then
                     NODE_STATUS[$NODE]="✅"
                     NODE_RECEIVE_TIME[$NODE]=$(date +%s%3N)
                     RECEIVED_COUNT=$((RECEIVED_COUNT + 1))
@@ -1176,7 +1180,9 @@ _test-pubsub-execute:
     RESULTS_FILE="/tmp/p2p-test-results-$TIMESTAMP.txt"
     echo "TIMESTAMP=$TIMESTAMP" > "$RESULTS_FILE"
     echo "TEST_MESSAGE=\"$TEST_MESSAGE\"" >> "$RESULTS_FILE"
-    echo "CID=\"$CID\"" >> "$RESULTS_FILE"
+    # Base64 encode CID to handle binary data safely
+    CID_B64=$(echo -n "$CID" | base64 -w0)
+    echo "CID_B64=\"$CID_B64\"" >> "$RESULTS_FILE"
     echo "RECEIVED_COUNT=$RECEIVED_COUNT" >> "$RESULTS_FILE"
     echo "START_TIME=$START_TIME" >> "$RESULTS_FILE"
     for NODE in {2..6}; do
@@ -1200,6 +1206,9 @@ _test-pubsub-visualize:
 
     source "$RESULTS_FILE"
 
+    # Decode base64 CID
+    CID=$(echo -n "$CID_B64" | base64 -d 2>/dev/null || echo "unknown")
+
     declare -A NODE_STATUS NODE_RECEIVE_TIME
     for NODE in {2..6}; do
         eval "NODE_STATUS[$NODE]=\$NODE_STATUS_$NODE"
@@ -1209,7 +1218,7 @@ _test-pubsub-visualize:
     END_TIME=$(date +%s)
     TOTAL_TIME=$((END_TIME - START_TIME))
     MSG_SIZE=$(echo -n "$TEST_MESSAGE" | wc -c)
-    CID_SIZE=$(echo -n "$CID" | wc -c)
+    CID_SIZE=${#CID}
 
     # Timeline
     echo ""
