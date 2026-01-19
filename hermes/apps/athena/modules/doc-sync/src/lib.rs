@@ -250,7 +250,6 @@ fn json_response(
 
 /// API for posting documents to IPFS `PubSub` channels.
 pub mod channel {
-    use cardano_blockchain_types::pallas_codec::minicbor;
     use shared::utils::log::error;
 
     use super::{DOC_SYNC_CHANNEL, DocData, SyncChannel, hermes};
@@ -264,14 +263,11 @@ pub mod channel {
     pub fn post(document_bytes: &DocData) -> Result<Vec<u8>, hermes::doc_sync::api::Errno> {
         // Create channel via host
         let channel = SyncChannel::new(DOC_SYNC_CHANNEL);
-        // Encode the document to CBOR
-        let document_bytes_cbor = minicbor::to_vec(document_bytes)
-            .map_err(|_| hermes::doc_sync::api::Errno::DocErrorPlaceholder)?;
         // Post document via host (executes 4-step workflow in host)
         match channel.post(document_bytes) {
             Ok(cid) => {
                 // If successfully posted, store document in db
-                if let Err(err) = store_in_db(&document_bytes_cbor, DOC_SYNC_CHANNEL) {
+                if let Err(err) = store_in_db(&document_bytes, DOC_SYNC_CHANNEL) {
                     error!(target: "doc_sync::channel::post", "Failed to store doc in db: {err:?}");
                 }
                 Ok(cid)
