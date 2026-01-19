@@ -11,6 +11,7 @@ backpressure
 bech
 Behaviour
 biguint
+bitswap
 bkioshn
 blockfetch
 blosc
@@ -97,11 +98,11 @@ IPLD
 jsonschema
 justfile
 keepalives
-KEYPAIR
-Keypair
 keypair
-Keypairs
+Keypair
+KEYPAIR
 keypairs
+Keypairs
 libp
 libsqlite
 libtest
@@ -122,8 +123,8 @@ Mitzenmacher
 mkcron
 mkdelay
 mkdirat
-Multiaddr
 multiaddr
+Multiaddr
 multiaddrs
 multicodec
 multihash
@@ -161,8 +162,8 @@ pubk
 pubkey
 pwrite
 qmark
-QUIC
 quic
+QUIC
 rafal
 rankdir
 ranksep

@@ -58,4 +58,3 @@ unchecked_duration_subtraction = "deny"
 unreachable = "deny"
 missing_docs_in_private_items = "deny"
 arithmetic_side_effects = "deny"
-

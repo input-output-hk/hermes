@@ -23,12 +23,6 @@ const IPFS_DATA_DIR: &str = "ipfs";
 /// Keypair filename for persistent IPFS identity
 const KEYPAIR_FILENAME: &str = "keypair";
 
-/// Default application name for auto-subscription
-const DEFAULT_APP_NAME: &str = "athena";
-
-/// Default `PubSub` topic for P2P mesh formation
-const DEFAULT_MESH_TOPIC: &str = "documents.new";
-
 pub(crate) use api::{
     hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_dht_get_providers,
     hermes_ipfs_dht_provide, hermes_ipfs_evict_peer, hermes_ipfs_get_dht_value,
@@ -37,7 +31,7 @@ pub(crate) use api::{
 };
 use dashmap::DashMap;
 use hermes_ipfs::{
-    AddIpfsFile, Cid, HermesIpfs, HermesIpfsBuilder, IpfsPath as BaseIpfsPath,
+    Cid, HermesIpfs, HermesIpfsBuilder, IpfsPath as BaseIpfsPath,
     rust_ipfs::{Keypair, dummy},
 };
 use once_cell::sync::OnceCell;
@@ -54,6 +48,7 @@ use crate::{
     runtime_extensions::bindings::hermes::ipfs::api::{
         DhtKey, DhtValue, Errno, IpfsFile, IpfsPath, MessageData, PeerId, PubsubTopic,
     },
+    wasm::module::ModuleId,
 };
 
 /// Hermes IPFS Internal Node
@@ -146,11 +141,31 @@ async fn configure_listening_address(node: &hermes_ipfs::Ipfs) {
     match listen_addr.parse() {
         Ok(multiaddr) => {
             match node.add_listening_address(multiaddr).await {
-                Ok(addr) => tracing::info!("IPFS listening on: {}", addr),
-                Err(e) => tracing::error!("Failed to listen on port {}: {}", listen_port, e),
+                Ok(addr) => tracing::info!("IPFS listening on: {addr}"),
+                Err(e) => tracing::error!("Failed to listen on port {listen_port}: {e}"),
             }
         },
         Err(e) => tracing::error!("Invalid multiaddr format: {}", e),
+    }
+
+    // Configure external/announce address if specified.
+    // This tells other peers how to reach us (important in Docker/NAT environments).
+    // Without this, nodes may advertise 127.0.0.1 which causes peers to connect to
+    // themselves instead of the intended node.
+    if let Ok(announce_addr) = std::env::var("IPFS_ANNOUNCE_ADDRESS") {
+        match announce_addr.parse() {
+            Ok(multiaddr) => {
+                match node.add_external_address(multiaddr).await {
+                    Ok(()) => tracing::info!("IPFS announcing external address: {announce_addr}"),
+                    Err(e) => {
+                        tracing::error!("Failed to add external address {announce_addr}: {e}");
+                    },
+                }
+            },
+            Err(e) => {
+                tracing::error!("Invalid IPFS_ANNOUNCE_ADDRESS format '{announce_addr}': {e}");
+            },
+        }
     }
 }
 
@@ -388,25 +403,6 @@ pub fn bootstrap(config: Config) -> anyhow::Result<()> {
         .set(ipfs_node)
         .map_err(|_| anyhow::anyhow!("failed to start IPFS node"))?;
 
-    // Auto-subscribe to default topic for P2P mesh formation
-    //
-    // Why auto-subscribe at bootstrap time?
-    // - Gossipsub requires peers to be subscribed to the SAME topic to communicate
-    // - By auto-subscribing during bootstrap, all Hermes nodes immediately join the mesh
-    // - This avoids a "cold start" problem where the first node has no peers to talk to
-    // - With Gossipsub's default mesh_n=6, having 6+ nodes subscribed creates a full mesh
-    // - Without this, applications would need to manually subscribe before PubSub works
-    //
-    // Note: This ensures the mesh forms immediately on startup, allowing instant
-    // message propagation as soon as nodes connect to each other.
-    let app_name = ApplicationName::new(DEFAULT_APP_NAME);
-    let topic = PubsubTopic::from(DEFAULT_MESH_TOPIC.to_string());
-    hermes_ipfs_subscribe(SubscriptionKind::Default, &app_name, topic)?;
-    tracing::info!(
-        "Auto-subscribed to {} topic for P2P mesh formation",
-        DEFAULT_MESH_TOPIC
-    );
-
     Ok(())
 }
 
@@ -431,7 +427,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         default_bootstrap: bool,
         custom_peers: Option<Vec<String>>,
     ) -> anyhow::Result<Self> {
-        let runtime = Builder::new_current_thread().enable_all().build()?;
+        let runtime = Builder::new_multi_thread().enable_all().build()?;
         let (sender, receiver) = mpsc::channel(1);
 
         // Build and start IPFS node, before moving into the thread
@@ -523,10 +519,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         self.sender
             .as_ref()
             .ok_or(Errno::FileAddError)?
-            .blocking_send(IpfsCommand::AddFile(
-                AddIpfsFile::Stream((None, contents)),
-                cmd_tx,
-            ))
+            .blocking_send(IpfsCommand::AddFile(contents, cmd_tx))
             .map_err(|_| Errno::FileAddError)?;
         cmd_rx.blocking_recv().map_err(|_| Errno::FileAddError)?
     }
@@ -540,17 +533,19 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
     ///
     /// ## Errors
     /// - `Errno::InvalidIpfsPath`: Invalid IPFS path
+    /// - `Errno::InvalidCid`: Invalid CID in path
     /// - `Errno::FileGetError`: Failed to get the file
     pub(crate) fn file_get(
         &self,
         ipfs_path: &IpfsPath,
     ) -> Result<IpfsFile, Errno> {
         let ipfs_path = BaseIpfsPath::from_str(ipfs_path).map_err(|_| Errno::InvalidIpfsPath)?;
+        let cid = ipfs_path.root().cid().ok_or(Errno::InvalidCid)?;
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()
             .ok_or(Errno::FileGetError)?
-            .blocking_send(IpfsCommand::GetFile(ipfs_path.clone(), cmd_tx))
+            .blocking_send(IpfsCommand::GetFile(*cid, cmd_tx))
             .map_err(|_| Errno::FileGetError)?;
         cmd_rx.blocking_recv().map_err(|_| Errno::FileGetError)?
     }
@@ -601,6 +596,52 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
             .blocking_send(IpfsCommand::UnPinFile(*cid, cmd_tx))
             .map_err(|_| Errno::FilePinError)?;
         cmd_rx.blocking_recv().map_err(|_| Errno::FilePinError)?
+    }
+
+    /// Get file with specific providers (async version)
+    ///
+    /// This method fetches a file from IPFS using specific providers.
+    ///
+    /// ## Parameters
+    /// - `cid`: The CID of the content to fetch
+    /// - `providers`: List of peer IDs that have the content
+    ///
+    /// ## Errors
+    /// - `Errno::FileGetError`: Failed to get the file
+    pub(crate) async fn file_get_async_with_providers(
+        &self,
+        cid: &hermes_ipfs::Cid,
+        providers: Vec<hermes_ipfs::PeerId>,
+    ) -> Result<IpfsFile, Errno> {
+        let (cmd_tx, cmd_rx) = oneshot::channel();
+        self.sender
+            .as_ref()
+            .ok_or(Errno::FileGetError)?
+            .send(IpfsCommand::GetFileWithProviders(*cid, providers, cmd_tx))
+            .await
+            .map_err(|_| Errno::FileGetError)?;
+        cmd_rx.await.map_err(|_| Errno::FileGetError)?
+    }
+
+    /// Get providers of a DHT value (async version)
+    ///
+    /// ## Parameters
+    /// - `key`: The DHT key to look up providers for
+    ///
+    /// ## Errors
+    /// - `Errno::DhtGetProvidersError`: Failed to get providers
+    pub(crate) async fn dht_get_providers_async(
+        &self,
+        key: DhtKey,
+    ) -> Result<HashSet<hermes_ipfs::PeerId>, Errno> {
+        let (cmd_tx, cmd_rx) = oneshot::channel();
+        self.sender
+            .as_ref()
+            .ok_or(Errno::DhtGetProvidersError)?
+            .send(IpfsCommand::DhtGetProviders(key, cmd_tx))
+            .await
+            .map_err(|_| Errno::DhtGetProvidersError)?;
+        cmd_rx.await.map_err(|_| Errno::DhtGetProvidersError)?
     }
 
     /// Put DHT Key-Value
@@ -696,12 +737,18 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         &self,
         kind: SubscriptionKind,
         topic: &PubsubTopic,
+        module_ids: Option<Vec<ModuleId>>,
     ) -> Result<JoinHandle<()>, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()
             .ok_or(Errno::PubsubSubscribeError)?
-            .blocking_send(IpfsCommand::Subscribe(topic.clone(), kind, cmd_tx))
+            .blocking_send(IpfsCommand::Subscribe(
+                topic.clone(),
+                kind,
+                module_ids,
+                cmd_tx,
+            ))
             .map_err(|_| Errno::PubsubSubscribeError)?;
         cmd_rx
             .blocking_recv()
