@@ -257,7 +257,7 @@ Run `just` to see all available commands, or:
 
 * `just test-pubsub-propagation` - Test message propagation (interactive)
 * `just test-ci` - Full CI test suite
-* `just test-bidirectional-sync` - Basic test for nodes bidirectional behavior
+* `just test-pubsub-propagation-and-sync` - Basic test for nodes sync behavior
 * `just test-late-join-sync` - Test whether a node that joins late can sync with others using keepalive
 
 **Monitoring:**

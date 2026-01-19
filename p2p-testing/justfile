@@ -1528,7 +1528,7 @@ help:
 # 6. Check if other nodes received the message
 # 7. Check database for all nodes where CID is equal to CID extracted from response
 #
-# Test basic pub/sub propagation and bidirectional sync
+# Test basic pub/sub propagation and nodes sync
 test-pubsub-propagation-and-sync:
     #!/usr/bin/env bash
     set -euo pipefail    
@@ -1536,7 +1536,7 @@ test-pubsub-propagation-and-sync:
 
     source ./logging.sh
 
-    STEP "Basic Pub/Sub Propagation and Bidirectional Sync"
+    STEP "Basic Pub/Sub Propagation and Nodes Sync"
 
     # ---------- If nodes not started, start them ----------
     STEP "Starting nodes if not running"
@@ -1553,7 +1553,7 @@ test-pubsub-propagation-and-sync:
     # ---------- Verify that all nodes are subscribed to the .new topic ----------
     STEP "Verifying topic subscriptions (.new)"
     for NODE in {1..6}; do
-        just _node-subscribe $NODE ".new"
+        just _check_node-subscribe $NODE ".new"
     done
 
     CID_LIST=()
@@ -1586,10 +1586,6 @@ test-pubsub-propagation-and-sync:
     echo ""
     OK "🌈 Test completed"
 
-
-
-
-
 # Test: Late joining node with keepalive sync
 #
 # Prerequisites:
@@ -1598,12 +1594,13 @@ test-pubsub-propagation-and-sync:
 # 1. If nodes not started, start them
 # 2. Cleaning all node data (database + SMT)
 # 3. Stop a node (node 6)
-# 4. Post a document to Node1 via HTTP Post
+# 4. Post documents via HTTP Post
 # 5. Extract the CID from the response
 # 6. Check if other nodes received the message
 # 7. Check database for all nodes where CID is equal to CID extracted from response
 # 8. Start node 6
-# 9. Check database for node6 where CID is equal to CID extracted from response
+# 9. Wait for keepalive
+# 10. Check database for node6 where CID is equal to CID extracted from response
 #
 # Test late joining node with keepalive sync
 test-late-join-sync:
@@ -1748,8 +1745,8 @@ _clean-node-data nodeN:
         
     OK "Node $NODE data cleaned"
 
-
-_node-subscribe nodeN topic:
+# Check whether a node subscribe to a topic
+_check_node-subscribe nodeN topic:
     #!/usr/bin/env bash
     set -euo pipefail
     source ./logging.sh
@@ -1761,6 +1758,7 @@ _node-subscribe nodeN topic:
         ERROR "Node {{nodeN}} is NOT subscribed to topic '{{topic}}'"
     fi
 
+# Check whether a document is received via pubsub
 _check-document-received nodeN cid:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -1777,6 +1775,7 @@ _check-document-received nodeN cid:
         ERROR "Node {{nodeN}} did NOT receive document (CID={{cid}})"
     fi
 
+# Check whether a document is stored in the database
 _check-database-document nodeN cid:
     #!/usr/bin/env bash
     source ./logging.sh
