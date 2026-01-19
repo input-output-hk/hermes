@@ -1,6 +1,7 @@
 //! Doc Sync host module.
 use std::sync::{Arc, Mutex};
 
+use catalyst_types::smt::Tree;
 use hermes_ipfs::doc_sync::{
     Blake3256,
     payload::{CommonFields, DocumentDisseminationBody, New},
@@ -10,20 +11,22 @@ use minicbor::{Encode, Encoder, data::Tag, encode};
 use stringzilla::stringzilla::Sha256;
 use wasmtime::component::Resource;
 
-use super::{
-    ChannelState, Cid, DOC_SYNC_STATE, Tree, channel_resource_id, current_smt_summary,
-    insert_cids_into_smt,
-};
+use super::ChannelState;
 use crate::{
     app::ApplicationName,
-    ipfs::{self, hermes_ipfs_publish, hermes_ipfs_subscribe},
+    ipfs::{self, SubscriptionKind, hermes_ipfs_publish, hermes_ipfs_subscribe},
     runtime_context::HermesRuntimeContext,
-    runtime_extensions::bindings::hermes::{
-        doc_sync::api::{
-            ChannelName, DocData, DocLoc, DocProof, Errno, Host, HostSyncChannel, ProverId,
-            SyncChannel,
+    runtime_extensions::{
+        bindings::hermes::{
+            doc_sync::api::{
+                ChannelName, DocData, DocLoc, DocProof, Errno, Host, HostSyncChannel, ProverId,
+                SyncChannel,
+            },
+            ipfs::api::{FileAddResult, Host as IpfsHost},
         },
-        ipfs::api::{FileAddResult, Host as IpfsHost},
+        hermes::doc_sync::{
+            Cid, DOC_SYNC_STATE, channel_resource_id, current_smt_summary, insert_cids_into_smt,
+        },
     },
 };
 
@@ -56,7 +59,7 @@ impl Encode<()> for Cid {
     ) -> Result<(), encode::Error<W::Error>> {
         // Encode as tag(42) containing the CID bytes
         e.tag(Tag::new(CID_CBOR_TAG))?;
-        e.bytes(&self.to_bytes())?;
+        e.bytes(&self.0.to_bytes())?;
         Ok(())
     }
 }
@@ -131,8 +134,9 @@ impl HostSyncChannel for HermesRuntimeContext {
         if let Err(err) = hermes_ipfs_subscribe(
             ipfs::SubscriptionKind::DocSync,
             self.app_name(),
-            topic_new.clone(),
             Some(tree),
+            &topic_new,
+            Some(vec![self.module_id().clone()]),
         ) {
             DOC_SYNC_STATE.remove(&resource);
             return Err(wasmtime::Error::msg(format!(
@@ -140,6 +144,9 @@ impl HostSyncChannel for HermesRuntimeContext {
             )));
         }
         tracing::info!("Created Doc Sync Channel: {name}");
+
+        // DO NOT REMOVE THIS LOG, it is used in the test
+        tracing::info!("Subscribed to .new with base {name}");
 
         let timers_to_start;
         // When subscribe is successful, create and start the timer
@@ -204,11 +211,9 @@ impl HostSyncChannel for HermesRuntimeContext {
             .get(&sync_channel.rep())
             .ok_or_else(|| wasmtime::Error::msg("Channel not found"))?
             .clone();
-
         dht_provide(self, &cid)?;
         let peer_id = get_peer_id(self)??;
         ensure_provided(self, &cid, &peer_id)??;
-
         // Update SMT and publish .new with root/count
         let (root, count) = insert_cids_into_smt(&channel_state.smt, [cid.clone()])
             .map_err(|err| wasmtime::Error::msg(format!("Failed to update SMT: {err}")))?;
@@ -316,10 +321,7 @@ fn add_document(
             Ok(Ok(cid))
         },
         Err(e) => {
-            tracing::error!(
-                "✗ Step {STEP}/{POST_STEP_COUNT} failed: file_add error: {:?}",
-                e
-            );
+            tracing::error!("✗ Step {STEP}/{POST_STEP_COUNT} failed: file_add error: {e:?}");
             Ok(Err(Errno::DocErrorPlaceholder))
         },
     }
@@ -443,7 +445,7 @@ fn build_new_payload(
     .map_err(|e| anyhow::anyhow!("Failed to create payload::New: {e}"))
 }
 
-/// Publish encoded `.new` payload to `PubSub`.
+/// Publish to `PubSub`
 ///
 /// IMPORTANT: Gossipsub is a peer-to-peer protocol that requires at least one
 /// OTHER peer node to be subscribed to the topic before messages can be published.
@@ -473,9 +475,15 @@ fn publish_new_payload(
     // is performed in `new()`). Invoking the subscription again to ensure
     // the topic is active, because Gossipsub enforces that peers must subscribe
     // to a topic before they are permitted to publish on it.
-    match ctx.pubsub_subscribe(topic_new.clone())? {
+    match hermes_ipfs_subscribe(
+        SubscriptionKind::DocSync,
+        ctx.app_name(),
+        None,
+        &topic_new,
+        Some(vec![ctx.module_id().clone()]),
+    ) {
         Ok(_) => tracing::info!("✓ Subscribed to topic: {topic_new}"),
-        Err(e) => tracing::warn!("⚠ Subscribe warning: {:?}", e),
+        Err(e) => tracing::warn!("⚠ Subscribe warning: {e}"),
     }
 
     // Attempt to publish to PubSub
