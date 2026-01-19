@@ -27,8 +27,8 @@ just start                       # Starts 6 nodes, waits for mesh formation
 
 # Test PubSub propagation
 just test-pubsub-propagation     # Sends message from node 1 → all others
-# Test bidirectional sync
-just test-bidirectional-sync     # Basic test for nodes bidirectional behavior
+# Test PubSub propagation and nodes sync
+just test-pubsub-propagation-and-sync     # Basic test for nodes sync behavior
 # Test node late joiner
 just test-late-join-sync         # Test node late join where it sync with keepalive timer
 

@@ -57,9 +57,9 @@
 #   - Rust toolchain (builds use cargo directly, bypassing Earthly)
 #
 # TEST:
-#   just test-pubsub-propagation         # Test message propagation
-#   just test-bidirectional-sync         # Test bidirectional sync
-#   just test-late-join-sync             # Test node late join with keepalive sync
+#   just test-pubsub-propagation                    # Test message propagation
+#   just test-pubsub-propagation-and-sync           # Test message propagation and nodes sync
+#   just test-late-join-sync                        # Test node late join with keepalive sync
 #
 # ==============================================================================
 
@@ -1435,7 +1435,7 @@ help:
     @echo "    just logs-node 1             # Debug specific node"
     @echo "    just restart                 # Apply code changes"
     @echo "    just test-pubsub-propagation # Test message propagation"
-    @echo "    just test-bidirectional-sync         # Test bidirectional sync"
+    @echo "    just test-pubsub-propagation-and-sync        # Test message propagation and nodes sync"
     @echo "    just test-late-join-sync             # Test node late join with keepalive sync"
     @echo ""
     @echo "  CI/CD Pipeline:"
