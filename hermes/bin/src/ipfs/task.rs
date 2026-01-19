@@ -198,16 +198,14 @@ pub(crate) async fn ipfs_command_handler(
                         TopicMessageHandler::new(
                             &topic,
                             topic_message_handler,
-                            TopicMessageContext::new(None, app_name),
-                            module_ids,
+                            TopicMessageContext::new(None, app_name, module_ids),
                         )
                     },
                     SubscriptionKind::DocSync => {
                         TopicMessageHandler::new(
                             &topic,
                             doc_sync_topic_message_handler,
-                            TopicMessageContext::new(tree, app_name),
-                            module_ids,
+                            TopicMessageContext::new(tree, app_name, module_ids),
                         )
                     },
                 };
@@ -280,14 +278,21 @@ pub(crate) async fn ipfs_command_handler(
 pub(super) struct TopicMessageContext {
     tree: Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
     app_name: ApplicationName,
+    /// Module IDs
+    module_ids: Option<Vec<ModuleId>>,
 }
 
 impl TopicMessageContext {
     pub(crate) fn new(
         tree: Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
         app_name: ApplicationName,
+        module_ids: Option<Vec<ModuleId>>,
     ) -> Self {
-        Self { tree, app_name }
+        Self {
+            tree,
+            app_name,
+            module_ids,
+        }
     }
 }
 
@@ -312,21 +317,14 @@ pub(super) struct TopicMessageHandler {
     /// The handler implementation.
     callback: Box<
         // TODO: ModuleIds into Context
-        dyn Fn(
-                hermes_ipfs::rust_ipfs::GossipsubMessage,
-                String,
-                TopicMessageContext,
-                Option<Vec<ModuleId>>,
-            ) + Send
+        dyn Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, TopicMessageContext)
+            + Send
             + Sync
             + 'static,
     >,
 
     /// The context.
     context: TopicMessageContext,
-
-    /// Module IDs
-    module_ids: Option<Vec<ModuleId>>,
 }
 
 impl TopicMessageHandler {
@@ -335,15 +333,10 @@ impl TopicMessageHandler {
         topic: &impl ToString,
         callback: F,
         context: TopicMessageContext,
-        module_ids: Option<Vec<ModuleId>>,
     ) -> Self
     where
-        F: Fn(
-                hermes_ipfs::rust_ipfs::GossipsubMessage,
-                String,
-                TopicMessageContext,
-                Option<Vec<ModuleId>>,
-            ) + Send
+        F: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, TopicMessageContext)
+            + Send
             + Sync
             + 'static,
     {
@@ -351,7 +344,6 @@ impl TopicMessageHandler {
             topic: topic.to_string(),
             callback: Box::new(callback),
             context,
-            module_ids,
         }
     }
 
@@ -360,12 +352,7 @@ impl TopicMessageHandler {
         &self,
         msg: hermes_ipfs::rust_ipfs::GossipsubMessage,
     ) {
-        (self.callback)(
-            msg,
-            self.topic.clone(),
-            self.context.clone(),
-            self.module_ids.clone(),
-        );
+        (self.callback)(msg, self.topic.clone(), self.context.clone());
     }
 }
 
@@ -407,8 +394,7 @@ where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'stati
 fn topic_message_handler(
     message: hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
-    _context: TopicMessageContext,
-    module_ids: Option<Vec<ModuleId>>,
+    context: TopicMessageContext,
 ) {
     if let Some(ipfs) = HERMES_IPFS.get() {
         let app_names = ipfs.apps.subscribed_apps(SubscriptionKind::Default, &topic);
@@ -419,7 +405,7 @@ fn topic_message_handler(
                 message: message.data.into(),
                 publisher: message.source.map(|p| p.to_string()),
             })
-            .build_and_send(app_names, module_ids),
+            .build_and_send(app_names, context.module_ids),
         );
     } else {
         tracing::error!("Failed to send on_topic_event. IPFS is uninitialized");
@@ -440,7 +426,6 @@ fn doc_sync_topic_message_handler(
     message: hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
     context: TopicMessageContext,
-    module_ids: Option<Vec<ModuleId>>,
 ) {
     if let Ok(msg_str) = std::str::from_utf8(&message.data) {
         tracing::info!("RECEIVED PubSub message on topic: {topic} - data: {msg_str}",);
@@ -499,7 +484,7 @@ fn doc_sync_topic_message_handler(
                                     context.app_name,
                                     Arc::clone(&tree),
                                     channel_name,
-                                    module_ids,
+                                    context.module_ids,
                                 ) {
                                     tracing::error!(%err, "Failed to start reconciliation");
                                     return;
@@ -513,7 +498,13 @@ fn doc_sync_topic_message_handler(
                     },
                 };
             } else {
-                process_broadcasted_cids(&topic, channel_name, docs, message.source, module_ids);
+                process_broadcasted_cids(
+                    &topic,
+                    channel_name,
+                    docs,
+                    message.source,
+                    context.module_ids,
+                );
             }
         },
         DocumentDisseminationBody::Manifest { .. } => {
