@@ -13,7 +13,7 @@ use crate::{
 unchecked_exports::define! {
     /// Extends [`wasmtime::component::Instance`] with guest functions for Doc Sync.
     trait ComponentInstanceExt {
-         #[wit("hermes:doc-sync/event", "on-new-doc")]
+         #[wit("hermes:doc-sync/event-on-new-doc", "on-new-doc")]
         fn hermes_doc_sync_event_on_new_doc(channel: &str, doc: &[u8]);
     }
 }
