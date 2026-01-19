@@ -3185,7 +3185,7 @@ dependencies = [
 [[package]]
 name = "hermes-ipfs"
 version = "0.0.11"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?branch=fix%2Fbitswap-provider-connection#f3a01515fc98cf88f18c686c9f08481543b5948c"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=hermes-ipfs%2Fv0.0.11#8ede8e58d68b9a03f978b23f2124807fa15032bb"
 dependencies = [
  "anyhow",
  "blake3",
@@ -4512,7 +4512,7 @@ dependencies = [
 [[package]]
 name = "libp2p-relay-manager"
 version = "0.4.0"
-source = "git+https://github.com/cong-or/rust-ipfs?branch=fix%2Fbitswap-serve-late-arriving-peers#dc523597681be315a8cef700993c01cf312576cf"
+source = "git+https://github.com/input-output-hk/rust-ipfs?branch=libp2p-next#fc98cf50241820dc33988bbbda1aea1c4ec65fde"
 dependencies = [
  "anyhow",
  "futures",
@@ -6961,7 +6961,7 @@ dependencies = [
 [[package]]
 name = "rust-ipfs"
 version = "0.15.0"
-source = "git+https://github.com/cong-or/rust-ipfs?branch=fix%2Fbitswap-serve-late-arriving-peers#dc523597681be315a8cef700993c01cf312576cf"
+source = "git+https://github.com/input-output-hk/rust-ipfs?branch=libp2p-next#fc98cf50241820dc33988bbbda1aea1c4ec65fde"
 dependencies = [
  "anyhow",
  "async-rt",
@@ -7017,7 +7017,7 @@ dependencies = [
 [[package]]
 name = "rust-ipns"
 version = "0.8.0"
-source = "git+https://github.com/cong-or/rust-ipfs?branch=fix%2Fbitswap-serve-late-arriving-peers#dc523597681be315a8cef700993c01cf312576cf"
+source = "git+https://github.com/input-output-hk/rust-ipfs?branch=libp2p-next#fc98cf50241820dc33988bbbda1aea1c4ec65fde"
 dependencies = [
  "bytes",
  "chrono",
@@ -7033,7 +7033,7 @@ dependencies = [
 [[package]]
 name = "rust-unixfs"
 version = "0.5.0"
-source = "git+https://github.com/cong-or/rust-ipfs?branch=fix%2Fbitswap-serve-late-arriving-peers#dc523597681be315a8cef700993c01cf312576cf"
+source = "git+https://github.com/input-output-hk/rust-ipfs?branch=libp2p-next#fc98cf50241820dc33988bbbda1aea1c4ec65fde"
 dependencies = [
  "either",
  "filetime",
