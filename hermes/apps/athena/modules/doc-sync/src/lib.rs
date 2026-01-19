@@ -273,17 +273,17 @@ pub mod channel {
         let document_bytes_cbor = minicbor::to_vec(document_bytes)
             .map_err(|_| hermes::doc_sync::api::Errno::DocErrorPlaceholder)?;
         // Post document via host (executes 4-step workflow in host)
-        match channel.post(&document_bytes) {
+        match channel.post(document_bytes) {
             Ok(cid) => {
                 // If successfully posted, store document in db
                 if let Err(err) = store_in_db(&document_bytes_cbor, DOC_SYNC_CHANNEL) {
                     error!(target: "doc_sync::channel::post", "Failed to store doc in db: {err:?}");
                 }
-                return Ok(cid);
+                Ok(cid)
             },
             Err(err) => {
                 error!(target: "doc_sync::channel::post", "Failed to post doc: {err:?}");
-                return Err(err);
+                Err(err)
             },
         }
     }
