@@ -219,10 +219,12 @@ pub(crate) async fn ipfs_command_handler(
             },
             IpfsCommand::Identity(peer_id, tx) => {
                 let peer_id = match peer_id {
-                    Some(peer_id) => Some(
-                        hermes_ipfs::PeerId::from_str(&peer_id)
-                            .map_err(|_| Errno::InvalidPeerId)?,
-                    ),
+                    Some(peer_id) => {
+                        Some(
+                            hermes_ipfs::PeerId::from_str(&peer_id)
+                                .map_err(|_| Errno::InvalidPeerId)?,
+                        )
+                    },
                     None => None,
                 };
 
@@ -246,11 +248,10 @@ pub(crate) async fn ipfs_command_handler(
 
 /// A handler for messages from the IPFS pubsub topic
 pub(super) struct TopicMessageHandler<T>
-where
-    T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, Option<Vec<ModuleId>>)
+where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, Option<Vec<ModuleId>>)
         + Send
         + Sync
-        + 'static,
+        + 'static
 {
     /// The topic.
     topic: String,
@@ -263,11 +264,10 @@ where
 }
 
 impl<T> TopicMessageHandler<T>
-where
-    T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, Option<Vec<ModuleId>>)
+where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, Option<Vec<ModuleId>>)
         + Send
         + Sync
-        + 'static,
+        + 'static
 {
     /// Creates the new handler.
     pub fn new(
@@ -293,8 +293,7 @@ where
 
 /// A handler for subscribe/unsubscribe events from the IPFS pubsub topic
 pub(super) struct TopicSubscriptionStatusHandler<T>
-where
-    T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static,
+where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static
 {
     /// The topic.
     topic: String,
@@ -304,8 +303,7 @@ where
 }
 
 impl<T> TopicSubscriptionStatusHandler<T>
-where
-    T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static,
+where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static
 {
     /// Creates the new handler.
     pub fn new(
