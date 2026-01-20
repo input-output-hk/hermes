@@ -464,16 +464,15 @@ fn doc_sync_topic_message_handler(
             tracing::info!("RECEIVED PubSub message with CIDs: {:?}", docs);
 
             if docs.is_empty() {
-                tracing::error!("XXXXX - will try to perform reconciliation");
                 match create_reconciliation_state(their_root, their_count, Arc::clone(&tree)) {
                     Ok(doc_reconciliation) => {
                         match doc_reconciliation {
                             DocReconciliation::NotNeeded => {
-                                tracing::error!("XXXXX - reconciliation not needed");
-                                tracing::info!("Reconciliation not needed");
+                                tracing::info!("reconciliation not needed");
                                 return;
                             },
                             DocReconciliation::Needed(doc_reconciliation_data) => {
+                                tracing::info!("starting reconciliation");
                                 let Some(channel_name) = topic.strip_suffix(".new") else {
                                     tracing::error!(%topic, "Wrong topic, expected .new");
                                     return;
@@ -537,7 +536,7 @@ fn create_reconciliation_state(
     let our_count = tree.count();
     let Ok(our_count) = our_count.try_into() else {
         return Err(anyhow::anyhow!(
-            "Tree element count must be representable as u64"
+            "tree element count must be representable as u64"
         ));
     };
 
@@ -576,11 +575,17 @@ fn start_reconciliation(
     channel: &str,
     module_ids: Option<Vec<ModuleId>>,
 ) -> anyhow::Result<()> {
-    tracing::error!("XXXXX - perform_reconciliation");
-
     subscribe_to_diff(&app_name, tree, channel, module_ids)?;
+    tracing::info!(%channel, "subscribed to diff");
+
     let syn_payload = make_syn_payload(doc_reconciliation_data);
+    tracing::info!("SYN payload created");
+
     send_syn_payload(&syn_payload, &app_name, channel)?;
+    tracing::info!("SYN payload sent");
+
+    // TODO: Unsubscribe from "diff" when sending failed.
+
     Ok(())
 }
 
@@ -590,8 +595,6 @@ fn subscribe_to_diff(
     channel: &str,
     module_ids: Option<Vec<ModuleId>>,
 ) -> anyhow::Result<()> {
-    tracing::error!("XXXXX - subscribe_to_diff");
-
     let topic = format!("{channel}.dif");
     hermes_ipfs_subscribe(
         ipfs::SubscriptionKind::DocSync,
@@ -612,7 +615,6 @@ fn make_syn_payload(
         their_count,
     }: DocReconciliationData
 ) -> MsgSyn {
-    tracing::error!("XXXXX - make_syn_payload");
     MsgSyn {
         root: our_root,
         count: our_count,
@@ -630,7 +632,6 @@ fn send_syn_payload(
     app_name: &ApplicationName,
     channel: &str,
 ) -> anyhow::Result<()> {
-    tracing::error!("XXXXX - send_syn_payload");
     let mut payload_bytes = Vec::new();
     let topic = format!("{channel}.syn");
     let mut enc = Encoder::new(&mut payload_bytes);

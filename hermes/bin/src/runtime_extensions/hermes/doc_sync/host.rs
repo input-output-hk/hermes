@@ -553,7 +553,7 @@ fn send_new_keepalive(
     channel_name: &str,
     app_name: &ApplicationName,
 ) -> anyhow::Result<()> {
-    tracing::error!("XXXXX - about to send a new keepalive");
+    tracing::info!("sending new docsync keepalive message");
     let (root, count) = current_smt_summary(smt)
         .map_err(|err| anyhow::anyhow!("Failed to fetch SMT state: {err}"))?;
     let payload = build_new_payload(root, count, vec![])?;
