@@ -49,7 +49,8 @@ Out of scope (MVP):
 * Performance and scalability: Pre-linked WASM instances, event queue + thread pool, per-core parallelism,
   minimal data copies.
 * Reliability and robustness: Explicit init/fini lifecycle, package validation,
-  deterministic event dispatch ordering per source, and graceful shutdown.
+  bounded event queue with backpressure, optional serial event execution for strict ordering,
+  and graceful shutdown.
 * Developer ergonomics: WIT-defined interfaces, standard Web tooling for frontends,
   clean CLI for packaging/running/signing.
 * Observability: Structured logging/tracing, explicit build info, controlled log levels.

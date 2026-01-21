@@ -26,7 +26,7 @@ Mapping of Building Blocks to Infrastructure
 * `HTTP Gateway` → exposed on a configurable port; reverse proxy can front it if required.
 * `IPFS/libp2p` → listens on local interfaces; participates in DHT and pub/sub.
 * `Reactor/Event Queue` → internal process-only.
-* `VFS/HDF5` → local filesystem for package state and app storage; optional temp in memory.
+* `VFS/HDF5` → local filesystem for package state and app storage; per-app `.hfs` file in Hermes home.
 
 ## Infrastructure Level 2
 
@@ -45,5 +45,6 @@ Mapping of Building Blocks to Infrastructure
 ### Persistence considerations
 
 * Application packages are immutable; only designated VFS areas are writable.
+* VFS state persists across runs in `~/.hermes/<app>.hfs` unless cleaned.
 
 * Embedded IPFS uses a local data directory under the Hermes home (`~/.hermes/ipfs`).

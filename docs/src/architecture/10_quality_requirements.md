@@ -13,12 +13,12 @@ icon: material/quality-high
     * WIT-based interfaces and generated bindings
 * Security and Integrity
     * Immutable, signed packages; constrained host APIs; certificate trust
-    * Topic/message signature validation for P2P
+    * Topic/message signature validation for P2P (planned; current checks are basic)
 * Performance and Scalability
     * Pre-linked WASM instances; per-core worker pool; backpressure via queue
     * Static file serving from VFS
 * Reliability and Availability
-    * Deterministic per-source ordering; isolation on failure; graceful shutdown
+    * FIFO event queue; optional serial execution for ordering; isolation on failure; graceful shutdown
 * Observability
     * Structured logging/tracing; build info emission; tunable verbosity
 * Developer Experience
@@ -33,7 +33,7 @@ icon: material/quality-high
    * Signature and schema validation fail; app not loaded; error surfaced with actionable diagnostics.
 
 3) P2P message flood from misbehaving peer
-   * Message validation drops invalids; peer can be evicted; engine continues to serve other traffic.
+   * Basic validation drops invalids; peer can be evicted; engine continues to serve other traffic.
 
 4) Module crash during event handling
    * Error logged; event processing for that module fails fast; other modules/apps unaffected.

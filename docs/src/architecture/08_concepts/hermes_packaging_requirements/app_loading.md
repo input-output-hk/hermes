@@ -6,6 +6,13 @@ The high level steps of the app loading process are:
 
 ## Loading/Creating the App RW HDF5 Filesystem
 
+Implementation note (current engine)
+
+* The RW VFS is stored as `~/.hermes/<app>.hfs` and persists across runs.
+* Hermes creates `/tmp`, `/etc`, `/srv`, `/usr`, `/usr/lib`, `/lib`, and `/ipfs`.
+* Package `srv/www` and `srv/share` are mounted into the VFS as `/www` and `/share`.
+* `/var` and `settings.json` files are not implemented yet.
+
 All Applications will need a RW Filesystem, even if its just for Hermes to store data about the application.
 The Process of loading the application is actually the process of creating or validating the RW Filesystem.
 
@@ -15,7 +22,7 @@ Initially the Applications RW HDF5 Filesystem looks like this:
 | Name | Type | Description | Writable | Required |
 | --- | ----------- | ---- | -------- | --- |
 | `/` | :octicons-file-directory-fill-16: | Root Directory | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
-| `/tmp` | :octicons-file-directory-16: | Temporary Files stored in memory | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
+| `/tmp` | :octicons-file-directory-16: | Temporary files stored in VFS (`.hfs`) | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/etc` | :octicons-file-directory-fill-16: | Writable settings | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 <!-- markdownlint-enable max-one-sentence-per-line line-length no-inline-html -->
 
@@ -30,7 +37,7 @@ the following files are created in the Application RW Storage and loading can co
 | `/etc/<module-name>/settings.json` | :octicons-file-16: | Module specific</br>Runtime Configurable Settings | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 <!-- markdownlint-enable max-one-sentence-per-line line-length no-inline-html -->
 
-If the Application has requested RW storage, then it is created (and sized accordingly) at:
+Planned: if the application requests RW storage, it will be created (and sized accordingly) at:
 
 <!-- markdownlint-disable max-one-sentence-per-line line-length no-inline-html -->
 | Name | Type | Description | Writable | Required |
@@ -79,7 +86,7 @@ During this process symbolic RO links are created for the following files within
 ## Mounting the `/srv/www` filesystem in the HTTP gateway
 
 At this stage the Applications `/srv/www` from the RW Filesystem (as linked to the application package itself)
-is registered with the HTTP gateway inside the hermes node, and it can begin serving those files.
+is mounted into the VFS as `/www`, registered with the HTTP gateway, and can begin serving those files.
 
 ## Loading and Initializing the WASM Modules
 
