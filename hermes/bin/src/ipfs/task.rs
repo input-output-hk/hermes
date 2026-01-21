@@ -437,6 +437,10 @@ fn topic_message_handler(
 ///
 /// Uses async file operations (`file_get_async`) to avoid blocking the `PubSub` handler.
 /// Message format: `payload::New` → `DocumentDisseminationBody::Docs { docs: Vec<Cid> }`
+#[allow(
+    clippy::needless_pass_by_value,
+    reason = "the other handler consumes the message and we need to keep the signatures consistent"
+)]
 fn doc_sync_topic_message_handler(
     message: hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
@@ -479,7 +483,7 @@ fn doc_sync_topic_message_handler(
             tracing::info!("RECEIVED PubSub message with CIDs: {:?}", docs);
 
             if docs.is_empty() {
-                match create_reconciliation_state(their_root, their_count, Arc::clone(tree)) {
+                match create_reconciliation_state(their_root, their_count, tree.as_ref()) {
                     Ok(doc_reconciliation) => {
                         match doc_reconciliation {
                             DocReconciliation::NotNeeded => {
@@ -494,7 +498,7 @@ fn doc_sync_topic_message_handler(
 
                                 if let Err(err) = start_reconciliation(
                                     doc_reconciliation_data,
-                                    context.app_name,
+                                    &context.app_name,
                                     Arc::clone(tree),
                                     channel_name,
                                     context.module_ids,
@@ -528,7 +532,7 @@ fn doc_sync_topic_message_handler(
 fn create_reconciliation_state(
     their_root: Blake3256,
     their_count: u64,
-    tree: Arc<Mutex<Tree<doc_sync::Cid>>>,
+    tree: &Mutex<Tree<doc_sync::Cid>>,
 ) -> anyhow::Result<DocReconciliation> {
     let Ok(tree) = tree.lock() else {
         return Err(anyhow::anyhow!("SMT lock poisoned"));
@@ -583,7 +587,7 @@ fn create_reconciliation_state(
 /// Starts the document reconciliation process.
 fn start_reconciliation(
     doc_reconciliation_data: DocReconciliationData,
-    app_name: ApplicationName,
+    app_name: &ApplicationName,
     _tree: Arc<Mutex<Tree<doc_sync::Cid>>>,
     channel: &str,
     _module_ids: Option<Vec<ModuleId>>,
@@ -595,7 +599,7 @@ fn start_reconciliation(
     let syn_payload = make_syn_payload(doc_reconciliation_data);
     tracing::info!("SYN payload created");
 
-    send_syn_payload(&syn_payload, &app_name, channel)?;
+    send_syn_payload(&syn_payload, app_name, channel)?;
     tracing::info!("SYN payload sent");
 
     // TODO: Unsubscribe from "diff" when sending failed.
