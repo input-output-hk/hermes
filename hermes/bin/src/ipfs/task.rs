@@ -464,12 +464,11 @@ fn doc_sync_topic_message_handler(
             tracing::info!("RECEIVED PubSub message with CIDs: {:?}", docs);
 
             if docs.is_empty() {
-                match create_reconciliation_state(their_root, their_count, Arc::clone(&tree)) {
+                match create_reconciliation_state(their_root, their_count, Arc::clone(tree)) {
                     Ok(doc_reconciliation) => {
                         match doc_reconciliation {
                             DocReconciliation::NotNeeded => {
                                 tracing::info!("reconciliation not needed");
-                                return;
                             },
                             DocReconciliation::Needed(doc_reconciliation_data) => {
                                 tracing::info!("starting reconciliation");
@@ -481,21 +480,19 @@ fn doc_sync_topic_message_handler(
                                 if let Err(err) = start_reconciliation(
                                     doc_reconciliation_data,
                                     context.app_name,
-                                    Arc::clone(&tree),
+                                    Arc::clone(tree),
                                     channel_name,
                                     context.module_ids,
                                 ) {
                                     tracing::error!(%err, "Failed to start reconciliation");
-                                    return;
                                 }
                             },
                         }
                     },
                     Err(err) => {
                         tracing::error!(%err, "Failed to create reconciliation state");
-                        return;
                     },
-                };
+                }
             } else {
                 process_broadcasted_cids(
                     &topic,
@@ -508,7 +505,6 @@ fn doc_sync_topic_message_handler(
         },
         DocumentDisseminationBody::Manifest { .. } => {
             tracing::error!("Manifest is not supported in a .new payload");
-            return;
         },
     }
 }
@@ -543,13 +539,13 @@ fn create_reconciliation_state(
     let prefixes = if our_count > DOC_SYNC_PREFIXES_THRESHOLD {
         let coarse_height = tree.coarse_height();
         let slice = tree.horizontal_slice_at(coarse_height)?;
-        let mut prefixes = Vec::with_capacity(2_usize.pow(coarse_height as u32));
+        let mut prefixes = Vec::with_capacity(2_usize.pow(u32::from(coarse_height)));
         for node in slice {
             let maybe_node = node?;
             match maybe_node {
                 Some(node) => {
                     let node_bytes: [u8; 32] = node.as_slice().try_into()?;
-                    prefixes.push(Some(Blake3256::from(node_bytes)))
+                    prefixes.push(Some(Blake3256::from(node_bytes)));
                 },
                 None => prefixes.push(None),
             }
@@ -562,9 +558,9 @@ fn create_reconciliation_state(
     Ok(DocReconciliation::Needed(DocReconciliationData {
         our_root,
         our_count,
-        prefixes,
         their_root,
         their_count,
+        prefixes,
     }))
 }
 
@@ -600,7 +596,7 @@ fn subscribe_to_diff(
     let topic = format!("{channel}.dif");
     hermes_ipfs_subscribe(
         ipfs::SubscriptionKind::DocSync,
-        &app_name,
+        app_name,
         Some(tree),
         &topic,
         module_ids,
@@ -640,7 +636,7 @@ fn send_syn_payload(
     payload
         .encode(&mut enc, &mut ())
         .map_err(|e| anyhow::anyhow!("Failed to encode syn_payload::MsgSyn: {e}"))?;
-    hermes_ipfs_publish(&app_name, &topic, payload_bytes)?;
+    hermes_ipfs_publish(app_name, &topic, payload_bytes)?;
     Ok(())
 }
 
