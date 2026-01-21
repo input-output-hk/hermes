@@ -1732,11 +1732,22 @@ _clean-node-data nodeN:
     #!/usr/bin/env bash
     set -euo pipefail
     echo "Removing data from table document..."
-    docker exec hermes-node{{nodeN}} sqlite3 /data/hermes_datastore.db.athena "DELETE FROM document;" || {
-        echo "❌ Failed to remove data from table document"
-        exit 1
-    }
-    echo "🧹Node {{nodeN}} data cleaned!"
+    
+    # Check if the document table exists
+    table_exists=$(docker exec hermes-node{{nodeN}} sqlite3 /data/hermes_datastore.db.athena \
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='document';" 2>/dev/null || echo "")
+    
+    if [ -z "$table_exists" ]; then
+        echo "ℹ️  Table 'document' doesn't exist yet - nothing to clean"
+    else
+        docker exec hermes-node{{nodeN}} sqlite3 /data/hermes_datastore.db.athena "DELETE FROM document;" || {
+            echo "❌ Failed to remove data from table document"
+            exit 1
+        }
+        echo "🧹 Data removed from table document"
+    fi
+    echo "🧹 Node {{nodeN}} data cleaned!"
+
 
 _node-subscribe nodeN topic:
     #!/usr/bin/env bash
