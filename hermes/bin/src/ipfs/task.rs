@@ -572,13 +572,13 @@ fn create_reconciliation_state(
 fn start_reconciliation(
     doc_reconciliation_data: DocReconciliationData,
     app_name: ApplicationName,
-    tree: Arc<Mutex<Tree<doc_sync::Cid>>>,
+    _tree: Arc<Mutex<Tree<doc_sync::Cid>>>,
     channel: &str,
-    module_ids: Option<Vec<ModuleId>>,
+    _module_ids: Option<Vec<ModuleId>>,
 ) -> anyhow::Result<()> {
     // TODO: Temporarily disabled: https://github.com/input-output-hk/hermes/issues/769
-    subscribe_to_diff(&app_name, tree, channel, module_ids)?;
-    tracing::info!(%channel, "subscribed to diff");
+    // subscribe_to_diff(&app_name, tree, channel, module_ids)?;
+    // tracing::info!(%channel, "subscribed to diff");
 
     let syn_payload = make_syn_payload(doc_reconciliation_data);
     tracing::info!("SYN payload created");
