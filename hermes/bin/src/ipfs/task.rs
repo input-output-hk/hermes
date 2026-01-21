@@ -38,6 +38,9 @@ use crate::{
     wasm::module::ModuleId,
 };
 
+/// If we have less documents than this we'll always request full state form peer
+/// during the document reconciliation process. If we have more, we'll request
+/// just a proper subtree.
 const DOC_SYNC_PREFIXES_THRESHOLD: u64 = 64;
 
 /// Chooses how subscription messages are handled.
@@ -277,13 +280,16 @@ pub(crate) async fn ipfs_command_handler(
 
 #[derive(Clone)]
 pub(super) struct TopicMessageContext {
+    /// SMT.
     tree: Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
+    /// Application name.
     app_name: ApplicationName,
     /// Module IDs
     module_ids: Option<Vec<ModuleId>>,
 }
 
 impl TopicMessageContext {
+    /// Creates a new `TopicMessageContext`
     pub(crate) fn new(
         tree: Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
         app_name: ApplicationName,
@@ -297,11 +303,15 @@ impl TopicMessageContext {
     }
 }
 
+/// A result of deciding whether the document reconciliation process is needed
 enum DocReconciliation {
+    /// Reconciliation is not needed
     NotNeeded,
+    /// Reconciliation is needed and we have a proper context here.
     Needed(DocReconciliationData),
 }
 
+/// The context for document reconciliation process, if it is needed.
 struct DocReconciliationData {
     /// Root of our SMT.
     our_root: Blake3256,
