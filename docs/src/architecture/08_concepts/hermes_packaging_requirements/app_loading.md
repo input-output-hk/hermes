@@ -14,7 +14,7 @@ Initially the Applications RW HDF5 Filesystem looks like this:
 <!-- markdownlint-disable max-one-sentence-per-line line-length no-inline-html -->
 | Name | Type | Description | Writable | Required |
 | --- | ----------- | ---- | -------- | --- |
-| `/`   | :octicons-file-directory-fill-16: | Root Directory | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
+| `/` | :octicons-file-directory-fill-16: | Root Directory | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 | `/tmp` | :octicons-file-directory-16: | Temporary Files stored in memory | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/etc` | :octicons-file-directory-fill-16: | Writable settings | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 <!-- markdownlint-enable max-one-sentence-per-line line-length no-inline-html -->
@@ -35,7 +35,7 @@ If the Application has requested RW storage, then it is created (and sized accor
 <!-- markdownlint-disable max-one-sentence-per-line line-length no-inline-html -->
 | Name | Type | Description | Writable | Required |
 | --- | ----------- | ---- | -------- | --- |
-| `/var/` | :octicons-file-directory-fill-16: |  Contains variable data files. (Persistent) | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
+| `/var/` | :octicons-file-directory-fill-16: | Contains variable data files. (Persistent) | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 <!-- markdownlint-enable max-one-sentence-per-line line-length no-inline-html -->
 
 ## Loading the Application itself
@@ -58,10 +58,10 @@ During this process symbolic RO links are created for the following files within
 | `/srv` | :octicons-file-directory-fill-16: | Data which is served by this system. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/srv/www` | :octicons-file-directory-fill-16: | Files automatically served for this application on HTTP. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/srv/share` | :octicons-file-directory-fill-16: | Data files which are not automatically served but can be shared by all Wasm Modules in the application. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
-| `/usr` | :octicons-file-directory-fill-16: |  Shareable, read-only data. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
-| `/usr/lib` | :octicons-file-directory-fill-16: |  Application over-rides for webasm library modules. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
-| `/usr/lib/<module-name>` | :octicons-file-directory-fill-16: |  Application over-rides for named webasm library module. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
-| `/usr/lib/<module-name>/config.json` | :octicons-file-16: |  Config to use for the module instead of its bundled config. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
+| `/usr` | :octicons-file-directory-fill-16: | Shareable, read-only data. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
+| `/usr/lib` | :octicons-file-directory-fill-16: | Application over-rides for webasm library modules. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
+| `/usr/lib/<module-name>` | :octicons-file-directory-fill-16: | Application over-rides for named webasm library module. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
+| `/usr/lib/<module-name>/config.json` | :octicons-file-16: | Config to use for the module instead of its bundled config. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/usr/lib/<module-name>/share` | :octicons-file-directory-fill-16: | Overrides for a modules shareable readonly data | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/lib` | :octicons-file-directory-fill-16: | Wasm Component Module Library Directory | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 | `/lib/<module-name>/metadata.json` | :octicons-file-16: | Modules Metadata | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |

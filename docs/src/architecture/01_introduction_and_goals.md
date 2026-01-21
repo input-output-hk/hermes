@@ -57,7 +57,7 @@ Out of scope (MVP):
 ## Stakeholders
 
 | Role | Contact | Expectations |
-|------|---------|--------------|
+| ---- | ------- | ------------ |
 | Platform maintainers (Hermes Core) | IOG Engineering | Maintainable, testable engine with clear extension points and docs |
 | Application developers | Community + IOG teams | Stable WIT APIs, easy packaging, predictable runtime and HTTP/IPFS integration |
 | Catalyst organizers (Athena) | Catalyst Ops | Reliable P2P distribution, verifiable data, performance at voting scale |

@@ -28,7 +28,7 @@ Data is divided between them to make merging those views easy and consistent.
 <!-- markdownlint-disable max-one-sentence-per-line line-length no-inline-html -->
 | Name | Type | Description | Writable | Required |
 | --- | ----------- | ---- | -------- | --- |
-| `/`   | :octicons-file-directory-fill-16: | Root Directory | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
+| `/` | :octicons-file-directory-fill-16: | Root Directory | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 | `/tmp` | :octicons-file-directory-16: | Temporary Files stored in memory | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/etc` | :octicons-file-directory-fill-16: | Writable settings | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 | `/etc/settings.json` | :octicons-file-16: | Hermes Engine settings for this application. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
@@ -36,10 +36,10 @@ Data is divided between them to make merging those views easy and consistent.
 | `/srv` | :octicons-file-directory-fill-16: | Data which is served by this system. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/srv/www` | :octicons-file-directory-fill-16: | Files automatically served for this application on HTTP. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/srv/share` | :octicons-file-directory-fill-16: | Data files which are not automatically served but can be shared by all Wasm Modules in the application. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
-| `/usr` | :octicons-file-directory-fill-16: |  Shareable, read-only data. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
-| `/usr/lib` | :octicons-file-directory-fill-16: |  Application over-rides for webasm library modules. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
-| `/usr/lib/<module-name>` | :octicons-file-directory-fill-16: |  Application over-rides for named webasm library module. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
-| `/usr/lib/<module-name>/config.json` | :octicons-file-16: |  Config to use for the module instead of its bundled config. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
+| `/usr` | :octicons-file-directory-fill-16: | Shareable, read-only data. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
+| `/usr/lib` | :octicons-file-directory-fill-16: | Application over-rides for webasm library modules. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
+| `/usr/lib/<module-name>` | :octicons-file-directory-fill-16: | Application over-rides for named webasm library module. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
+| `/usr/lib/<module-name>/config.json` | :octicons-file-16: | Config to use for the module instead of its bundled config. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/usr/lib/<module-name>/share` | :octicons-file-directory-fill-16: | Overrides for a modules shareable readonly data | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/lib` | :octicons-file-directory-fill-16: | Wasm Component Module Library Directory | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 | `/lib/<module-name>/metadata.json` | :octicons-file-16: | Modules Metadata | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
@@ -49,7 +49,7 @@ Data is divided between them to make merging those views easy and consistent.
 | `/lib/<module-name>/settings.schema.json` | :octicons-file-16: | Modules User Settings Schema | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/lib/<module-name>/share` | :octicons-file-directory-fill-16: | Modules shareable readonly data | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/lib/<module-name>/author.cose` | :octicons-file-badge-16: | Modules Author Signature | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
-| `/var/` | :octicons-file-directory-fill-16: |  Contains variable data files. (Persistent) | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
+| `/var/` | :octicons-file-directory-fill-16: | Contains variable data files. (Persistent) | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/metadata.json` | :octicons-file-16: | Applications Metadata | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 | `/icon.svg` | :octicons-file-16: | Application Icon | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 | `/author.cose` | :octicons-file-badge-16: | Application Author Signature | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
@@ -100,11 +100,11 @@ the following directories and files are contained in the Application writable an
 <!-- markdownlint-disable max-one-sentence-per-line line-length no-inline-html -->
 | Name | Type | Description | App Writable | Hermes Writable |
 | --- | ----------- | ---- | -------- | --- |
-| `/`   | :octicons-file-directory-fill-16: | Root Directory | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
+| `/` | :octicons-file-directory-fill-16: | Root Directory | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 | `/etc` | :octicons-file-directory-fill-16: | Writable settings | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 | `/etc/settings.json` | :octicons-file-16: | Hermes Engine settings for this application. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 | `/etc/<module-name>/settings.json` | :octicons-file-16: | Module specific</br>Runtime Configurable Settings | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
-| `/var` | :octicons-file-directory-fill-16: |  Contains variable data files. (Persistent) | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
+| `/var` | :octicons-file-directory-fill-16: | Contains variable data files. (Persistent) | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 <!-- markdownlint-enable max-one-sentence-per-line line-length no-inline-html -->
 
 The application can store any configuration it likes into `/etc`.
