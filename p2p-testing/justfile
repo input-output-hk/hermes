@@ -56,6 +56,11 @@
 #   - Just (https://just.systems)
 #   - Rust toolchain (builds use cargo directly, bypassing Earthly)
 #
+# TEST:
+#   just test-pubsub-propagation                    # Test message propagation
+#   just test-pubsub-propagation-and-sync           # Test message propagation and nodes sync
+#   just test-late-join-sync                        # Test node late join with keepalive sync
+#
 # ==============================================================================
 
 # Show available commands (default)
@@ -104,21 +109,29 @@ _wait-for-http retries="6" delay="5":
 
 # Helper: Post message to doc-sync with retries
 # Usage: just _post-message "message text" [max_retries]
-_post-message message retries="3":
+_post-message message port retries="3":
     #!/usr/bin/env bash
+    source ./logging.sh
     MAX_RETRIES={{retries}}
     MESSAGE="{{message}}"
 
     for ((i=1; i<=MAX_RETRIES; i++)); do
-        RESPONSE=$(curl -s -X POST http://localhost:5000/api/doc-sync/post \
+        RESPONSE=$(curl -s -X POST http://localhost:{{port}}/api/doc-sync/post \
           -H "Host: athena.hermes.local" \
           -H "Content-Type: text/plain" \
           -d "$MESSAGE" 2>&1)
 
+        CID=$(echo "$RESPONSE" | jq -r '.cid' 2>/dev/null || echo "unknown")
         SUCCESS=$(echo "$RESPONSE" | jq -r '.success' 2>/dev/null || echo "false")
 
-        if [ "$SUCCESS" = "true" ]; then
-            echo "$RESPONSE"
+        if [ "$SUCCESS" != "true" ]; then
+            ERROR "Failed to post document"
+            ERROR "Response: $RESPONSE"
+            exit 1
+        else 
+            OK "Document posted successfully" >&2
+            INFO "Response: $(echo "$RESPONSE" | jq -r '.')" >&2
+            echo "$CID"
             exit 0
         fi
 
@@ -964,7 +977,7 @@ test-pubsub:
     TEST_MESSAGE="PubSub Test - Timestamp: $TIMESTAMP"
 
     echo "📤 Publishing message..."
-    RESPONSE=$(just _post-message "$TEST_MESSAGE" 3)
+    RESPONSE=$(just _post-message "$TEST_MESSAGE" "5000" 3)
     if [ $? -ne 0 ]; then
         echo "❌ Failed to post message"
         exit 1
@@ -1419,9 +1432,11 @@ help:
     @echo "  Developer Testing:"
     @echo "    just validate-prereqs        # Check prerequisites"
     @echo "    just start                   # Interactive mode, prompts to rebuild"
-    @echo "    just test-pubsub-propagation # Test message propagation"
     @echo "    just logs-node 1             # Debug specific node"
     @echo "    just restart                 # Apply code changes"
+    @echo "    just test-pubsub-propagation # Test message propagation"
+    @echo "    just test-pubsub-propagation-and-sync        # Test message propagation and nodes sync"
+    @echo "    just test-late-join-sync             # Test node late join with keepalive sync"
     @echo ""
     @echo "  CI/CD Pipeline:"
     @echo "    just start-ci         # CI mode: non-interactive, always rebuilds"
@@ -1499,3 +1514,282 @@ help:
     @echo ""
     @echo "For more info: cat justfile or just --list"
     @echo "================================================================================"
+
+# Test: Test basic pub/sub propagation and nodes sync
+#
+# Prerequisites:
+#  - All nodes are started
+#
+# 1. If nodes not started, start them
+# 2. Cleaning all node data (database + SMT)
+# 3. Verify that all nodes subscribed to .new topic
+# 4. Post a document to Node1 via HTTP Post
+# 5. Extract the CID from the response
+# 6. Check if other nodes received the message
+# 7. Check database for all nodes where CID is equal to CID extracted from response
+#
+# Test basic pub/sub propagation and nodes sync
+test-pubsub-propagation-and-sync:
+    #!/usr/bin/env bash
+    set -euo pipefail    
+    BLUE='\033[34m'; RESET='\033[0m'
+
+    source ./logging.sh
+
+    STEP "Basic Pub/Sub Propagation and Nodes Sync"
+
+    # ---------- If nodes not started, start them ----------
+    STEP "Starting nodes if not running"
+    just _start_node_if_not_started
+    echo ""
+
+    # ---------- Clean all node data ----------
+    STEP "Cleaning node data"
+    for NODE in {1..6}; do
+        just _clean-node-data $NODE
+    done
+    echo ""
+
+    # ---------- Verify that all nodes are subscribed to the .new topic ----------
+    STEP "Verifying topic subscriptions (.new)"
+    for NODE in {1..6}; do
+        just _check_node-subscribe $NODE ".new"
+    done
+
+    CID_LIST=()
+    # ---------- Post document and get the CID ----------
+    STEP "Posting document to Node1"
+    TIMESTAMP=$(date +%s)
+    # TODO - replace this with real document
+    DOC="Test Document sync - Timestamp: $TIMESTAMP"
+    CID=$(just _post-message "$DOC" "5000" 3)
+    CID_LIST+=($CID)
+
+    INFO "Generated CID: ${BLUE}$CID${RESET}"
+
+    # ---------- Check whether other nodes received the message ----------
+    STEP "Verifying document propagation (Nodes 2–6)"
+    for NODE in {2..6}; do
+        INFO "Checking Node $NODE"
+        for C in ${CID_LIST[@]}; do
+            just _check-document-received $NODE $C
+        done
+    done
+
+    # ---------- Check database for all nodes ----------
+    STEP "Verifying database persistence (Nodes 1–6)"
+    for NODE in {1..6}; do
+        INFO "Checking Node $NODE database"
+        just _check-database-document $NODE "$CID"
+    done
+
+    echo ""
+    OK "🌈 Test completed"
+
+# Test: Late joining node with keepalive sync
+#
+# Prerequisites:
+#  - All nodes are started
+#
+# 1. If nodes not started, start them
+# 2. Cleaning all node data (database + SMT)
+# 3. Stop a node (node 6)
+# 4. Post documents via HTTP Post
+# 5. Extract the CID from the response
+# 6. Check if other nodes received the message
+# 7. Check database for all nodes where CID is equal to CID extracted from response
+# 8. Start node 6
+# 9. Wait for keepalive
+# 10. Check database for node6 where CID is equal to CID extracted from response
+#
+# Test late joining node with keepalive sync
+test-late-join-sync:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    BLUE='\033[34m'; RESET='\033[0m'
+
+    source ./logging.sh
+
+    STEP "Late Joining Node with Keepalive Sync"
+
+    # ---------- If nodes not started, start them ----------
+    STEP "Starting nodes if not running"
+    just _start_node_if_not_started
+
+    # ---------- Clean all node data ----------
+    STEP "Cleaning node data"
+    for NODE in {1..6}; do
+        just _clean-node-data $NODE
+    done
+
+    # ---------- Stop a node (node 6) ----------
+    STEP "Stopping node 6"
+    docker compose stop hermes-node6
+    OK "Node 6 stopped"
+
+    CID_LIST=()
+    # ---------- Post documents and get the CID ----------
+    STEP "Posting documents"
+    TIMESTAMP=$(date +%s)
+    # TODO - replace this with real document
+    DOC="Test Document 1 - Timestamp: $TIMESTAMP"
+    CID=$(just _post-message "$DOC" "5000")
+    CID_LIST+=($CID)
+    INFO "Generated CID: ${BLUE}$CID${RESET}"
+    echo ""
+
+    TIMESTAMP=$(date +%s)
+    # TODO - replace this with real document
+    DOC="Test Document 1.1 - Timestamp: $TIMESTAMP"
+    CID=$(just _post-message "$DOC" "5000")
+    CID_LIST+=($CID)
+    INFO "Generated CID: ${BLUE}$CID${RESET}"
+    echo ""
+
+    TIMESTAMP=$(date +%s)
+    # TODO - replace this with real document
+    DOC="Test Document 2 - Timestamp: $TIMESTAMP"
+    CID=$(just _post-message "$DOC" "5000")
+    CID_LIST+=($CID)
+    INFO "Generated CID: ${BLUE}$CID${RESET}"
+    echo ""
+
+    TIMESTAMP=$(date +%s)
+    # TODO - replace this with real document
+    DOC="Test Document 3 - Timestamp: $TIMESTAMP"
+    CID=$(just _post-message "$DOC" "5000")
+    CID_LIST+=($CID)
+    INFO "Generated CID: ${BLUE}$CID${RESET}"
+    echo ""
+
+    # ---------- Check whether other nodes received the message (omit node 6) ----------
+    STEP "Verifying document propagation (Nodes 2–5)"
+    for NODE in {2..5}; do
+        INFO "Checking Node $NODE"
+        for C in ${CID_LIST[@]}; do
+            just _check-document-received $NODE $C
+        done
+        echo ""
+    done
+
+    # ---------- Check database for all nodes (omit node 6) ----------
+    STEP "Verifying database persistence (Nodes 1–5)"
+    for NODE in {1..5}; do
+        INFO "Checking Node $NODE database"
+        for C in ${CID_LIST[@]}; do
+            just _check-database-document $NODE $C
+        done
+        echo ""
+    done
+
+    # ---------- Start node 6 ----------
+    STEP "Starting node 6"
+    docker compose start hermes-node6
+    OK "Node 6 started"
+
+    # ---------- Wait for some time to let the keepalive sync to happen ----------
+    # Keepalive timer is in range of 20-60 seconds
+    STEP "Waiting for keepalive sync (70 seconds)"
+    sleep 70
+    OK "Keepalive sync wait completed"
+
+    # ---------- Check node 6 sync ----------
+    # Node 6 should have received the document that other node have
+    STEP "Verifying node 6 sync (Nodes 1–5 → Node 6)"
+    for C in ${CID_LIST[@]}; do
+        just _check-database-document 6 $C
+    done
+
+    echo ""
+    OK "🌈 Test completed"
+
+
+# -------------------- Helper function -------------------------
+
+# If nodes not started, start them
+_start_node_if_not_started:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    source ./logging.sh
+
+    started_count=0
+    for NODE in {1..6}; do
+        if ! docker compose ps | grep -q "hermes-node$NODE"; then
+            docker compose start hermes-node$NODE >/dev/null 2>&1
+            started_count=$((started_count + 1))
+        fi
+    done
+
+    if [ $started_count -gt 0 ]; then
+        OK "$started_count node(s) started"
+    else
+        INFO "All nodes already running"
+    fi
+
+# Clean node data
+# - Delete all data from the document table
+# TODO - Clean the SMT
+_clean-node-data nodeN:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    source ./logging.sh
+
+    NODE={{nodeN}}    
+
+    if docker exec hermes-node$NODE sqlite3 /data/hermes_datastore.db.athena "DELETE FROM document;" 2>/dev/null; then
+        INFO "Document table cleaned"
+    else
+        ERROR "Failed to clean document table"
+        exit 1
+    fi
+        
+    OK "Node $NODE data cleaned"
+
+# Check whether a node subscribe to a topic
+_check_node-subscribe nodeN topic:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    source ./logging.sh
+    GREP_RESULT=$(docker compose logs "hermes-node{{nodeN}}" 2>&1 | grep "Subscribed to {{topic}} with base" | wc -l)
+
+    if [ "$GREP_RESULT" -ge 1 ]; then
+        OK "Node {{nodeN}} subscribed to topic '{{topic}}'"
+    else
+        ERROR "Node {{nodeN}} is NOT subscribed to topic '{{topic}}'"
+    fi
+
+# Check whether a document is received via pubsub
+_check-document-received nodeN cid:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    source ./logging.sh
+    GREP_RESULT=$(docker compose logs "hermes-node{{nodeN}}" 2>&1 | \
+        grep "RECEIVED PubSub message with CIDs: \[" | \
+        grep -v '\[\]' | \
+        grep "{{cid}}" | \
+        wc -l)
+
+    if [ "$GREP_RESULT" -ge 1 ]; then
+        OK "Node {{nodeN}} received document (CID={{cid}})"
+    else
+        ERROR "Node {{nodeN}} did NOT receive document (CID={{cid}})"
+    fi
+
+# Check whether a document is stored in the database
+_check-database-document nodeN cid:
+    #!/usr/bin/env bash
+    source ./logging.sh
+    set -euo pipefail
+    GREEN='\033[32m'; RESET='\033[0m'; RED='\033[31m';BLUE='\033[34m';
+    RESULT=$(docker exec hermes-node{{nodeN}} sqlite3 /data/hermes_datastore.db.athena "SELECT * FROM document WHERE cid LIKE '{{cid}}';")
+    # There should be some data in the db
+    COUNT=$(docker exec hermes-node{{nodeN}} sqlite3 /data/hermes_datastore.db.athena \
+    "SELECT COUNT(*) FROM document;")
+
+    INFO "Database contains ${BLUE}$COUNT${RESET} document(s)"
+
+    if [ -n "$RESULT" ]; then
+        OK "Document exists in database (CID=${GREEN}{{cid}}${RESET})"
+    else
+        ERROR "Document missing in database (CID=${RED}{{cid}}${RESET})"
+    fi

@@ -27,6 +27,10 @@ just start                       # Starts 6 nodes, waits for mesh formation
 
 # Test PubSub propagation
 just test-pubsub-propagation     # Sends message from node 1 → all others
+# Test PubSub propagation and nodes sync
+just test-pubsub-propagation-and-sync     # Basic test for nodes sync behavior
+# Test node late joiner
+just test-late-join-sync         # Test node late join where it sync with keepalive timer
 
 # Monitor
 just logs                        # View all node logs
@@ -253,6 +257,8 @@ Run `just` to see all available commands, or:
 
 * `just test-pubsub-propagation` - Test message propagation (interactive)
 * `just test-ci` - Full CI test suite
+* `just test-pubsub-propagation-and-sync` - Basic test for nodes sync behavior
+* `just test-late-join-sync` - Test whether a node that joins late can sync with others using keepalive
 
 **Monitoring:**
 
