@@ -303,10 +303,15 @@ enum DocReconciliation {
 }
 
 struct DocReconciliationData {
+    /// Root of our SMT.
     our_root: Blake3256,
+    /// Document count in our SMT.
     our_count: u64,
+    /// Root of the SMT on the peer
     their_root: Blake3256,
+    /// Document count on the peer side.
     their_count: u64,
+    /// A set of SMT prefixes at a coarse height
     prefixes: Vec<Option<Blake3256>>,
 }
 
@@ -509,6 +514,7 @@ fn doc_sync_topic_message_handler(
     }
 }
 
+/// Creates the reconciliation state based on our and remote peer SMT states.
 fn create_reconciliation_state(
     their_root: Blake3256,
     their_count: u64,
@@ -564,6 +570,7 @@ fn create_reconciliation_state(
     }))
 }
 
+/// Starts the document reconciliation process.
 fn start_reconciliation(
     doc_reconciliation_data: DocReconciliationData,
     app_name: ApplicationName,
@@ -587,6 +594,7 @@ fn start_reconciliation(
 }
 
 #[allow(dead_code)]
+/// Subscribes to ".dif" topic in order to receive responses for the ".syn" requests.
 fn subscribe_to_diff(
     app_name: &ApplicationName,
     tree: Arc<Mutex<Tree<doc_sync::Cid>>>,
@@ -604,6 +612,7 @@ fn subscribe_to_diff(
     Ok(())
 }
 
+/// Creates the new SYN payload.
 fn make_syn_payload(
     DocReconciliationData {
         our_root,
@@ -625,6 +634,7 @@ fn make_syn_payload(
     }
 }
 
+/// Sends the SYN payload to request the reconciliation data.
 fn send_syn_payload(
     payload: &MsgSyn,
     app_name: &ApplicationName,
@@ -640,6 +650,7 @@ fn send_syn_payload(
     Ok(())
 }
 
+/// Processes the received CIDs from a broadcasted message.
 fn process_broadcasted_cids(
     topic: &str,
     channel_name: &str,
