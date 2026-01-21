@@ -188,6 +188,7 @@ pub(crate) async fn ipfs_command_handler(
                 send_response(result, tx);
             },
             IpfsCommand::Subscribe(topic, kind, tree, app_name, module_ids, tx) => {
+                tracing::info!(topic, "received Subscribe request");
                 let stream = hermes_node
                     .pubsub_subscribe(&topic)
                     .await
@@ -575,6 +576,7 @@ fn start_reconciliation(
     channel: &str,
     module_ids: Option<Vec<ModuleId>>,
 ) -> anyhow::Result<()> {
+    // TODO: Temporarily disabled: https://github.com/input-output-hk/hermes/issues/769
     subscribe_to_diff(&app_name, tree, channel, module_ids)?;
     tracing::info!(%channel, "subscribed to diff");
 
@@ -589,6 +591,7 @@ fn start_reconciliation(
     Ok(())
 }
 
+#[allow(dead_code)]
 fn subscribe_to_diff(
     app_name: &ApplicationName,
     tree: Arc<Mutex<Tree<doc_sync::Cid>>>,
