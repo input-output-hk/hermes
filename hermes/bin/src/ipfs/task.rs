@@ -317,7 +317,6 @@ pub(super) struct TopicMessageHandler {
 
     /// The handler implementation.
     callback: Box<
-        // TODO: ModuleIds into Context
         dyn Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, TopicMessageContext)
             + Send
             + Sync
