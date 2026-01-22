@@ -1,9 +1,17 @@
 //! Hermes IPFS State API
+use std::sync::{Arc, Mutex};
+
+use catalyst_types::smt::Tree;
+
 use super::{HERMES_IPFS, SubscriptionKind, is_valid_dht_content, is_valid_pubsub_content};
 use crate::{
     app::ApplicationName,
-    runtime_extensions::bindings::hermes::ipfs::api::{
-        DhtKey, DhtValue, Errno, IpfsContent, IpfsFile, IpfsPath, MessageData, PeerId, PubsubTopic,
+    runtime_extensions::{
+        bindings::hermes::ipfs::api::{
+            DhtKey, DhtValue, Errno, IpfsContent, IpfsFile, IpfsPath, MessageData, PeerId,
+            PubsubTopic,
+        },
+        hermes::doc_sync,
     },
     wasm::module::ModuleId,
 };
@@ -151,6 +159,7 @@ pub(crate) fn hermes_ipfs_get_peer_identity(
 pub(crate) fn hermes_ipfs_subscribe(
     kind: SubscriptionKind,
     app_name: &ApplicationName,
+    tree: Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
     topic: &PubsubTopic,
     module_ids: Option<Vec<ModuleId>>,
 ) -> Result<bool, Errno> {
@@ -159,7 +168,7 @@ pub(crate) fn hermes_ipfs_subscribe(
     if ipfs.apps.topic_subscriptions_contains(kind, topic) {
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription stream already exists");
     } else {
-        let handle = ipfs.pubsub_subscribe(kind, topic, module_ids)?;
+        let handle = ipfs.pubsub_subscribe(kind, topic, tree, app_name, module_ids)?;
         ipfs.apps.added_topic_stream(kind, topic.clone(), handle);
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "added subscription topic stream");
     }

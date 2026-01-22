@@ -91,7 +91,7 @@ interface api {
         /// - `error(<something>)`: If it gets an error.
         prove-excludes: func(loc: doc-loc, provers: list<prover-id>) -> result<list<doc-proof>, errno>;
 
-        /// Prove a document is stored in the provers
+        /// Get the document.
         ///
         /// **Parameters**
         ///

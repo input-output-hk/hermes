@@ -107,6 +107,7 @@ impl Host for HermesRuntimeContext {
         Ok(hermes_ipfs_subscribe(
             ipfs::SubscriptionKind::Default,
             self.app_name(),
+            None,
             &topic,
             None,
         ))

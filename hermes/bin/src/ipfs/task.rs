@@ -1,10 +1,21 @@
 //! IPFS Task
-use std::{collections::HashSet, str::FromStr, sync::Arc, time::Duration};
+use std::{
+    collections::HashSet,
+    str::FromStr,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
+use catalyst_types::smt::Tree;
 use hermes_ipfs::{
     Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
-    doc_sync::payload::{self, DocumentDisseminationBody},
+    doc_sync::{
+        Blake3256,
+        payload::{self, CommonFields, DocumentDisseminationBody},
+        syn_payload::MsgSyn,
+    },
 };
+use minicbor::{Encode, Encoder};
 use tokio::{
     sync::{mpsc, oneshot},
     task::JoinHandle,
@@ -13,14 +24,24 @@ use tokio::{
 
 use super::HERMES_IPFS;
 use crate::{
+    app::ApplicationName,
+    ipfs::{self, hermes_ipfs_publish, hermes_ipfs_subscribe},
     runtime_extensions::{
         bindings::hermes::ipfs::api::{
             DhtKey, DhtValue, Errno, IpfsFile, MessageData, PeerId, PubsubMessage, PubsubTopic,
         },
-        hermes::{doc_sync::OnNewDocEvent, ipfs::event::OnTopicEvent},
+        hermes::{
+            doc_sync::{self, OnNewDocEvent},
+            ipfs::event::OnTopicEvent,
+        },
     },
     wasm::module::ModuleId,
 };
+
+/// If we have less documents than this we'll always request full state form peer
+/// during the document reconciliation process. If we have more, we'll request
+/// just a proper subtree.
+const DOC_SYNC_PREFIXES_THRESHOLD: u64 = 64;
 
 /// Chooses how subscription messages are handled.
 #[derive(Copy, Clone, Debug, Default)]
@@ -65,6 +86,8 @@ pub(crate) enum IpfsCommand {
     Subscribe(
         PubsubTopic,
         SubscriptionKind,
+        Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
+        ApplicationName,
         Option<Vec<ModuleId>>,
         oneshot::Sender<Result<JoinHandle<()>, Errno>>,
     ),
@@ -167,20 +190,29 @@ pub(crate) async fn ipfs_command_handler(
                     });
                 send_response(result, tx);
             },
-            IpfsCommand::Subscribe(topic, kind, module_ids, tx) => {
+            IpfsCommand::Subscribe(topic, kind, tree, app_name, module_ids, tx) => {
+                tracing::info!(topic, "received Subscribe request");
                 let stream = hermes_node
                     .pubsub_subscribe(&topic)
                     .await
                     .map_err(|_| Errno::PubsubSubscribeError)?;
 
-                let message_handler = TopicMessageHandler::new(
-                    &topic,
-                    match kind {
-                        SubscriptionKind::Default => topic_message_handler,
-                        SubscriptionKind::DocSync => doc_sync_topic_message_handler,
+                let message_handler = match kind {
+                    SubscriptionKind::Default => {
+                        TopicMessageHandler::new(
+                            &topic,
+                            topic_message_handler,
+                            TopicMessageContext::new(None, app_name, module_ids),
+                        )
                     },
-                    module_ids,
-                );
+                    SubscriptionKind::DocSync => {
+                        TopicMessageHandler::new(
+                            &topic,
+                            doc_sync_topic_message_handler,
+                            TopicMessageContext::new(tree, app_name, module_ids),
+                        )
+                    },
+                };
 
                 let subscription_handler =
                     TopicSubscriptionStatusHandler::new(&topic, topic_subscription_handler);
@@ -246,39 +278,87 @@ pub(crate) async fn ipfs_command_handler(
     Ok(())
 }
 
-/// A handler for messages from the IPFS pubsub topic
-pub(super) struct TopicMessageHandler<T>
-where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, Option<Vec<ModuleId>>)
-        + Send
-        + Sync
-        + 'static
-{
-    /// The topic.
-    topic: String,
-
-    /// The handler implementation.
-    callback: T,
-
+#[derive(Clone)]
+pub(super) struct TopicMessageContext {
+    /// SMT.
+    tree: Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
+    /// Application name.
+    app_name: ApplicationName,
     /// Module IDs
     module_ids: Option<Vec<ModuleId>>,
 }
 
-impl<T> TopicMessageHandler<T>
-where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, Option<Vec<ModuleId>>)
-        + Send
-        + Sync
-        + 'static
-{
-    /// Creates the new handler.
-    pub fn new(
-        topic: &impl ToString,
-        callback: T,
+impl TopicMessageContext {
+    /// Creates a new `TopicMessageContext`
+    pub(crate) fn new(
+        tree: Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
+        app_name: ApplicationName,
         module_ids: Option<Vec<ModuleId>>,
     ) -> Self {
         Self {
-            topic: topic.to_string(),
-            callback,
+            tree,
+            app_name,
             module_ids,
+        }
+    }
+}
+
+/// A result of deciding whether the document reconciliation process is needed
+enum DocReconciliation {
+    /// Reconciliation is not needed
+    NotNeeded,
+    /// Reconciliation is needed and we have a proper context here.
+    Needed(DocReconciliationData),
+}
+
+/// The context for document reconciliation process, if it is needed.
+struct DocReconciliationData {
+    /// Root of our SMT.
+    our_root: Blake3256,
+    /// Document count in our SMT.
+    our_count: u64,
+    /// Root of the SMT on the peer
+    their_root: Blake3256,
+    /// Document count on the peer side.
+    their_count: u64,
+    /// A set of SMT prefixes at a coarse height
+    prefixes: Vec<Option<Blake3256>>,
+}
+
+/// A handler for messages from the IPFS pubsub topic
+pub(super) struct TopicMessageHandler {
+    /// The topic.
+    topic: String,
+
+    /// The handler implementation.
+    callback: Box<
+        dyn Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, TopicMessageContext)
+            + Send
+            + Sync
+            + 'static,
+    >,
+
+    /// The context.
+    context: TopicMessageContext,
+}
+
+impl TopicMessageHandler {
+    /// Creates the new handler.
+    pub fn new<F>(
+        topic: &impl ToString,
+        callback: F,
+        context: TopicMessageContext,
+    ) -> Self
+    where
+        F: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, TopicMessageContext)
+            + Send
+            + Sync
+            + 'static,
+    {
+        Self {
+            topic: topic.to_string(),
+            callback: Box::new(callback),
+            context,
         }
     }
 
@@ -287,7 +367,7 @@ where T: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, Option<Vec<ModuleI
         &self,
         msg: hermes_ipfs::rust_ipfs::GossipsubMessage,
     ) {
-        (self.callback)(msg, self.topic.clone(), self.module_ids.clone());
+        (self.callback)(msg, self.topic.clone(), self.context.clone());
     }
 }
 
@@ -329,7 +409,7 @@ where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'stati
 fn topic_message_handler(
     message: hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
-    module_ids: Option<Vec<ModuleId>>,
+    context: TopicMessageContext,
 ) {
     if let Some(ipfs) = HERMES_IPFS.get() {
         let app_names = ipfs.apps.subscribed_apps(SubscriptionKind::Default, &topic);
@@ -340,7 +420,7 @@ fn topic_message_handler(
                 message: message.data.into(),
                 publisher: message.source.map(|p| p.to_string()),
             })
-            .build_and_send(app_names, module_ids),
+            .build_and_send(app_names, context.module_ids),
         );
     } else {
         tracing::error!("Failed to send on_topic_event. IPFS is uninitialized");
@@ -359,13 +439,12 @@ fn topic_message_handler(
 /// Message format: `payload::New` → `DocumentDisseminationBody::Docs { docs: Vec<Cid> }`
 #[allow(
     clippy::needless_pass_by_value,
-    clippy::too_many_lines,
-    reason = "The event will be eventually consumed in the handler"
+    reason = "the other handler consumes the message and we need to keep the signatures consistent"
 )]
 fn doc_sync_topic_message_handler(
     message: hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
-    module_ids: Option<Vec<ModuleId>>,
+    context: TopicMessageContext,
 ) {
     if let Ok(msg_str) = std::str::from_utf8(&message.data) {
         tracing::info!("RECEIVED PubSub message on topic: {topic} - data: {msg_str}",);
@@ -377,6 +456,11 @@ fn doc_sync_topic_message_handler(
         return;
     };
 
+    let Some(tree) = &context.tree else {
+        tracing::error!("Context for the Doc Sync handler must contain an SMT.");
+        return;
+    };
+
     let payload = match minicbor::decode::<payload::New>(&message.data) {
         Ok(payload) => DocumentDisseminationBody::from(payload),
         Err(err) => {
@@ -385,30 +469,211 @@ fn doc_sync_topic_message_handler(
         },
     };
 
-    let new_cids = match payload {
-        DocumentDisseminationBody::Docs { docs, .. } => docs,
+    match payload {
+        DocumentDisseminationBody::Docs {
+            docs,
+            common_fields:
+                CommonFields {
+                    root: their_root,
+                    count: their_count,
+                    ..
+                },
+        } => {
+            // DO NOT remove this log, since it is used in tests
+            tracing::info!("RECEIVED PubSub message with CIDs: {:?}", docs);
+
+            if docs.is_empty() {
+                match create_reconciliation_state(their_root, their_count, tree.as_ref()) {
+                    Ok(doc_reconciliation) => {
+                        match doc_reconciliation {
+                            DocReconciliation::NotNeeded => {
+                                tracing::info!("reconciliation not needed");
+                            },
+                            DocReconciliation::Needed(doc_reconciliation_data) => {
+                                tracing::info!("starting reconciliation");
+                                let Some(channel_name) = topic.strip_suffix(".new") else {
+                                    tracing::error!(%topic, "Wrong topic, expected .new");
+                                    return;
+                                };
+
+                                if let Err(err) = start_reconciliation(
+                                    doc_reconciliation_data,
+                                    &context.app_name,
+                                    Arc::clone(tree),
+                                    channel_name,
+                                    context.module_ids,
+                                ) {
+                                    tracing::error!(%err, "Failed to start reconciliation");
+                                }
+                            },
+                        }
+                    },
+                    Err(err) => {
+                        tracing::error!(%err, "Failed to create reconciliation state");
+                    },
+                }
+            } else {
+                process_broadcasted_cids(
+                    &topic,
+                    channel_name,
+                    docs,
+                    message.source,
+                    context.module_ids,
+                );
+            }
+        },
         DocumentDisseminationBody::Manifest { .. } => {
             tracing::error!("Manifest is not supported in a .new payload");
-            return;
         },
+    }
+}
+
+/// Creates the reconciliation state based on our and remote peer SMT states.
+fn create_reconciliation_state(
+    their_root: Blake3256,
+    their_count: u64,
+    tree: &Mutex<Tree<doc_sync::Cid>>,
+) -> anyhow::Result<DocReconciliation> {
+    let Ok(tree) = tree.lock() else {
+        return Err(anyhow::anyhow!("SMT lock poisoned"));
     };
 
-    // DO NOT remove this log, since it is used in test `_test-pubsub-execute`
-    tracing::info!(
-        "RECEIVED PubSub message with CIDs: {:?}",
-        new_cids
-            .iter()
-            .map(std::string::ToString::to_string)
-            .collect::<Vec<_>>()
-    );
+    let our_root = tree.root();
+    let maybe_our_root_bytes: Result<[u8; 32], _> = our_root.as_slice().try_into();
+    let Ok(our_root_bytes) = maybe_our_root_bytes else {
+        return Err(anyhow::anyhow!("SMT root should be 32 bytes"));
+    };
+    let our_root = Blake3256::from(our_root_bytes);
 
-    // Use message.source (the publisher) as the provider - this is more reliable than DHT
-    // lookup because the publisher just published the content and DHT records may not have
-    // propagated yet.
-    let publisher = message.source;
+    if our_root == their_root {
+        return Ok(DocReconciliation::NotNeeded);
+    }
 
+    let our_count = tree.count();
+    let Ok(our_count) = our_count.try_into() else {
+        return Err(anyhow::anyhow!(
+            "tree element count must be representable as u64"
+        ));
+    };
+
+    let prefixes = if our_count > DOC_SYNC_PREFIXES_THRESHOLD {
+        let coarse_height = tree.coarse_height();
+        let slice = tree.horizontal_slice_at(coarse_height)?;
+        let mut prefixes = Vec::with_capacity(2_usize.pow(u32::from(coarse_height)));
+        for node in slice {
+            let maybe_node = node?;
+            match maybe_node {
+                Some(node) => {
+                    let node_bytes: [u8; 32] = node.as_slice().try_into()?;
+                    prefixes.push(Some(Blake3256::from(node_bytes)));
+                },
+                None => prefixes.push(None),
+            }
+        }
+        prefixes
+    } else {
+        vec![]
+    };
+
+    Ok(DocReconciliation::Needed(DocReconciliationData {
+        our_root,
+        our_count,
+        their_root,
+        their_count,
+        prefixes,
+    }))
+}
+
+/// Starts the document reconciliation process.
+fn start_reconciliation(
+    doc_reconciliation_data: DocReconciliationData,
+    app_name: &ApplicationName,
+    _tree: Arc<Mutex<Tree<doc_sync::Cid>>>,
+    channel: &str,
+    _module_ids: Option<Vec<ModuleId>>,
+) -> anyhow::Result<()> {
+    // TODO: Temporarily disabled: https://github.com/input-output-hk/hermes/issues/769
+    // subscribe_to_diff(&app_name, tree, channel, module_ids)?;
+    // tracing::info!(%channel, "subscribed to diff");
+
+    let syn_payload = make_syn_payload(doc_reconciliation_data);
+    tracing::info!("SYN payload created");
+
+    send_syn_payload(&syn_payload, app_name, channel)?;
+    tracing::info!("SYN payload sent");
+
+    // TODO: Unsubscribe from "diff" when sending failed.
+
+    Ok(())
+}
+
+#[allow(dead_code)]
+/// Subscribes to ".dif" topic in order to receive responses for the ".syn" requests.
+fn subscribe_to_diff(
+    app_name: &ApplicationName,
+    tree: Arc<Mutex<Tree<doc_sync::Cid>>>,
+    channel: &str,
+    module_ids: Option<Vec<ModuleId>>,
+) -> anyhow::Result<()> {
+    let topic = format!("{channel}.dif");
+    hermes_ipfs_subscribe(
+        ipfs::SubscriptionKind::DocSync,
+        app_name,
+        Some(tree),
+        &topic,
+        module_ids,
+    )?;
+    Ok(())
+}
+
+/// Creates the new SYN payload.
+fn make_syn_payload(
+    DocReconciliationData {
+        our_root,
+        our_count,
+        prefixes,
+        their_root,
+        their_count,
+    }: DocReconciliationData
+) -> MsgSyn {
+    MsgSyn {
+        root: our_root,
+        count: our_count,
+        // TODO: Use `fn identity(peer_id)` to get the identity which contains the PublicKey.
+        // We want to send this message back to the guy who sent the initial keepalive ping.
+        to: None,
+        prefixes: (!prefixes.is_empty()).then_some(prefixes),
+        peer_root: their_root,
+        peer_count: their_count,
+    }
+}
+
+/// Sends the SYN payload to request the reconciliation data.
+fn send_syn_payload(
+    payload: &MsgSyn,
+    app_name: &ApplicationName,
+    channel: &str,
+) -> anyhow::Result<()> {
+    let mut payload_bytes = Vec::new();
+    let topic = format!("{channel}.syn");
+    let mut enc = Encoder::new(&mut payload_bytes);
+    payload
+        .encode(&mut enc, &mut ())
+        .map_err(|e| anyhow::anyhow!("Failed to encode syn_payload::MsgSyn: {e}"))?;
+    hermes_ipfs_publish(app_name, &topic, payload_bytes)?;
+    Ok(())
+}
+
+/// Processes the received CIDs from a broadcasted message.
+fn process_broadcasted_cids(
+    topic: &str,
+    channel_name: &str,
+    cids: Vec<Cid>,
+    publisher: Option<hermes_ipfs::PeerId>,
+    module_ids: Option<Vec<ModuleId>>,
+) {
     let channel_name_owned = channel_name.to_string();
-    let topic_owned = topic.clone();
+    let topic_owned = topic.to_string();
     // Spawn async task to avoid blocking PubSub handler during file operations
     tokio::spawn(async move {
         // Fetch content with providers (hermes-ipfs connects to them first)
@@ -420,14 +685,14 @@ fn doc_sync_topic_message_handler(
         /// How long to wait between retries
         const BACKOFF_MS: u64 = 200;
 
-        tracing::debug!("Inside spawned task, processing {} CIDs", new_cids.len());
+        tracing::debug!("Inside spawned task, processing {} CIDs", cids.len());
         let Some(ipfs) = HERMES_IPFS.get() else {
             tracing::error!("IPFS global instance is uninitialized");
             return;
         };
 
-        let mut contents = Vec::with_capacity(new_cids.len());
-        for cid in new_cids {
+        let mut contents = Vec::with_capacity(cids.len());
+        for cid in cids {
             tracing::info!("Processing CID: {}", cid.to_string());
 
             // Use the message publisher as the provider (they just published the content)

@@ -3,7 +3,12 @@ mod api;
 mod task;
 
 use std::{
-    collections::HashSet, convert::Infallible, marker::PhantomData, path::Path, str::FromStr,
+    collections::HashSet,
+    convert::Infallible,
+    marker::PhantomData,
+    path::Path,
+    str::FromStr,
+    sync::{Arc, Mutex},
 };
 
 /// Default IPFS listening port (configurable via `IPFS_LISTEN_PORT` env var)
@@ -29,6 +34,7 @@ pub(crate) use api::{
     hermes_ipfs_get_file, hermes_ipfs_get_peer_identity, hermes_ipfs_pin_file, hermes_ipfs_publish,
     hermes_ipfs_put_dht_value, hermes_ipfs_subscribe, hermes_ipfs_unpin_file,
 };
+use catalyst_types::smt::Tree;
 use dashmap::DashMap;
 use hermes_ipfs::{
     Cid, HermesIpfs, HermesIpfsBuilder, IpfsPath as BaseIpfsPath,
@@ -45,8 +51,11 @@ use tokio::{
 
 use crate::{
     app::ApplicationName,
-    runtime_extensions::bindings::hermes::ipfs::api::{
-        DhtKey, DhtValue, Errno, IpfsFile, IpfsPath, MessageData, PeerId, PubsubTopic,
+    runtime_extensions::{
+        bindings::hermes::ipfs::api::{
+            DhtKey, DhtValue, Errno, IpfsFile, IpfsPath, MessageData, PeerId, PubsubTopic,
+        },
+        hermes::doc_sync,
     },
     wasm::module::ModuleId,
 };
@@ -737,6 +746,8 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         &self,
         kind: SubscriptionKind,
         topic: &PubsubTopic,
+        tree: Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
+        app_name: &ApplicationName,
         module_ids: Option<Vec<ModuleId>>,
     ) -> Result<JoinHandle<()>, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
@@ -746,6 +757,8 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
             .blocking_send(IpfsCommand::Subscribe(
                 topic.clone(),
                 kind,
+                tree,
+                app_name.clone(),
                 module_ids,
                 cmd_tx,
             ))
