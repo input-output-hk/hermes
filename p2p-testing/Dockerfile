@@ -26,6 +26,7 @@ FROM ubuntu:24.04
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
+    sqlite3 \
     ca-certificates \
     libssl3 \
     curl \

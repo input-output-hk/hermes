@@ -58,3 +58,7 @@ unchecked_duration_subtraction = "deny"
 unreachable = "deny"
 missing_docs_in_private_items = "deny"
 arithmetic_side_effects = "deny"
+
+# Uncomment to use the local version of 'catalyst-libs'
+# [patch."https://github.com/input-output-hk/catalyst-libs.git"]
+# hermes-ipfs = { path = "../../catalyst-libs/rust/hermes-ipfs" }
