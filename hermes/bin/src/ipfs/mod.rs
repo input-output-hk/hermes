@@ -742,7 +742,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
     }
 
     /// Subscribe to a `PubSub` topic
-    fn pubsub_subscribe(
+    async fn pubsub_subscribe(
         &self,
         kind: SubscriptionKind,
         topic: &PubsubTopic,
@@ -754,7 +754,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         self.sender
             .as_ref()
             .ok_or(Errno::PubsubSubscribeError)?
-            .blocking_send(IpfsCommand::Subscribe(
+            .send(IpfsCommand::Subscribe(
                 topic.clone(),
                 kind,
                 tree,
@@ -762,10 +762,9 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
                 module_ids,
                 cmd_tx,
             ))
+            .await
             .map_err(|_| Errno::PubsubSubscribeError)?;
-        cmd_rx
-            .blocking_recv()
-            .map_err(|_| Errno::PubsubSubscribeError)?
+        cmd_rx.await.map_err(|_| Errno::PubsubSubscribeError)?
     }
 
     /// Evict peer
