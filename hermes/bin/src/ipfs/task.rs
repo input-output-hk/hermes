@@ -592,7 +592,7 @@ fn start_reconciliation(
     channel: &str,
     module_ids: Option<Vec<ModuleId>>,
 ) -> anyhow::Result<()> {
-    subscribe_to_diff(&app_name, tree, channel, module_ids)?;
+    subscribe_to_diff(app_name, tree, channel, module_ids)?;
     tracing::info!(%channel, "subscribed to .dif");
 
     let syn_payload = make_syn_payload(doc_reconciliation_data);
