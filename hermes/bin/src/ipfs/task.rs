@@ -593,7 +593,7 @@ fn start_reconciliation(
     module_ids: Option<Vec<ModuleId>>,
 ) -> anyhow::Result<()> {
     subscribe_to_diff(&app_name, tree, channel, module_ids)?;
-    tracing::info!(%channel, "subscribed to diff");
+    tracing::info!(%channel, "subscribed to .dif");
 
     let syn_payload = make_syn_payload(doc_reconciliation_data);
     tracing::info!("SYN payload created");
@@ -601,7 +601,7 @@ fn start_reconciliation(
     send_syn_payload(&syn_payload, app_name, channel)?;
     tracing::info!("SYN payload sent");
 
-    // TODO: Unsubscribe from "diff" when sending failed.
+    // TODO: Unsubscribe from "dif" when sending failed.
 
     Ok(())
 }
