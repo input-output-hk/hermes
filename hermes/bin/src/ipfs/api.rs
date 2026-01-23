@@ -249,21 +249,26 @@ pub(crate) fn hermes_ipfs_publish(
         "📤 Publishing PubSub message"
     );
 
-    let res = if let Ok(rt) = tokio::runtime::Handle::try_current() {
+    let res = if tokio::runtime::Handle::try_current().is_ok() {
         tracing::debug!("publish with existing Tokio runtime");
+
         let (tx, rx) = std::sync::mpsc::channel();
         let topic_owned = topic.clone();
-        rt.spawn(async move {
-            let res = ipfs.pubsub_publish(topic_owned, message).await;
+
+        tokio::task::spawn_blocking(move || {
+            let handle = tokio::runtime::Handle::current();
+            let res = handle.block_on(ipfs.pubsub_publish(topic_owned, message));
             let _ = tx.send(res);
         });
-        rx.recv()
+
+        rx.recv().map_err(|_| Errno::PubsubPublishError)
     } else {
         tracing::debug!("publish without existing Tokio runtime");
+
         let rt = tokio::runtime::Runtime::new().map_err(|_| Errno::ServiceUnavailable)?;
+
         Ok(rt.block_on(ipfs.pubsub_publish(topic.to_string(), message)))
-    }
-    .map_err(|_| Errno::PubsubPublishError)?;
+    }?;
 
     match &res {
         Ok(()) => {
