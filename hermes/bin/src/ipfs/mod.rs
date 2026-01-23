@@ -726,9 +726,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
     }
 
     /// Publish message to a `PubSub` topic
-    // TODO: This function must also be async and handled correctly within
-    // `hermes_ipfs_publish()`
-    fn pubsub_publish(
+    async fn pubsub_publish(
         &self,
         topic: PubsubTopic,
         message: MessageData,
@@ -737,11 +735,10 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         self.sender
             .as_ref()
             .ok_or(Errno::PubsubPublishError)?
-            .blocking_send(IpfsCommand::Publish(topic, message, cmd_tx))
+            .send(IpfsCommand::Publish(topic, message, cmd_tx))
+            .await
             .map_err(|_| Errno::PubsubPublishError)?;
-        cmd_rx
-            .blocking_recv()
-            .map_err(|_| Errno::PubsubPublishError)?
+        cmd_rx.await.map_err(|_| Errno::PubsubPublishError)?
     }
 
     /// Subscribe to a `PubSub` topic
