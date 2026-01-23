@@ -908,11 +908,12 @@ impl AppIpfsState {
             .insert(app_name);
     }
 
+    /// Keep track of `topic` subscription removed by an app.
     fn removed_app_topic_subscription(
         &self,
         kind: SubscriptionKind,
-        app_name: ApplicationName,
-        topic: PubsubTopic,
+        app_name: &ApplicationName,
+        topic: &PubsubTopic,
     ) {
         let collection = match kind {
             SubscriptionKind::Default => &self.topic_subscriptions,
@@ -922,8 +923,8 @@ impl AppIpfsState {
             .entry(topic.clone())
             .or_default()
             .value_mut()
-            .remove(&app_name);
-        collection.remove_if(&topic, |_, apps| apps.is_empty());
+            .remove(app_name);
+        collection.remove_if(topic, |_, apps| apps.is_empty());
     }
 
     /// Keep track of `topic` stream handle.
@@ -945,13 +946,13 @@ impl AppIpfsState {
     fn removed_topic_stream(
         &self,
         kind: SubscriptionKind,
-        topic: PubsubTopic,
+        topic: &PubsubTopic,
     ) {
         let collection = match kind {
             SubscriptionKind::Default => &self.subscriptions_streams,
             SubscriptionKind::DocSync => &self.doc_sync_subscriptions_streams,
         };
-        collection.remove(&topic);
+        collection.remove(topic);
     }
 
     /// Check if a topic subscription already exists.
