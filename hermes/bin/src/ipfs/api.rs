@@ -165,11 +165,11 @@ pub(crate) fn hermes_ipfs_subscribe(
 ) -> Result<bool, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "subscribing to PubSub topic");
-    let topic_owned = topic.clone();
-    let app_name_owned = app_name.clone();
     if ipfs.apps.topic_subscriptions_contains(kind, topic) {
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription stream already exists");
     } else {
+        let topic_owned = topic.clone();
+        let app_name_owned = app_name.clone();
         let handle = if let Ok(rt) = tokio::runtime::Handle::try_current() {
             tracing::debug!("subscribe with existing Tokio runtime");
             let (tx, rx) = std::sync::mpsc::channel();
@@ -195,6 +195,41 @@ pub(crate) fn hermes_ipfs_subscribe(
     }
     ipfs.apps
         .added_app_topic_subscription(kind, app_name.clone(), topic.clone());
+    Ok(true)
+}
+
+/// Unsubscribe from a topic
+pub(crate) fn hermes_ipfs_unsubscribe(
+    kind: SubscriptionKind,
+    app_name: &ApplicationName,
+    topic: &PubsubTopic,
+) -> Result<bool, Errno> {
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
+    tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "unsubscribing from PubSub topic");
+
+    if ipfs.apps.topic_subscriptions_contains(kind, topic) {
+        let topic_owned = topic.clone();
+        if let Ok(rt) = tokio::runtime::Handle::try_current() {
+            tracing::debug!("unsubscribe with existing Tokio runtime");
+            let (tx, rx) = std::sync::mpsc::channel();
+            tokio::task::spawn_blocking(move || {
+                let res = rt.block_on(ipfs.pubsub_unsubscribe(&topic_owned));
+                let _ = tx.send(res);
+            });
+            rx.recv().map_err(|_| Errno::PubsubUnsubscribeError)??;
+        } else {
+            tracing::debug!("unsubscribe without existing Tokio runtime");
+            let rt = tokio::runtime::Runtime::new().map_err(|_| Errno::ServiceUnavailable)?;
+            rt.block_on(ipfs.pubsub_unsubscribe(topic))?;
+        }
+
+        ipfs.apps.removed_topic_stream(kind, topic);
+        tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "removed subscription topic stream");
+    } else {
+        tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription does not exist");
+    }
+    ipfs.apps
+        .removed_app_topic_subscription(kind, app_name, topic);
     Ok(true)
 }
 

@@ -72,6 +72,8 @@ interface api {
         pubsub-publish-error,
         /// Unable to subscribe to IPFS topic.
         pubsub-subscribe-error,
+        /// Unable to unsubscribe from IPFS topic.
+        pubsub-unsubscribe-error,
         /// IPFS service is unavailable.
         service-unavailable,
         /// DHT provide call failed.
@@ -108,6 +110,8 @@ interface api {
     pubsub-publish: func(topic: pubsub-topic, message: message-data) -> result<_, errno>;
     /// Subscribes to a PubSub topic.
     pubsub-subscribe: func(topic: pubsub-topic) -> result<bool, errno>;
+    /// Unsubscribes from a PubSub topic.
+    pubsub-unsubscribe: func(topic: pubsub-topic) -> result<bool, errno>;
 }
 
 world ipfs-api {
