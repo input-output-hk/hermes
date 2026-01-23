@@ -25,7 +25,7 @@ use tokio::{
 use super::HERMES_IPFS;
 use crate::{
     app::ApplicationName,
-    ipfs::{self, hermes_ipfs_publish, hermes_ipfs_subscribe},
+    ipfs::{self, api::hermes_ipfs_unsubscribe, hermes_ipfs_publish, hermes_ipfs_subscribe},
     runtime_extensions::{
         bindings::hermes::ipfs::api::{
             DhtKey, DhtValue, Errno, IpfsFile, MessageData, PeerId, PubsubMessage, PubsubTopic,
@@ -91,6 +91,8 @@ pub(crate) enum IpfsCommand {
         Option<Vec<ModuleId>>,
         oneshot::Sender<Result<JoinHandle<()>, Errno>>,
     ),
+    /// Unsubscribe from a topic
+    Unsubscribe(PubsubTopic, oneshot::Sender<Result<(), Errno>>),
     /// Evict Peer from node
     EvictPeer(PeerId, oneshot::Sender<Result<bool, Errno>>),
     /// Gets the peer identity
@@ -226,6 +228,14 @@ pub(crate) async fn ipfs_command_handler(
                     },
                 );
                 send_response(Ok(handle), tx);
+            },
+            IpfsCommand::Unsubscribe(topic, tx) => {
+                tracing::info!(topic, "received Unsubscribe request");
+                hermes_node
+                    .pubsub_unsubscribe(topic)
+                    .await
+                    .map_err(|_| Errno::PubsubUnsubscribeError)?;
+                send_response(Ok(()), tx);
             },
             IpfsCommand::EvictPeer(peer, tx) => {
                 let peer_id = TargetPeerId::from_str(&peer).map_err(|_| Errno::InvalidPeerId)?;
@@ -592,22 +602,24 @@ fn start_reconciliation(
     channel: &str,
     module_ids: Option<Vec<ModuleId>>,
 ) -> anyhow::Result<()> {
-    subscribe_to_diff(app_name, tree, channel, module_ids)?;
+    subscribe_to_dif(app_name, tree, channel, module_ids)?;
     tracing::info!(%channel, "subscribed to .dif");
 
     let syn_payload = make_syn_payload(doc_reconciliation_data);
     tracing::info!("SYN payload created");
 
-    send_syn_payload(&syn_payload, app_name, channel)?;
+    if let Err(err) = send_syn_payload(&syn_payload, app_name, channel) {
+        unsubscribe_from_dif(app_name, channel)?;
+        tracing::info!(%channel, "unsubscribed from .dif");
+        return Err(err);
+    }
     tracing::info!("SYN payload sent");
-
-    // TODO: Unsubscribe from "dif" when sending failed.
 
     Ok(())
 }
 
 /// Subscribes to ".dif" topic in order to receive responses for the ".syn" requests.
-fn subscribe_to_diff(
+fn subscribe_to_dif(
     app_name: &ApplicationName,
     tree: Arc<Mutex<Tree<doc_sync::Cid>>>,
     channel: &str,
@@ -621,6 +633,16 @@ fn subscribe_to_diff(
         &topic,
         module_ids,
     )?;
+    Ok(())
+}
+
+/// Unsubscribes from ".dif" topic.
+fn unsubscribe_from_dif(
+    app_name: &ApplicationName,
+    channel: &str,
+) -> anyhow::Result<()> {
+    let topic = format!("{channel}.dif");
+    hermes_ipfs_unsubscribe(ipfs::SubscriptionKind::DocSync, app_name, &topic)?;
     Ok(())
 }
 

@@ -33,6 +33,7 @@ pub(crate) use api::{
     hermes_ipfs_dht_provide, hermes_ipfs_evict_peer, hermes_ipfs_get_dht_value,
     hermes_ipfs_get_file, hermes_ipfs_get_peer_identity, hermes_ipfs_pin_file, hermes_ipfs_publish,
     hermes_ipfs_put_dht_value, hermes_ipfs_subscribe, hermes_ipfs_unpin_file,
+    hermes_ipfs_unsubscribe,
 };
 use catalyst_types::smt::Tree;
 use dashmap::DashMap;
@@ -725,6 +726,8 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
     }
 
     /// Publish message to a `PubSub` topic
+    // TODO: This function must also be async and handled correctly within
+    // `hermes_ipfs_publish()`
     fn pubsub_publish(
         &self,
         topic: PubsubTopic,
@@ -765,6 +768,21 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
             .await
             .map_err(|_| Errno::PubsubSubscribeError)?;
         cmd_rx.await.map_err(|_| Errno::PubsubSubscribeError)?
+    }
+
+    /// Unsubscribe from a `PubSub` topic
+    async fn pubsub_unsubscribe(
+        &self,
+        topic: &PubsubTopic,
+    ) -> Result<(), Errno> {
+        let (cmd_tx, cmd_rx) = oneshot::channel();
+        self.sender
+            .as_ref()
+            .ok_or(Errno::PubsubUnsubscribeError)?
+            .send(IpfsCommand::Unsubscribe(topic.clone(), cmd_tx))
+            .await
+            .map_err(|_| Errno::PubsubUnsubscribeError)?;
+        cmd_rx.await.map_err(|_| Errno::PubsubUnsubscribeError)?
     }
 
     /// Evict peer
@@ -877,7 +895,6 @@ impl AppIpfsState {
         &self,
         kind: SubscriptionKind,
         app_name: ApplicationName,
-
         topic: PubsubTopic,
     ) {
         let collection = match kind {
@@ -889,6 +906,24 @@ impl AppIpfsState {
             .or_default()
             .value_mut()
             .insert(app_name);
+    }
+
+    fn removed_app_topic_subscription(
+        &self,
+        kind: SubscriptionKind,
+        app_name: ApplicationName,
+        topic: PubsubTopic,
+    ) {
+        let collection = match kind {
+            SubscriptionKind::Default => &self.topic_subscriptions,
+            SubscriptionKind::DocSync => &self.doc_sync_topic_subscriptions,
+        };
+        collection
+            .entry(topic.clone())
+            .or_default()
+            .value_mut()
+            .remove(&app_name);
+        collection.remove_if(&topic, |_, apps| apps.is_empty());
     }
 
     /// Keep track of `topic` stream handle.
@@ -904,6 +939,19 @@ impl AppIpfsState {
             SubscriptionKind::DocSync => &self.doc_sync_subscriptions_streams,
         };
         collection.entry(topic).insert(handle);
+    }
+
+    /// No longer track the handle of a `topic` stream.
+    fn removed_topic_stream(
+        &self,
+        kind: SubscriptionKind,
+        topic: PubsubTopic,
+    ) {
+        let collection = match kind {
+            SubscriptionKind::Default => &self.subscriptions_streams,
+            SubscriptionKind::DocSync => &self.doc_sync_subscriptions_streams,
+        };
+        collection.remove(&topic);
     }
 
     /// Check if a topic subscription already exists.
