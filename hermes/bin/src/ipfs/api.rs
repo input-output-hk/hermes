@@ -249,9 +249,28 @@ pub(crate) fn hermes_ipfs_publish(
         "📤 Publishing PubSub message"
     );
 
-    let result = ipfs.pubsub_publish(topic.to_string(), message);
+    let res = if tokio::runtime::Handle::try_current().is_ok() {
+        tracing::debug!("publish with existing Tokio runtime");
 
-    match &result {
+        let (tx, rx) = std::sync::mpsc::channel();
+        let topic_owned = topic.clone();
+
+        tokio::task::spawn_blocking(move || {
+            let handle = tokio::runtime::Handle::current();
+            let res = handle.block_on(ipfs.pubsub_publish(topic_owned, message));
+            let _ = tx.send(res);
+        });
+
+        rx.recv().map_err(|_| Errno::PubsubPublishError)
+    } else {
+        tracing::debug!("publish without existing Tokio runtime");
+
+        let rt = tokio::runtime::Runtime::new().map_err(|_| Errno::ServiceUnavailable)?;
+
+        Ok(rt.block_on(ipfs.pubsub_publish(topic.to_string(), message)))
+    }?;
+
+    match &res {
         Ok(()) => {
             tracing::info!(
                 app_name = %app_name,
@@ -269,7 +288,7 @@ pub(crate) fn hermes_ipfs_publish(
         },
     }
 
-    result
+    res
 }
 
 /// Evict Peer from node
