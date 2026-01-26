@@ -87,7 +87,7 @@ impl Host for HermesRuntimeContext {
     }
 
     fn get_peer_id(&mut self) -> wasmtime::Result<Result<PeerId, Errno>> {
-        let identity = hermes_ipfs_get_peer_identity(self.app_name())?;
+        let identity = hermes_ipfs_get_peer_identity(self.app_name(), None)?;
         let peer_id = identity.peer_id;
         Ok(Ok(peer_id.to_string()))
     }

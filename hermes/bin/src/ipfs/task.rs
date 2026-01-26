@@ -515,6 +515,7 @@ fn doc_sync_topic_message_handler(
                                     Arc::clone(tree),
                                     channel_name,
                                     context.module_ids,
+                                    message.source.map(|p| p.to_string()),
                                 ) {
                                     tracing::error!(%err, "Failed to start reconciliation");
                                 }
@@ -604,11 +605,12 @@ fn start_reconciliation(
     tree: Arc<Mutex<Tree<doc_sync::Cid>>>,
     channel: &str,
     module_ids: Option<Vec<ModuleId>>,
+    peer: Option<PeerId>,
 ) -> anyhow::Result<()> {
     subscribe_to_dif(app_name, tree, channel, module_ids)?;
     tracing::info!(%channel, "subscribed to .dif");
 
-    let syn_payload = make_syn_payload(doc_reconciliation_data, app_name)?;
+    let syn_payload = make_syn_payload(doc_reconciliation_data, app_name, peer)?;
     tracing::info!("SYN payload created");
 
     if let Err(err) = send_syn_payload(&syn_payload, app_name, channel) {
@@ -659,9 +661,9 @@ fn make_syn_payload(
         their_count,
     }: DocReconciliationData,
     app_name: &ApplicationName,
+    peer: Option<PeerId>,
 ) -> anyhow::Result<MsgSyn> {
-    // TODO: This will give us the identity of OUR peer - need to extend this function
-    let peer_info = hermes_ipfs_get_peer_identity(app_name);
+    let peer_info = hermes_ipfs_get_peer_identity(app_name, peer);
     let public_key = match peer_info {
         Ok(peer_info) => {
             let public_key = peer_info.public_key;
