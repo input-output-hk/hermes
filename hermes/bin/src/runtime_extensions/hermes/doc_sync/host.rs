@@ -352,7 +352,7 @@ fn dht_provide(
     }
 }
 
-/// Get out peer ID
+/// Get our peer ID
 fn get_peer_id(ctx: &mut HermesRuntimeContext) -> wasmtime::Result<Result<String, Errno>> {
     const STEP: u8 = 3;
     match ctx.get_peer_id()? {
