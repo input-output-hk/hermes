@@ -145,14 +145,33 @@ pub(crate) fn hermes_ipfs_dht_get_providers(
 
 /// Returns the peer id of the node.
 pub(crate) fn hermes_ipfs_get_peer_identity(
-    app_name: &ApplicationName
+    app_name: &ApplicationName,
+    peer: Option<PeerId>,
 ) -> Result<hermes_ipfs::PeerInfo, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
-    tracing::debug!(app_name = %app_name, "Get peer identity");
-    let identity = ipfs.get_peer_identity()?;
+
+    let res = if tokio::runtime::Handle::try_current().is_ok() {
+        tracing::debug!("identity with existing Tokio runtime");
+
+        let (tx, rx) = std::sync::mpsc::channel();
+
+        tokio::task::spawn_blocking(move || {
+            let handle = tokio::runtime::Handle::current();
+            let res = handle.block_on(ipfs.get_peer_identity(peer));
+            drop(tx.send(res));
+        });
+
+        rx.recv().map_err(|_| Errno::PubsubPublishError)
+    } else {
+        tracing::debug!("identity without existing Tokio runtime");
+        let rt = tokio::runtime::Runtime::new().map_err(|_| Errno::ServiceUnavailable)?;
+
+        Ok(rt.block_on(ipfs.get_peer_identity(peer)))
+    }??;
+
     tracing::debug!(app_name = %app_name, "Got peer identity");
 
-    Ok(identity)
+    Ok(res)
 }
 
 /// Subscribe to a topic
