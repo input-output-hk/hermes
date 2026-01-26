@@ -715,14 +715,15 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
 
     /// Get the peer identity
     // TODO[rafal-ch]: We should not be using API errors here.
-    fn get_peer_identity(&self) -> Result<hermes_ipfs::PeerInfo, Errno> {
+    async fn get_peer_identity(&self) -> Result<hermes_ipfs::PeerInfo, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()
             .ok_or(Errno::GetPeerIdError)?
-            .blocking_send(IpfsCommand::Identity(None, cmd_tx))
+            .send(IpfsCommand::Identity(None, cmd_tx))
+            .await
             .map_err(|_| Errno::GetPeerIdError)?;
-        cmd_rx.blocking_recv().map_err(|_| Errno::GetPeerIdError)?
+        cmd_rx.await.map_err(|_| Errno::GetPeerIdError)?
     }
 
     /// Publish message to a `PubSub` topic
