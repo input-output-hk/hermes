@@ -10,7 +10,7 @@ use catalyst_types::smt::Tree;
 use hermes_ipfs::{
     Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
     doc_sync::{
-        Blake3256,
+        Blake3256, PublicKey,
         payload::{self, CommonFields, DocumentDisseminationBody},
         syn_payload::MsgSyn,
     },
@@ -25,7 +25,10 @@ use tokio::{
 use super::HERMES_IPFS;
 use crate::{
     app::ApplicationName,
-    ipfs::{self, api::hermes_ipfs_unsubscribe, hermes_ipfs_publish, hermes_ipfs_subscribe},
+    ipfs::{
+        self, api::hermes_ipfs_unsubscribe, hermes_ipfs_get_peer_identity, hermes_ipfs_publish,
+        hermes_ipfs_subscribe,
+    },
     runtime_extensions::{
         bindings::hermes::ipfs::api::{
             DhtKey, DhtValue, Errno, IpfsFile, MessageData, PeerId, PubsubMessage, PubsubTopic,
@@ -605,7 +608,7 @@ fn start_reconciliation(
     subscribe_to_dif(app_name, tree, channel, module_ids)?;
     tracing::info!(%channel, "subscribed to .dif");
 
-    let syn_payload = make_syn_payload(doc_reconciliation_data);
+    let syn_payload = make_syn_payload(doc_reconciliation_data, app_name)?;
     tracing::info!("SYN payload created");
 
     if let Err(err) = send_syn_payload(&syn_payload, app_name, channel) {
@@ -654,18 +657,41 @@ fn make_syn_payload(
         prefixes,
         their_root,
         their_count,
-    }: DocReconciliationData
-) -> MsgSyn {
-    MsgSyn {
+    }: DocReconciliationData,
+    app_name: &ApplicationName,
+) -> anyhow::Result<MsgSyn> {
+    // TODO: This will give us the identity of OUR peer - need to extend this function
+    let peer_info = hermes_ipfs_get_peer_identity(app_name);
+    let public_key = match peer_info {
+        Ok(peer_info) => {
+            let public_key = peer_info.public_key;
+            let maybe_ed25519_public_key = public_key.try_into_ed25519();
+            match maybe_ed25519_public_key {
+                Ok(key) => {
+                    let ed25519_public_key_bytes = key.to_bytes();
+                    let ed25519_public_key_hermes = PublicKey::try_from(ed25519_public_key_bytes)?;
+                    Some(ed25519_public_key_hermes)
+                },
+                Err(err) => {
+                    tracing::info!(%err, "failed to convert key to ed25519, sending SYN request without explicit 'to' field");
+                    None
+                },
+            }
+        },
+        Err(err) => {
+            tracing::info!(%err, "failed to get peer identity, sending SYN request without explicit 'to' field");
+            None
+        },
+    };
+
+    Ok(MsgSyn {
         root: our_root,
         count: our_count,
-        // TODO: Use `fn identity(peer_id)` to get the identity which contains the PublicKey.
-        // We want to send this message back to the guy who sent the initial keepalive ping.
-        to: None,
+        to: public_key,
         prefixes: (!prefixes.is_empty()).then_some(prefixes),
         peer_root: their_root,
         peer_count: their_count,
-    }
+    })
 }
 
 /// Sends the SYN payload to request the reconciliation data.
