@@ -15,7 +15,7 @@ Opening (30 seconds)
 What We’re Delivering (60 seconds)
 
 * Hermes Engine: an event‑driven runtime that runs application logic in WebAssembly components and
-  provides safe building blocks (HTTP, IPFS/libp2p, SQLite, Cardano, crypto).
+  provides safe building blocks (HTTP, IPFS/libp2p, SQLite, Cardano, cryptography).
 * Athena Voting Interface: the voter experience on top of Hermes, with native modules for identity/registration and Cardano data,
   and a web UI served through the gateway.
 * Decentralised by design: content moves over peer‑to‑peer networks instead of relying on central web servers.
