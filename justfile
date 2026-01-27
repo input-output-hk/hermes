@@ -422,8 +422,12 @@ clean-www:
 clean-wasm:
     #!/usr/bin/env bash
     set -euo pipefail
-    echo "🧹 Cleaning cached WASM modules..."
-    find hermes/apps/athena/modules -path "*/lib/*.wasm" -type f -print -delete 2>/dev/null || echo "   (no cached .wasm files found)"
+    # Only clean WASM modules older than shared/Cargo.toml (wit-bindgen version marker)
+    STALE=$(find hermes/apps/athena/modules -path "*/lib/*.wasm" -type f ! -newer hermes/apps/athena/shared/Cargo.toml 2>/dev/null)
+    if [ -n "$STALE" ]; then
+        echo "🧹 Cleaning stale WASM modules..."
+        echo "$STALE" | xargs rm -f
+    fi
 
 # Enhanced cleanup that includes HFS files, www directory, and cached WASM modules
 clean-all: clean-hfs clean-www clean-wasm
