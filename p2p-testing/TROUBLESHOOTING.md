@@ -99,7 +99,7 @@ just start
 ```bash
 # Check what's using ports
 lsof -i :5000
-netstat -tuln | grep -E ':(5000|5002|5004|5006|5008|5010)'
+netstat -tuln | grep -E ':(5000|5002|5004|5006|5008|5010|5012|5014|5016|5018|5020|5022)'
 
 # Fix: Stop existing instances
 just stop
@@ -302,7 +302,7 @@ When things go wrong, run through this checklist:
 * [ ] **Prerequisites OK?** → `just validate-prereqs`
 * [ ] **Docker running?** → `docker info`
 * [ ] **Nodes running?** → `docker compose ps`
-* [ ] **All 6 nodes up?** → Should show 6 containers "Up"
+* [ ] **All 12 nodes up?** → Should show 12 containers "Up"
 * [ ] **Ports available?** → `lsof -i :5000` (should be empty or show our containers)
 * [ ] **Peer connections?** → `just check-connectivity` (should see 30 connections)
 * [ ] **Gossipsub active?** → `just logs | grep -i gossipsub` (should see many entries)
