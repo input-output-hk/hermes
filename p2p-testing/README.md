@@ -65,7 +65,7 @@ test-peer-connectivity:
     set -euo pipefail
     echo "Testing peer connectivity..."
     for NODE in {1..6}; do
-      PORT=$((5000 + (NODE-1)*2))
+      PORT=$((7878 + (NODE-1)*2))
       if curl -s -f http://localhost:$PORT/health > /dev/null 2>&1; then
         echo "✅ Node $NODE (port $PORT) responding"
       else
@@ -112,7 +112,7 @@ test-throughput COUNT="100":
 
     START=$(date +%s)
     for i in $(seq 1 {{COUNT}}); do
-      curl -s -X POST http://localhost:5000/api/doc-sync/post \
+      curl -s -X POST http://localhost:7878/api/doc-sync/post \
         -H "Host: athena.hermes.local" \
         -H "Content-Type: text/plain" \
         -d "msg-$i" > /dev/null
@@ -211,7 +211,7 @@ With 6 nodes, each connects to 5 others forming a complete mesh.
 
 * 6 nodes in full mesh (15 bidirectional connections)
 * IPs: 172.20.0.10 through 172.20.0.15
-* HTTP ports: 5000, 5002, 5004, 5006, 5008, 5010
+* HTTP ports: 7878, 7880, 7882, 7884, 7886, 7888
 * Persistent peer IDs stored in Docker volumes
 
 **What happens in a test:**

@@ -99,10 +99,7 @@ jsonschema
 justfile
 keepalives
 keypair
-Keypair
-KEYPAIR
 keypairs
-Keypairs
 libp
 libsqlite
 libtest
@@ -124,7 +121,6 @@ mkcron
 mkdelay
 mkdirat
 multiaddr
-Multiaddr
 multiaddrs
 multicodec
 multihash
@@ -163,7 +159,6 @@ pubkey
 pwrite
 qmark
 quic
-QUIC
 rafal
 rankdir
 ranksep

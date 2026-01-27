@@ -115,7 +115,7 @@ fn staked_ada_requests() -> anyhow::Result<()> {
     std::thread::sleep(Duration::from_secs(10));
 
     let url_builder = |stake_address: &str| {
-        format!("http://localhost:5000/api/gateway/v1/cardano/assets/{stake_address}")
+        format!("http://localhost:7878/api/gateway/v1/cardano/assets/{stake_address}")
     };
     // cspell:disable
     let url_with_mocked_address =

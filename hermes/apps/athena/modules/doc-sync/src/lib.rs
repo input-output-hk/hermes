@@ -175,7 +175,7 @@ fn get_document_by_cid(cid: &[u8]) -> anyhow::Result<Option<Vec<u8>>> {
 ///
 /// Example:
 /// ```bash
-/// curl -X POST http://localhost:5000/api/doc-sync/post \
+/// curl -X POST http://localhost:7878/api/doc-sync/post \
 ///   -H "Host: athena.hermes.local" \
 ///   -H "Content-Type: text/plain" \
 ///   -d "Hello, IPFS!"
