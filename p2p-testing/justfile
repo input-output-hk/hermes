@@ -2,18 +2,12 @@
 # Hermes P2P Testing Environment
 # ==============================================================================
 #
-# 6-node Docker setup for testing P2P features:
+# 12-node Docker setup for testing P2P features:
 # - Persistent IPFS keypairs (peer IDs stable across stop/restart)
 # - Dynamic bootstrap discovery (syncs docker-compose.yml after volume clean)
 # - Bootstrap retry logic (automatic reconnection on failures)
 # - Gossipsub v1.2 PubSub with on-topic event handler
 # - Full mesh connectivity on isolated network (172.20.0.0/16)
-#
-# WHY 6 NODES?
-#   Gossipsub's mesh_n parameter (default: 6) defines the target number of peers
-#   each node maintains in its PubSub mesh. With fewer than 6 peers, publish
-#   operations block waiting for the mesh to reach target size. Alternative would
-#   be forking rust-ipfs to make mesh_n configurable for small test environments.
 #
 # QUICK START (first time):
 #   just quickstart     # Does everything: build, start, test, verify
@@ -46,6 +40,12 @@
 #   Node 4: http://localhost:5006 (IPFS: 4004, API: 5007) [172.20.0.13]
 #   Node 5: http://localhost:5008 (IPFS: 4005, API: 5009) [172.20.0.14]
 #   Node 6: http://localhost:5010 (IPFS: 4006, API: 5011) [172.20.0.15]
+#   Node 7: http://localhost:5012 (IPFS: 4007, API: 5013) [172.20.0.16]
+#   Node 8: http://localhost:5014 (IPFS: 4008, API: 5015) [172.20.0.17]
+#   Node 9: http://localhost:5016 (IPFS: 4009, API: 5017) [172.20.0.18]
+#   Node 10: http://localhost:5018 (IPFS: 4010, API: 5019) [172.20.0.19]
+#   Node 11: http://localhost:5020 (IPFS: 4011, API: 5021) [172.20.0.20]
+#   Node 12: http://localhost:5022 (IPFS: 4012, API: 5023) [172.20.0.21]
 #
 # PEER IDS:
 #   Auto-generated on first run, persist in volumes, stable across restarts
@@ -73,14 +73,14 @@ default:
 # Internal helpers (prefix: _) - implementation details for public commands,
 # not shown in 'just --list', not meant for direct user invocation
 
-# Check if all 6 nodes are running
+# Check if all 12 nodes are running
 _check-nodes-running:
     #!/usr/bin/env bash
     RUNNING=$(docker compose ps | grep -c "Up" || echo "0")
-    if [ "$RUNNING" -eq 6 ]; then
+    if [ "$RUNNING" -eq 12 ]; then
         exit 0
     else
-        echo "❌ Only $RUNNING/6 nodes running" >&2
+        echo "❌ Only $RUNNING/12 nodes running" >&2
         exit 1
     fi
 
@@ -144,7 +144,7 @@ _count-received-nodes timestamp:
     TIMESTAMP="{{timestamp}}"
     COUNT=0
 
-    for NODE in {2..6}; do
+    for NODE in {2..12}; do
         if docker compose logs "hermes-node$NODE" 2>&1 | \
            grep "RECEIVED PubSub message" | grep -q "$TIMESTAMP"; then
             COUNT=$((COUNT + 1))
@@ -238,7 +238,7 @@ quickstart:
 
     # Step 4: Start nodes
     echo ""
-    echo -e "${BOLD}Step 4/7:${RESET} Starting 6-node environment..."
+    echo -e "${BOLD}Step 4/7:${RESET} Starting 12-node environment..."
 
     # Check if nodes already running
     if docker compose ps | grep -q "Up"; then
@@ -294,12 +294,18 @@ quickstart:
         echo -e "${BOLD}${GREEN}╚════════════════════════════════════════════════════════════╝${RESET}"
         echo ""
         echo -e "${BOLD}Node Endpoints:${RESET}"
-        echo "  • Node 1: http://localhost:5000"
-        echo "  • Node 2: http://localhost:5002"
-        echo "  • Node 3: http://localhost:5004"
-        echo "  • Node 4: http://localhost:5006"
-        echo "  • Node 5: http://localhost:5008"
-        echo "  • Node 6: http://localhost:5010"
+        echo "  • Node  1: http://localhost:5000"
+        echo "  • Node  2: http://localhost:5002"
+        echo "  • Node  3: http://localhost:5004"
+        echo "  • Node  4: http://localhost:5006"
+        echo "  • Node  5: http://localhost:5008"
+        echo "  • Node  6: http://localhost:5010"
+        echo "  • Node  7: http://localhost:5012"
+        echo "  • Node  8: http://localhost:5014"
+        echo "  • Node  9: http://localhost:5016"
+        echo "  • Node 10: http://localhost:5018"
+        echo "  • Node 11: http://localhost:5020"
+        echo "  • Node 12: http://localhost:5022"
         echo ""
         echo -e "${BOLD}Next Steps:${RESET}"
         echo -e "  • View logs: ${BLUE}just logs${RESET}"
@@ -452,7 +458,7 @@ validate-prereqs:
     if docker info &>/dev/null; then
         echo -n "  Port availability... "
         PORTS_IN_USE=()
-        for PORT in 5000 5002 5004 5006 5008 5010 4001 4002 4003 4004 4005 4006; do
+        for PORT in 5000 5002 5004 5006 5008 5010 5012 5014 5016 5018 5020 5022 4001 4002 4003 4004 4005 4006 4007 4008 4009 4010 4011 4012; do
             if ss -tuln 2>/dev/null | grep -q ":$PORT " || netstat -tuln 2>/dev/null | grep -q ":$PORT "; then
                 # Check if it's our own containers
                 if ! docker compose ps 2>/dev/null | grep -q "Up.*:$PORT"; then
@@ -554,7 +560,7 @@ troubleshoot:
         echo ""
     } >> "$REPORT_FILE"
 
-    for i in {1..6}; do
+    for i in {1..12}; do
         {
             echo "Node $i Logs:"
             echo "─────────────"
@@ -592,7 +598,7 @@ troubleshoot:
     {
         echo "8. PORT STATUS"
         echo "──────────────"
-        for PORT in 5000 5002 5004 5006 5008 5010; do
+        for PORT in 5000 5002 5004 5006 5008 5010 5012 5014 5016 5018 5020 5022; do
             if ss -tuln 2>/dev/null | grep -q ":$PORT " || netstat -tuln 2>/dev/null | grep -q ":$PORT "; then
                 echo "Port $PORT: IN USE"
             else
@@ -827,7 +833,7 @@ init-bootstrap:
     # Node 3: bootstrap from nodes 1,2 (only 2 peers, not 3)
     sed -i.tmp "s|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/[^,]*,/ip4/172.20.0.11/tcp/4001/p2p/[^\"]*|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/$PEER_ID_1,/ip4/172.20.0.11/tcp/4001/p2p/$PEER_ID_2|g" docker-compose.yml
 
-    # Nodes 4-6: bootstrap from nodes 1,2,3 (3 peers)
+    # Nodes 4-12: bootstrap from nodes 1,2,3 (3 peers)
     sed -i.tmp "s|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/[^,]*,/ip4/172.20.0.11/tcp/4001/p2p/[^,]*,/ip4/172.20.0.12/tcp/4001/p2p/[^\"]*|IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/$PEER_ID_1,/ip4/172.20.0.11/tcp/4001/p2p/$PEER_ID_2,/ip4/172.20.0.12/tcp/4001/p2p/$PEER_ID_3|g" docker-compose.yml    
     rm -f docker-compose.yml.tmp
 
@@ -880,12 +886,18 @@ status:
     docker compose ps
     echo ""
     echo "📡 Endpoints:"
-    echo "   Node 1: http://localhost:5000 (IPFS: 4001, API: 5001) [172.20.0.10]"
-    echo "   Node 2: http://localhost:5002 (IPFS: 4002, API: 5003) [172.20.0.11]"
-    echo "   Node 3: http://localhost:5004 (IPFS: 4003, API: 5005) [172.20.0.12]"
-    echo "   Node 4: http://localhost:5006 (IPFS: 4004, API: 5007) [172.20.0.13]"
-    echo "   Node 5: http://localhost:5008 (IPFS: 4005, API: 5009) [172.20.0.14]"
-    echo "   Node 6: http://localhost:5010 (IPFS: 4006, API: 5011) [172.20.0.15]"
+    echo "   Node  1: http://localhost:5000 (IPFS: 4001, API: 5001) [172.20.0.10]"
+    echo "   Node  2: http://localhost:5002 (IPFS: 4002, API: 5003) [172.20.0.11]"
+    echo "   Node  3: http://localhost:5004 (IPFS: 4003, API: 5005) [172.20.0.12]"
+    echo "   Node  4: http://localhost:5006 (IPFS: 4004, API: 5007) [172.20.0.13]"
+    echo "   Node  5: http://localhost:5008 (IPFS: 4005, API: 5009) [172.20.0.14]"
+    echo "   Node  6: http://localhost:5010 (IPFS: 4006, API: 5011) [172.20.0.15]"
+    echo "   Node  7: http://localhost:5012 (IPFS: 4007, API: 5013) [172.20.0.16]"
+    echo "   Node  8: http://localhost:5014 (IPFS: 4008, API: 5015) [172.20.0.17]"
+    echo "   Node  9: http://localhost:5016 (IPFS: 4009, API: 5017) [172.20.0.18]"
+    echo "   Node 10: http://localhost:5018 (IPFS: 4010, API: 5019) [172.20.0.19]"
+    echo "   Node 11: http://localhost:5020 (IPFS: 4011, API: 5021) [172.20.0.20]"
+    echo "   Node 12: http://localhost:5022 (IPFS: 4012, API: 5023) [172.20.0.21]"
 
 # Follow logs from all nodes
 logs:
@@ -918,7 +930,7 @@ check-connectivity:
 # ==============================================================================
 
 # Run integration tests on all nodes (requires Athena WASM modules)
-test: test-node1 test-node2 test-node3 test-node4 test-node5 test-node6
+test: test-node1 test-node2 test-node3 test-node4 test-node5 test-node6  test-node7 test-node8 test-node9 test-node10 test-node11 test-node12
     @echo ""
     @echo "✅ All nodes tested!"
 
@@ -951,6 +963,36 @@ test-node5:
 test-node6:
     @echo "🧪 Testing Node 6..."
     @docker exec hermes-node6 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
+
+# Run integration tests on node 7
+test-node7:
+    @echo "🧪 Testing Node 7..."
+    @docker exec hermes-node7 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
+
+# Run integration tests on node 8
+test-node8:
+    @echo "🧪 Testing Node 8..."
+    @docker exec hermes-node8 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
+
+# Run integration tests on node 9
+test-node9:
+    @echo "🧪 Testing Node 9..."
+    @docker exec hermes-node9 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
+
+# Run integration tests on node 10
+test-node10:
+    @echo "🧪 Testing Node 10..."
+    @docker exec hermes-node10 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
+
+# Run integration tests on node 11
+test-node11:
+    @echo "🧪 Testing Node 11..."
+    @docker exec hermes-node11 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
+
+# Run integration tests on node 12
+test-node12:
+    @echo "🧪 Testing Node 12..."
+    @docker exec hermes-node12 /usr/local/bin/hermes test || echo "   ⚠️  Tests not available (Athena not loaded)"
 
 # Test PubSub message propagation (minimal output, for CI)
 test-pubsub:
@@ -985,11 +1027,11 @@ test-pubsub:
     RECEIVED_COUNT=$(just _count-received-nodes "$TIMESTAMP")
 
     # Evaluate results
-    if [ "$RECEIVED_COUNT" -ge 4 ]; then
-        echo "✅ PubSub propagation successful ($RECEIVED_COUNT/5 nodes received)"
+    if [ "$RECEIVED_COUNT" -ge 10 ]; then
+        echo "✅ PubSub propagation successful ($RECEIVED_COUNT/11 nodes received)"
         exit 0
     else
-        echo "❌ PubSub propagation failed (only $RECEIVED_COUNT/5 nodes received)"
+        echo "❌ PubSub propagation failed (only $RECEIVED_COUNT/11 nodes received)"
         exit 1
     fi
 
@@ -1081,12 +1123,12 @@ _test-pubsub-execute:
     # Check nodes using helper
     if ! just _check-nodes-running >/dev/null 2>&1; then
         RUNNING=$(docker compose ps | grep -c "Up" || echo "0")
-        echo -e "${RED}❌ Only $RUNNING/6 nodes running${RESET}"
+        echo -e "${RED}❌ Only $RUNNING/12 nodes running${RESET}"
         echo ""
         echo -e "  ${BLUE}→ Start nodes: just start${RESET}"
         exit 1
     fi
-    echo -e "${GREEN}✓${RESET} All 6 nodes running"
+    echo -e "${GREEN}✓${RESET} All 12 nodes running"
     echo ""
 
     # Wait for endpoints (HTTP gateway requires Host header)
@@ -1149,14 +1191,14 @@ _test-pubsub-execute:
     START_TIME=$(date +%s%3N)  # Milliseconds for accurate timing
     declare -A NODE_STATUS NODE_RECEIVE_TIME
 
-    for i in {2..6}; do
+    for i in {2..12}; do
         NODE_STATUS[$i]="⏳"
         NODE_RECEIVE_TIME[$i]="0"
     done
 
     MAX_WAIT=5
     for SECOND in $(seq 1 $MAX_WAIT); do
-        for NODE in {2..6}; do
+        for NODE in {2..12}; do
             if [ "${NODE_STATUS[$NODE]}" = "⏳" ]; then
                 # Check if the node has received the message should non-empty CIDs array
                 GREP_RESULT=$(docker compose logs "hermes-node$NODE" 2>&1 | grep 'RECEIVED PubSub message with CIDs: \[' | grep -v '\[\]' | wc -l)                
@@ -1171,8 +1213,8 @@ _test-pubsub-execute:
             fi
         done
 
-        if [ $RECEIVED_COUNT -lt 5 ]; then
-            echo -ne "\r  Waiting... ${SECOND}s  [${NODE_STATUS[2]} ${NODE_STATUS[3]} ${NODE_STATUS[4]} ${NODE_STATUS[5]} ${NODE_STATUS[6]}]"
+        if [ $RECEIVED_COUNT -lt 10 ]; then
+            echo -ne "\r  Waiting... ${SECOND}s  [${NODE_STATUS[2]} ${NODE_STATUS[3]} ${NODE_STATUS[4]} ${NODE_STATUS[5]} ${NODE_STATUS[6]} ${NODE_STATUS[7]} ${NODE_STATUS[8]} ${NODE_STATUS[9]} ${NODE_STATUS[10]} ${NODE_STATUS[11]} ${NODE_STATUS[12]}]"
             sleep 1
         else
             echo -ne "\r  ${GREEN}✅ All nodes received!${RESET}                                    \n"
@@ -1190,7 +1232,7 @@ _test-pubsub-execute:
     echo "CID_B64=\"$CID_B64\"" >> "$RESULTS_FILE"
     echo "RECEIVED_COUNT=$RECEIVED_COUNT" >> "$RESULTS_FILE"
     echo "START_TIME=$START_TIME" >> "$RESULTS_FILE"
-    for NODE in {2..6}; do
+    for NODE in {2..12}; do
         echo "NODE_STATUS_$NODE=\"${NODE_STATUS[$NODE]}\"" >> "$RESULTS_FILE"
         echo "NODE_RECEIVE_TIME_$NODE=${NODE_RECEIVE_TIME[$NODE]}" >> "$RESULTS_FILE"
     done
@@ -1215,7 +1257,7 @@ _test-pubsub-visualize:
     CID=$(echo -n "$CID_B64" | base64 -d 2>/dev/null || echo "unknown")
 
     declare -A NODE_STATUS NODE_RECEIVE_TIME
-    for NODE in {2..6}; do
+    for NODE in {2..12}; do
         eval "NODE_STATUS[$NODE]=\$NODE_STATUS_$NODE"
         eval "NODE_RECEIVE_TIME[$NODE]=\$NODE_RECEIVE_TIME_$NODE"
     done
@@ -1232,7 +1274,7 @@ _test-pubsub-visualize:
     echo -e "${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
     echo ""
     echo -e "  ${BLUE}0.000s${RESET} → ${BOLD}Node 1 publishes message${RESET}"
-    for NODE in {2..6}; do
+    for NODE in {2..12}; do
         if [ "${NODE_STATUS[$NODE]}" = "✅" ]; then
             RECV_TIME_MS=$((NODE_RECEIVE_TIME[$NODE] - START_TIME))
             RECV_TIME_SEC=$(echo "scale=3; $RECV_TIME_MS / 1000" | bc)
@@ -1254,10 +1296,10 @@ _test-pubsub-visualize:
     echo -e "    • Total Payload: ${BLUE}$((MSG_SIZE + CID_SIZE)) bytes${RESET}"
     echo ""
     echo -e "  ${BOLD}Network Metrics:${RESET}"
-    echo -e "    • Total Nodes: ${BLUE}6${RESET}"
+    echo -e "    • Total Nodes: ${BLUE}12${RESET}"
     echo -e "    • Total Connections: ${BLUE}30${RESET} (full mesh)"
     echo -e "    • Subscriber Nodes: ${BLUE}5${RESET}"
-    echo -e "    • Success Rate: ${GREEN}$((RECEIVED_COUNT * 100 / 5))%${RESET} (${RECEIVED_COUNT}/5)"
+    echo -e "    • Success Rate: ${GREEN}$((RECEIVED_COUNT * 100 / 11))%${RESET} (${RECEIVED_COUNT}/11)"
     echo -e "    • Protocol: ${BLUE}Gossipsub v1.2 (libp2p)${RESET}"
 
     # Log Preview
@@ -1285,10 +1327,10 @@ _test-pubsub-visualize:
     echo -e "    • Expected connections: ${BLUE}30${RESET} (each node connects to 5 others)"
     echo ""
     echo -e "  ${BOLD}Connection Matrix (Full Mesh):${RESET}"
-    for NODE in {1..6}; do
+    for NODE in {1..12}; do
         echo -n "    Node $NODE ⟷ "
         OTHERS=()
-        for OTHER in {1..6}; do
+        for OTHER in {1..12}; do
             [ $NODE -ne $OTHER ] && OTHERS+=("Node $OTHER")
         done
         # Use printf to join with ", " separator
@@ -1296,7 +1338,7 @@ _test-pubsub-visualize:
         echo "${OTHERS[-1]}"
     done
     echo ""
-    echo -e "  ${BLUE}ℹ️  Each node maintains 5 peer connections (5 peers × 6 nodes = 30 total)${RESET}"
+    echo -e "  ${BLUE}ℹ️  NO LONGER CORRECT: Each node maintains 5 peer connections (5 peers × 6 nodes = 30 total)${RESET}"
 
     # Final Status
     echo ""
@@ -1309,7 +1351,7 @@ _test-pubsub-visualize:
     echo -e "  ${BOLD}📡 Topic:${RESET} ${BLUE}doc-sync${RESET}"
     echo ""
     echo -e "  ${BOLD}Reception Status:${RESET}"
-    for NODE in {2..6}; do
+    for NODE in {2..12}; do
         if [ "${NODE_STATUS[$NODE]}" = "✅" ]; then
             RECV_TIME_MS=$((NODE_RECEIVE_TIME[$NODE] - START_TIME))
             RECV_TIME_SEC=$(echo "scale=3; $RECV_TIME_MS / 1000" | bc)
@@ -1335,7 +1377,7 @@ _test-pubsub-visualize:
     elif [ "$RECEIVED_COUNT" -ge 4 ]; then
         echo -e "${BOLD}${GREEN}✅ SUCCESS - Good Propagation${RESET}"
         echo ""
-        echo -e "  • ${GREEN}$RECEIVED_COUNT/5 nodes${RESET} received the message"
+        echo -e "  • ${GREEN}$RECEIVED_COUNT/11 nodes${RESET} received the message"
         echo -e "  • Mesh status: ${GREEN}Operational${RESET}"
         echo ""
         rm -f "$RESULTS_FILE"
@@ -1343,7 +1385,7 @@ _test-pubsub-visualize:
     elif [ "$RECEIVED_COUNT" -gt 0 ]; then
         echo -e "${BOLD}${YELLOW}⚠️  PARTIAL - Incomplete Propagation${RESET}"
         echo ""
-        echo -e "  • Only ${YELLOW}$RECEIVED_COUNT/5 nodes${RESET} received the message"
+        echo -e "  • Only ${YELLOW}$RECEIVED_COUNT/11 nodes${RESET} received the message"
         echo -e "  • Mesh status: ${YELLOW}Degraded${RESET}"
         echo ""
         echo "Troubleshooting:"
@@ -1375,11 +1417,11 @@ test-ci:
     # Check node status
     echo "📊 Node status check..."
     RUNNING=$(docker compose ps | grep -c "Up" || true)
-    if [ "$RUNNING" -ne 6 ]; then
-        echo "❌ Expected 6 nodes running, found $RUNNING"
+    if [ "$RUNNING" -ne 12 ]; then
+        echo "❌ Expected 12 nodes running, found $RUNNING"
         exit 1
     fi
-    echo "   ✅ All 6 nodes running"
+    echo "   ✅ All 12 nodes running"
 
     # Wait for initialization
     echo ""
@@ -1413,7 +1455,7 @@ help:
     @echo "  just quickstart         # Does everything: build, start, test, verify!"
     @echo ""
     @echo "QUICK START (Daily):"
-    @echo "  just start                     # Start 6 nodes (waits for mesh formation)"
+    @echo "  just start                     # Start 12 nodes (waits for mesh formation)"
     @echo "  just test-pubsub-propagation   # Test message propagation"
     @echo "  just logs                      # Monitor activity"
     @echo "  just stop                      # Stop nodes (preserves peer IDs)"
@@ -1472,34 +1514,34 @@ help:
     @echo "MONITORING:"
     @echo "  status                  Show node status and endpoints"
     @echo "  logs                    Follow all logs"
-    @echo "  logs-node N             Follow node N logs (1-6)"
+    @echo "  logs-node N             Follow node N logs (1-12)"
     @echo ""
     @echo "TESTING:"
     @echo "  test                    Run integration tests on all nodes"
-    @echo "  test-nodeN              Test specific node (1-6)"
+    @echo "  test-nodeN              Test specific node (1-12)"
     @echo "  test-pubsub             Test PubSub infrastructure"
     @echo "  test-pubsub-propagation Test end-to-end message propagation"
     @echo "  test-ci                 Full CI test suite"
     @echo ""
     @echo "NODE ENDPOINTS:"
-    @echo "  Node 1: http://localhost:5000 (IPFS: 4001) [172.20.0.10]"
-    @echo "  Node 2: http://localhost:5002 (IPFS: 4002) [172.20.0.11]"
-    @echo "  Node 3: http://localhost:5004 (IPFS: 4003) [172.20.0.12]"
-    @echo "  Node 4: http://localhost:5006 (IPFS: 4004) [172.20.0.13]"
-    @echo "  Node 5: http://localhost:5008 (IPFS: 4005) [172.20.0.14]"
-    @echo "  Node 6: http://localhost:5010 (IPFS: 4006) [172.20.0.15]"
+    @echo "  Node  1: http://localhost:5000 (IPFS: 4001) [172.20.0.10]"
+    @echo "  Node  2: http://localhost:5002 (IPFS: 4002) [172.20.0.11]"
+    @echo "  Node  3: http://localhost:5004 (IPFS: 4003) [172.20.0.12]"
+    @echo "  Node  4: http://localhost:5006 (IPFS: 4004) [172.20.0.13]"
+    @echo "  Node  5: http://localhost:5008 (IPFS: 4005) [172.20.0.14]"
+    @echo "  Node  6: http://localhost:5010 (IPFS: 4006) [172.20.0.15]"
+    @echo "  Node  7: http://localhost:5012 (IPFS: 4007) [172.20.0.16]"
+    @echo "  Node  8: http://localhost:5014 (IPFS: 4008) [172.20.0.17]"
+    @echo "  Node  9: http://localhost:5016 (IPFS: 4009) [172.20.0.18]"
+    @echo "  Node 10: http://localhost:5018 (IPFS: 4010) [172.20.0.19]"
+    @echo "  Node 11: http://localhost:5020 (IPFS: 4011) [172.20.0.20]"
+    @echo "  Node 12: http://localhost:5022 (IPFS: 4012) [172.20.0.21]"
     @echo ""
     @echo "IMPORTANT NOTES:"
     @echo "  • After 'just clean', peer IDs are regenerated on next start"
     @echo "  • Mesh formation happens automatically after startup"
     @echo "  • 'start' = interactive (prompts), 'start-ci' = CI mode (always rebuilds)"
     @echo "  • Use 'just stop' (not clean) to preserve peer IDs between restarts"
-    @echo ""
-    @echo "WHY 6 NODES:"
-    @echo "  Gossipsub default mesh_n=6 requires 6+ peers for optimal operation."
-    @echo "  With fewer nodes, PubSub publish operations block waiting for mesh."
-    @echo "  Alternative: fork rust-ipfs to add small mesh configuration support."
-    @echo ""
     @echo ""
     @echo "DOCUMENTATION:"
     @echo "  README.md               Quick start guide"
@@ -1541,14 +1583,14 @@ test-bidirectional-sync:
 
     # # ---------- Clean all node data ----------
     # echo -e "${YELLOW}🧼 Cleaning node data...${RESET}"
-    # for NODE in {1..6}; do
+    # for NODE in {1..12}; do
     #     just _clean-node-data $NODE
     # done
     # echo ""
 
     # ---------- Verify that all nodes are subscribed to the .new topic ----------
     echo -e "${YELLOW}Checking if all nodes are subscribed to the .new topic... ${RESET}"
-    for NODE in {1..6}; do
+    for NODE in {1..12}; do
         just _node-subscribe $NODE ".new"
     done
     echo "✅ All nodes are subscribed to .new topic"
@@ -1568,19 +1610,19 @@ test-bidirectional-sync:
     echo ""
 
     # ---------- Check whether other nodes received the message ----------
-    echo -e "${YELLOW}Checking if nodes 2-6 received message...${RESET}"
-    for NODE in {2..6}; do
+    echo -e "${YELLOW}Checking if nodes 2-12 received message...${RESET}"
+    for NODE in {2..12}; do
         echo "🍎 Node $NODE"
         for C in ${CID_LIST[@]}; do
             just _check-document-received $NODE $C
         done
     done
-    echo "✅ All nodes (2-6) received the messages!"
+    echo "✅ All nodes (2-12) received the messages!"
     echo ""
 
     # ---------- Check database for all nodes ----------
     echo -e "${YELLOW}Checking database for all nodes...${RESET}"
-    for NODE in {1..6}; do
+    for NODE in {1..12}; do
         echo "🍊 Node $NODE"
         for C in ${CID_LIST[@]}; do
             just _check-database-document $NODE $C
@@ -1627,14 +1669,14 @@ test-late-join-sync:
 
     # ---------- Wait until Athena is initialized ----------
     echo -e "${YELLOW}🧼 Waiting for Athena to initialize...${RESET}"
-    for NODE in {1..6}; do
+    for NODE in {1..12}; do
         just _wait-for-athena-ready $NODE
     done
     echo ""
 
     # ---------- Clean all node data ----------
     echo -e "${YELLOW}🧼 Cleaning node data...${RESET}"
-    for NODE in {1..6}; do
+    for NODE in {1..12}; do
         just _clean-node-data $NODE
     done
     echo ""
@@ -1851,7 +1893,7 @@ _check-database-document nodeN cid:
 _node_not_start_start_node:
     #!/usr/bin/env bash
     set -euo pipefail
-    for NODE in {1..6}; do
+    for NODE in {1..12}; do
         if ! docker compose ps | grep -q "hermes-node$NODE"; then
             echo "🌈 Node $NODE is not running, starting it..."
             docker compose start hermes-node$NODE
