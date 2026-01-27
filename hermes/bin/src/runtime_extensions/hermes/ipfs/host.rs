@@ -8,7 +8,7 @@ use crate::{
         hermes_ipfs_dht_provide, hermes_ipfs_evict_peer, hermes_ipfs_get_dht_value,
         hermes_ipfs_get_file, hermes_ipfs_get_peer_identity, hermes_ipfs_pin_file,
         hermes_ipfs_publish, hermes_ipfs_put_dht_value, hermes_ipfs_subscribe,
-        hermes_ipfs_unpin_file,
+        hermes_ipfs_unpin_file, hermes_ipfs_unsubscribe,
     },
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::ipfs::api::{
@@ -87,7 +87,7 @@ impl Host for HermesRuntimeContext {
     }
 
     fn get_peer_id(&mut self) -> wasmtime::Result<Result<PeerId, Errno>> {
-        let identity = hermes_ipfs_get_peer_identity(self.app_name())?;
+        let identity = hermes_ipfs_get_peer_identity(self.app_name(), None)?;
         let peer_id = identity.peer_id;
         Ok(Ok(peer_id.to_string()))
     }
@@ -110,6 +110,17 @@ impl Host for HermesRuntimeContext {
             None,
             &topic,
             None,
+        ))
+    }
+
+    fn pubsub_unsubscribe(
+        &mut self,
+        topic: PubsubTopic,
+    ) -> wasmtime::Result<Result<bool, Errno>> {
+        Ok(hermes_ipfs_unsubscribe(
+            ipfs::SubscriptionKind::Default,
+            self.app_name(),
+            &topic,
         ))
     }
 
