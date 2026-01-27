@@ -98,7 +98,7 @@ Milestone 7 — Execution From IPFS Link (May, 4 weeks) (75 seconds)
 Cross‑Cutting — Cryptography for QV and Time‑Weighted Stake (threaded across Q2) (60 seconds)
 
 * Plainly: we prepare the primitives to support quadratic voting and time‑weighted stake models.
-* We extend our crypto runtime and data paths so votes can be weighted and verified transparently,
+* We extend our cryptography runtime and data paths so votes can be weighted and verified transparently,
   with the right guardrails for privacy and audit.
 * Impact: richer governance mechanisms on a decentralized stack.
 
