@@ -26,7 +26,7 @@ Primary external interfaces:
 * HTTP Gateway: Serves static assets from packages and routes API requests to WASM modules.
   Hostname `app.domain` selects the application.
 * IPFS/LibP2P: Embedded node provides pub/sub, DHT, and file distribution.
-  Topic naming and message validation enforce signature/trust rules.
+  Topic naming and message validation are defined, but current validation is basic.
 * File and data access: Applications read from VFS (backed by HDF5).
   Select write locations are controlled by permissions (e.g., `tmp`, config).
 * Blockchain integration: Runtime extension(s) for Cardano chain following, eventing,

@@ -40,7 +40,7 @@ To get a list of options related to packaging:
 
 * `manifest.json` - Defines the location of all the src artifacts needed to build the package.
   This file must conform to the manifests [json schema](#manifest-schema).
-  An example manifest of this [json schema](#manifest-schema) if [here](#manifest-example).
+  An example manifest of this [json schema](#manifest-schema) [is here](#manifest-example).
 * `[<optional output path>]` - By default the application will be created in the same directory where manifest placed.
   This option allows the path of the generated application to be set, it can be absolute or relative to the manifest directory.
 * `--name app name override` - The name to give the application, instead of taking it from the manifest file.

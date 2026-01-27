@@ -123,7 +123,7 @@ Packaging a Module is controlled by a manifest file, which must conform to the H
 * `manifest.json` - Defines the location of all the src artifacts needed to build the package.
   This file must conform to the manifests [JSON schema](#wasm-component-module-manifest---schema).
   An example manifest of this [JSON schema](#wasm-component-module-manifest---schema)
-  is [here](#wasm-component-module-manifest---example).
+  [is here](#wasm-component-module-manifest---example).
 * `[<optional output path>]` - By default the module will be created in the same directory where manifest placed.
   This option allows the path of the generated module to be set, it can be absolute or relative to the manifest directory.
 * `--name module name override` - The name to give the module file, instead of taking it from the manifest file.
@@ -133,8 +133,8 @@ to signify this is a Hermes WASM Component Module.*
 
 #### Signing the WASM module package
 
-More detailed explanation about signing procedure could be found
-[here](../hermes_signing_procedure/index.md).
+More detailed explanation about signing procedure could be
+[found here](../hermes_signing_procedure/index.md).
 
 As the author of the WASM module package:
 

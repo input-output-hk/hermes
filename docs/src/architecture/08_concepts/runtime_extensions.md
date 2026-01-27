@@ -28,6 +28,9 @@ Notable extensions (hermes/bin/src/runtime_extensions/hermes)
 | **crypto** | Key management and cryptographic utilities (e.g., BIP39, BIP32-Ed25519). |
 | **cron** | Scheduled events for modules. |
 | **logging** | Structured logging APIs from modules. |
+| **binary/cbor/hash/json/localtime** | Utility extensions for encoding, hashing, and time. |
+| **doc_sync** | Document sync protocol support and events. |
+| **init** | Module init helper APIs for lifecycle hooks. |
 
 Context hooks
 
@@ -38,3 +41,4 @@ See also
 
 * [Hermes Engine](../05_building_block_view/hermes_engine.md)
 * [Event Model](./event_model.md#event-model-and-concurrency)
+* WIT sources: `wasm/wasi/wit` (bindings in `hermes/bindings.rs`)

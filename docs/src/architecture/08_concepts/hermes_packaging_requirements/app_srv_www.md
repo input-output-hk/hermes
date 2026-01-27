@@ -16,7 +16,7 @@ These will be delivered as Hermes events, and the Webasm Components will use HTT
 Any application run in a browser consists of a large number of static assets.
 Given the above example, the `athena` application can serve these static files contained in the Application from `/`.
 
-These are contained in `/srv/www` within the application package.
+These are contained in `/srv/www` within the application package and mounted into the VFS as `/www`.
 If a file is requested that does not exist, the Hermes HTTP gateway will automatically respond with 404.
 It will also respond with 404 is there is no static HTTP data in the application.
 An example of an application which would not have static HTTP data is one where all data is served through the `/api` path.

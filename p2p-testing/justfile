@@ -1628,7 +1628,7 @@ test-late-join-sync:
     # ---------- Wait until Athena is initialized ----------
     echo -e "${YELLOW}🧼 Waiting for Athena to initialize...${RESET}"
     for NODE in {1..6}; do
-        just _wait-for-athena-ready 1
+        just _wait-for-athena-ready $NODE
     done
     echo ""
 

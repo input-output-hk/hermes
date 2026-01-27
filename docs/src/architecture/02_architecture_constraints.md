@@ -15,8 +15,8 @@ icon: material/handcuffs
   certificate and key material managed via X.509-compatible formats.
 * Networking: IPFS/libp2p for DHT, pub/sub, file distribution; embedded IPFS node spun up by the engine.
 * HTTP: Built-in gateway for static content and API routing to WASM modules; hostnames map to application names.
-* Storage: Virtual filesystem (VFS) backed by HDF5 with permission levels
-  (read-only vs read-write areas, e.g., `srv`, `usr`, `tmp`).
+* Storage: HDF5-backed VFS persisted per app (local `.hfs` file) with permission levels
+  (`tmp`/`etc` read-write, `lib`/`usr`/`srv`/`ipfs` read-only).
 * Concurrency model: MPSC event queue and a thread pool;
   WASM components pre-linked into `InstancePre` to reduce per-invocation overhead.
 * Languages: Engine and extensions in Rust; WASM components in any language producing WASM components.
