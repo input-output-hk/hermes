@@ -301,13 +301,10 @@ run-athena:
 
 # Production build: full web assets, containerized (slow but complete)
 # Use for: final testing, deployments, CI/CD pipelines
-# Note: clean-wasm runs before get-local-athena to remove stale cached .wasm files
-#       that may have incompatible WASI versions (prevents "unknown import" errors)
 build-run-all: clean-hfs clean-wasm get-local-hermes get-local-athena clean-www run-athena
 
 # Development build: minimal assets, containerized (reliable, matches CI)
 # Use for: team consistency, when local builds fail, final testing before PRs
-# Note: clean-wasm ensures fresh WASM builds with correct WASI bindings
 build-run-dev: clean-hfs clean-wasm get-local-hermes get-local-athena-dev clean-www run-athena
 
 # Quick WASM rebuild with full assets (skips engine rebuild)
@@ -402,23 +399,14 @@ clean-www:
         echo "ℹ️  apps/modules/http-proxy/lib/www/ directory does not exist (nothing to clean)"; \
     fi
 
-# Clean up cached WASM module artifacts from Athena modules
+# Clean stale WASM modules to prevent WASI version mismatch errors
 #
-# Removes pre-compiled .wasm files from all Athena module lib directories.
-# These files are located at: hermes/apps/athena/modules/*/lib/*.wasm
+# Compares cached .wasm files against shared/Cargo.toml (which specifies the
+# wit-bindgen version). Only cleans modules older than this marker file.
 #
-# WHY THIS IS IMPORTANT:
-#   Earthly and local builds cache .wasm files in the lib/ directories.
-#   If the WASI WIT version changes (e.g., wit-bindgen upgrade), stale .wasm
-#   files may have incompatible WASI imports (e.g., expecting wasi:cli@0.2.9
-#   when Hermes provides @0.2.6), causing runtime errors like:
-#     "unknown import: wasi:cli/environment@0.2.9 has not been defined"
-#
-# When to use:
-#   - Before builds when WASI/wit-bindgen versions have changed
-#   - When seeing "unknown import" errors for WASI interfaces
-#   - To force a complete rebuild of all WASM modules
-#   - As part of clean builds to ensure no stale artifacts
+# This runs automatically in build-run-all, build-run-dev, build-run-dev-fastest.
+# Preserves cache when modules are up-to-date, rebuilds only when wit-bindgen
+# version changes.
 clean-wasm:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -429,7 +417,7 @@ clean-wasm:
         echo "$STALE" | xargs rm -f
     fi
 
-# Enhanced cleanup that includes HFS files, www directory, and cached WASM modules
+# Enhanced cleanup that includes HFS files, www directory, and stale WASM modules
 clean-all: clean-hfs clean-www clean-wasm
 
 # LOCAL DEV BUILDS - Use local Rust instead of containers
@@ -520,7 +508,6 @@ get-local-athena-fast:
 
 # Fastest dev build using local Rust (recommended for daily dev)
 # Use for: daily development, rapid iteration, maximum productivity
-# Note: clean-wasm ensures no stale WASM modules with incompatible WASI versions
 build-run-dev-fastest: clean-hfs clean-wasm get-local-hermes-fast get-local-athena-fast clean-www
     #!/usr/bin/env bash
     set -euo pipefail
