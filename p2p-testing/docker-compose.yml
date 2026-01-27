@@ -66,6 +66,12 @@ services:
       hermes-p2p:
         ipv4_address: 172.20.0.10  # Static IP for predictable peer addressing
 
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.5"
+
   # ============================================================================
   # Node 2 - Bootstrap node
   # ============================================================================
@@ -100,6 +106,12 @@ services:
       hermes-p2p:
         ipv4_address: 172.20.0.11
 
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.5"
+
   # ============================================================================
   # Node 3 - Bootstrap node
   # ============================================================================
@@ -132,6 +144,12 @@ services:
     networks:
       hermes-p2p:
         ipv4_address: 172.20.0.12
+
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.5"
 
   # ============================================================================
   # Node 4 - Mesh participant
@@ -168,6 +186,12 @@ services:
       hermes-p2p:
         ipv4_address: 172.20.0.13
 
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.5"
+
   # ============================================================================
   # Node 5 - Mesh participant
   # ============================================================================
@@ -200,6 +224,12 @@ services:
     networks:
       hermes-p2p:
         ipv4_address: 172.20.0.14
+
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.5"
 
   # ============================================================================
   # Node 6 - Mesh participant
@@ -234,6 +264,12 @@ services:
       hermes-p2p:
         ipv4_address: 172.20.0.15
 
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.5"
+
   # ============================================================================
   # Node 7 - Mesh participant
   # ============================================================================
@@ -266,6 +302,12 @@ services:
     networks:
       hermes-p2p:
         ipv4_address: 172.20.0.16
+
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.5"
 
   # ============================================================================
   # Node 8 - Mesh participant
@@ -300,6 +342,12 @@ services:
       hermes-p2p:
         ipv4_address: 172.20.0.17
 
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.5"
+
   # ============================================================================
   # Node 9 - Mesh participant
   # ============================================================================
@@ -332,6 +380,12 @@ services:
     networks:
       hermes-p2p:
         ipv4_address: 172.20.0.18
+
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.5"
 
   # ============================================================================
   # Node 10 - Mesh participant
@@ -366,6 +420,12 @@ services:
       hermes-p2p:
         ipv4_address: 172.20.0.19
 
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.5"
+
   # ============================================================================
   # Node 11 - Mesh participant
   # ============================================================================
@@ -399,6 +459,12 @@ services:
       hermes-p2p:
         ipv4_address: 172.20.0.20
 
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.5"
+
   # ============================================================================
   # Node 12 - Mesh participant
   # ============================================================================
@@ -431,6 +497,12 @@ services:
     networks:
       hermes-p2p:
         ipv4_address: 172.20.0.21
+
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.5"
 
 # ==============================================================================
 # NETWORK CONFIGURATION
