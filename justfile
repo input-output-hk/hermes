@@ -120,18 +120,25 @@ _build-athena-common mode:
 
     # SYNCHRONIZATION PHASE:
     # Wait for all background jobs to complete and collect their exit codes
-    # The '&&' and '||' operators provide success/failure reporting for each build
+    # Track failures so we can exit with an error if any build fails
     echo "⏳ Waiting for all parallel builds to complete..."
+
+    BUILD_FAILED=0
 
     # Wait for each process and report completion status
     # 'wait $PID' blocks until that specific process finishes and returns its exit code
-    wait $HTTP_PROXY_PID && echo "  ✅ http-proxy build completed" || echo "  ❌ http-proxy build failed"
-    wait $RBAC_INDEXER_PID && echo "  ✅ rbac-registration-indexer build completed" || echo "  ❌ rbac-registration-indexer build failed"
-    wait $RBAC_PID && echo "  ✅ rbac-registration build completed" || echo "  ❌ rbac-registration build failed"
-    wait $STAKED_INDEXER_PID && echo "  ✅ staked-ada-indexer build completed" || echo "  ❌ staked-ada-indexer build failed"
-    wait $STAKED_PID && echo "  ✅ staked-ada build completed" || echo "  ❌ staked-ada build failed"
-    wait $AUTH_PID && echo "  ✅ auth build completed" || echo "  ❌ auth build failed"
-    wait $DOC_SYNC_PID && echo "  ✅ doc-sync build completed" || echo "  ❌ doc-sync build failed"
+    wait $HTTP_PROXY_PID && echo "  ✅ http-proxy build completed" || { echo "  ❌ http-proxy build failed"; BUILD_FAILED=1; }
+    wait $RBAC_INDEXER_PID && echo "  ✅ rbac-registration-indexer build completed" || { echo "  ❌ rbac-registration-indexer build failed"; BUILD_FAILED=1; }
+    wait $RBAC_PID && echo "  ✅ rbac-registration build completed" || { echo "  ❌ rbac-registration build failed"; BUILD_FAILED=1; }
+    wait $STAKED_INDEXER_PID && echo "  ✅ staked-ada-indexer build completed" || { echo "  ❌ staked-ada-indexer build failed"; BUILD_FAILED=1; }
+    wait $STAKED_PID && echo "  ✅ staked-ada build completed" || { echo "  ❌ staked-ada build failed"; BUILD_FAILED=1; }
+    wait $AUTH_PID && echo "  ✅ auth build completed" || { echo "  ❌ auth build failed"; BUILD_FAILED=1; }
+    wait $DOC_SYNC_PID && echo "  ✅ doc-sync build completed" || { echo "  ❌ doc-sync build failed"; BUILD_FAILED=1; }
+
+    if [ $BUILD_FAILED -eq 1 ]; then
+        echo "🚨 One or more module builds failed. Aborting."
+        exit 1
+    fi
 
     echo "🎯 All parallel builds completed!"
 
@@ -202,15 +209,22 @@ _build-athena-common mode:
     # This ensures all .hmod files are ready before the final .happ creation
     echo "⏳ Waiting for all parallel packaging operations to complete..."
 
+    PKG_FAILED=0
+
     # Wait for each packaging process and report completion status
     # Each 'wait' command blocks until that specific packaging operation finishes
-    wait $HTTP_PROXY_PKG_PID && echo "  ✅ http-proxy packaging completed" || echo "  ❌ http-proxy packaging failed"
-    wait $RBAC_INDEXER_PKG_PID && echo "  ✅ rbac-registration-indexer packaging completed" || echo "  ❌ rbac-registration-indexer packaging failed"
-    wait $RBAC_PKG_PID && echo "  ✅ rbac-registration packaging completed" || echo "  ❌ rbac-registration packaging failed"
-    wait $STAKED_INDEXER_PKG_PID && echo "  ✅ staked-ada-indexer packaging completed" || echo "  ❌ staked-ada-indexer packaging failed"
-    wait $STAKED_PKG_PID && echo "  ✅ staked-ada packaging completed" || echo "  ❌ staked-ada packaging failed"
-    wait $AUTH_PKG_PID && echo "  ✅ auth packaging completed" || echo "  ❌ auth packaging failed"
-    wait $DOC_SYNC_PKG_PID && echo "  ✅ doc-sync packaging completed" || echo "  ❌ doc-sync packaging failed"
+    wait $HTTP_PROXY_PKG_PID && echo "  ✅ http-proxy packaging completed" || { echo "  ❌ http-proxy packaging failed"; PKG_FAILED=1; }
+    wait $RBAC_INDEXER_PKG_PID && echo "  ✅ rbac-registration-indexer packaging completed" || { echo "  ❌ rbac-registration-indexer packaging failed"; PKG_FAILED=1; }
+    wait $RBAC_PKG_PID && echo "  ✅ rbac-registration packaging completed" || { echo "  ❌ rbac-registration packaging failed"; PKG_FAILED=1; }
+    wait $STAKED_INDEXER_PKG_PID && echo "  ✅ staked-ada-indexer packaging completed" || { echo "  ❌ staked-ada-indexer packaging failed"; PKG_FAILED=1; }
+    wait $STAKED_PKG_PID && echo "  ✅ staked-ada packaging completed" || { echo "  ❌ staked-ada packaging failed"; PKG_FAILED=1; }
+    wait $AUTH_PKG_PID && echo "  ✅ auth packaging completed" || { echo "  ❌ auth packaging failed"; PKG_FAILED=1; }
+    wait $DOC_SYNC_PKG_PID && echo "  ✅ doc-sync packaging completed" || { echo "  ❌ doc-sync packaging failed"; PKG_FAILED=1; }
+
+    if [ $PKG_FAILED -eq 1 ]; then
+        echo "🚨 One or more module packaging operations failed. Aborting."
+        exit 1
+    fi
 
     echo "🎯 All parallel packaging operations completed!"
     echo "✅ Module packaging complete (.hmod files created)"
@@ -287,11 +301,14 @@ run-athena:
 
 # Production build: full web assets, containerized (slow but complete)
 # Use for: final testing, deployments, CI/CD pipelines
-build-run-all: clean-hfs get-local-hermes get-local-athena clean-www run-athena
+# Note: clean-wasm runs before get-local-athena to remove stale cached .wasm files
+#       that may have incompatible WASI versions (prevents "unknown import" errors)
+build-run-all: clean-hfs clean-wasm get-local-hermes get-local-athena clean-www run-athena
 
 # Development build: minimal assets, containerized (reliable, matches CI)
 # Use for: team consistency, when local builds fail, final testing before PRs
-build-run-dev: clean-hfs get-local-hermes get-local-athena-dev clean-www run-athena
+# Note: clean-wasm ensures fresh WASM builds with correct WASI bindings
+build-run-dev: clean-hfs clean-wasm get-local-hermes get-local-athena-dev clean-www run-athena
 
 # Quick WASM rebuild with full assets (skips engine rebuild)
 #
@@ -385,8 +402,31 @@ clean-www:
         echo "ℹ️  apps/modules/http-proxy/lib/www/ directory does not exist (nothing to clean)"; \
     fi
 
-# Enhanced cleanup that includes HFS files and www directory
-clean-all: clean-hfs clean-www
+# Clean up cached WASM module artifacts from Athena modules
+#
+# Removes pre-compiled .wasm files from all Athena module lib directories.
+# These files are located at: hermes/apps/athena/modules/*/lib/*.wasm
+#
+# WHY THIS IS IMPORTANT:
+#   Earthly and local builds cache .wasm files in the lib/ directories.
+#   If the WASI WIT version changes (e.g., wit-bindgen upgrade), stale .wasm
+#   files may have incompatible WASI imports (e.g., expecting wasi:cli@0.2.9
+#   when Hermes provides @0.2.6), causing runtime errors like:
+#     "unknown import: wasi:cli/environment@0.2.9 has not been defined"
+#
+# When to use:
+#   - Before builds when WASI/wit-bindgen versions have changed
+#   - When seeing "unknown import" errors for WASI interfaces
+#   - To force a complete rebuild of all WASM modules
+#   - As part of clean builds to ensure no stale artifacts
+clean-wasm:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "🧹 Cleaning cached WASM modules..."
+    find hermes/apps/athena/modules -path "*/lib/*.wasm" -type f -print -delete 2>/dev/null || echo "   (no cached .wasm files found)"
+
+# Enhanced cleanup that includes HFS files, www directory, and cached WASM modules
+clean-all: clean-hfs clean-www clean-wasm
 
 # LOCAL DEV BUILDS - Use local Rust instead of containers
 # Prerequisites: run `just check-local-build` first
@@ -476,7 +516,8 @@ get-local-athena-fast:
 
 # Fastest dev build using local Rust (recommended for daily dev)
 # Use for: daily development, rapid iteration, maximum productivity
-build-run-dev-fastest: clean-hfs get-local-hermes-fast get-local-athena-fast clean-www
+# Note: clean-wasm ensures no stale WASM modules with incompatible WASI versions
+build-run-dev-fastest: clean-hfs clean-wasm get-local-hermes-fast get-local-athena-fast clean-www
     #!/usr/bin/env bash
     set -euo pipefail
     
