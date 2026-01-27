@@ -7,7 +7,7 @@ icon: material/format-list-group-plus
 <!-- See: https://docs.arc42.org/section-12/ -->
 
 | Term | Definition |
-|------|------------|
+| ---- | ---------- |
 | Hermes | Event-driven runtime that executes WASM components packaged as applications. |
 | WASM Component Model | Standard for composable WASM components with WIT-defined interfaces. |
 | WIT | WebAssembly Interface Types language used to describe host APIs and component interfaces. |

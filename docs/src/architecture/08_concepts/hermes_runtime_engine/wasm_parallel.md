@@ -1,5 +1,14 @@
 # WASM execution parallelization
 
+## Current implementation
+
+Hermes executes module event handlers on a global Rayon thread pool.
+There is no shared dependency-tracking layer in the core; extensions can coordinate
+ordering with their own mechanisms (e.g., per-request MPSC channels), and strict ordering
+is achieved by disabling parallel execution.
+
+## Design notes (future)
+
 Looking for potential optimization,
 an obvious solution to parallelize [*Hermes event's*] processing.
 One problem with this approach is the possibility of the queue order being disrupted.

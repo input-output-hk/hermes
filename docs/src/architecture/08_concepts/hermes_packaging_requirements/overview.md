@@ -25,21 +25,28 @@ Data is divided between them to make merging those views easy and consistent.
 
 ## The Full Application Filesystem Hierarchy
 
+Implementation note (current engine)
+
+* The VFS created by Hermes includes `/tmp`, `/etc`, `/srv`, `/usr`, `/usr/lib`, `/lib`, and `/ipfs`.
+* Package `srv/www` and `srv/share` are mounted into the VFS as `/www` and `/share` (not under `/srv`).
+* `/var` and per-module settings files are not implemented yet.
+* `/tmp` is stored inside the per-app `.hfs` file and persists across runs unless cleaned.
+
 <!-- markdownlint-disable max-one-sentence-per-line line-length no-inline-html -->
 | Name | Type | Description | Writable | Required |
 | --- | ----------- | ---- | -------- | --- |
-| `/`   | :octicons-file-directory-fill-16: | Root Directory | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
-| `/tmp` | :octicons-file-directory-16: | Temporary Files stored in memory | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
+| `/` | :octicons-file-directory-fill-16: | Root Directory | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
+| `/tmp` | :octicons-file-directory-16: | Temporary files stored in VFS (`.hfs`) | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/etc` | :octicons-file-directory-fill-16: | Writable settings | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 | `/etc/settings.json` | :octicons-file-16: | Hermes Engine settings for this application. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/etc/<module-name>/settings.json` | :octicons-file-16: | Module specific</br>Runtime Configurable Settings | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/srv` | :octicons-file-directory-fill-16: | Data which is served by this system. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/srv/www` | :octicons-file-directory-fill-16: | Files automatically served for this application on HTTP. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/srv/share` | :octicons-file-directory-fill-16: | Data files which are not automatically served but can be shared by all Wasm Modules in the application. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
-| `/usr` | :octicons-file-directory-fill-16: |  Shareable, read-only data. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
-| `/usr/lib` | :octicons-file-directory-fill-16: |  Application over-rides for webasm library modules. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
-| `/usr/lib/<module-name>` | :octicons-file-directory-fill-16: |  Application over-rides for named webasm library module. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
-| `/usr/lib/<module-name>/config.json` | :octicons-file-16: |  Config to use for the module instead of its bundled config. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
+| `/usr` | :octicons-file-directory-fill-16: | Shareable, read-only data. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
+| `/usr/lib` | :octicons-file-directory-fill-16: | Application over-rides for webasm library modules. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
+| `/usr/lib/<module-name>` | :octicons-file-directory-fill-16: | Application over-rides for named webasm library module. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
+| `/usr/lib/<module-name>/config.json` | :octicons-file-16: | Config to use for the module instead of its bundled config. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/usr/lib/<module-name>/share` | :octicons-file-directory-fill-16: | Overrides for a modules shareable readonly data | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/lib` | :octicons-file-directory-fill-16: | Wasm Component Module Library Directory | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 | `/lib/<module-name>/metadata.json` | :octicons-file-16: | Modules Metadata | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
@@ -49,7 +56,7 @@ Data is divided between them to make merging those views easy and consistent.
 | `/lib/<module-name>/settings.schema.json` | :octicons-file-16: | Modules User Settings Schema | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/lib/<module-name>/share` | :octicons-file-directory-fill-16: | Modules shareable readonly data | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/lib/<module-name>/author.cose` | :octicons-file-badge-16: | Modules Author Signature | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
-| `/var/` | :octicons-file-directory-fill-16: |  Contains variable data files. (Persistent) | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
+| `/var/` | :octicons-file-directory-fill-16: | Contains variable data files. (Persistent) | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 | `/metadata.json` | :octicons-file-16: | Applications Metadata | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 | `/icon.svg` | :octicons-file-16: | Application Icon | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 | `/author.cose` | :octicons-file-badge-16: | Application Author Signature | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
@@ -72,22 +79,19 @@ Data is divided between them to make merging those views easy and consistent.
 A Hermes application can have access to several writable data source.
 
 1. Databases - These are not described here and are documented elsewhere.
-2. [Temporary file storage](#temporary-file-storage) - Located in ram and not persisted between invocations of Hermes.
+2. [Temporary file storage](#temporary-file-storage) - Current `/tmp` is persisted inside the `.hfs` file.
 3. [Application writable and persistent storage](#application-writable-and-persistent-storage).
 
 #### Temporary File Storage
 
-If so configured, Hermes can provide a fixed size re-writable in-memory file system to a Hermes Application.
-The application will see it at `/tmp` and it can use it like any normal filesystem.
-It has a maximum available size, defined by the user.
-Attempts to write more data than configured will fail.
-If no temporary storage has been provided to the application it will not see a `/tmp` directory in its directory hierarchy.
+`/tmp` is always created in the per-app `.hfs` file.
+It is writable, persists across runs, and is not currently backed by an in-memory filesystem.
 
 #### Application writable and persistent storage
 
-The application will also be given a re-writable and persistent file storage.
-Like the Temporary File Storage it is configured with a maximum size.
-Attempts by an application to use more storage than configured will fail.
+The current engine does not expose `/var` yet.
+Writable storage is limited to `/tmp` and `/etc`, and Hermes does not generate
+`/etc/settings.json` files today.
 
 Some data within the Application persistent writable storage is not actually writable by the application directly.
 This data is used by Hermes to store persistent configuration.  
@@ -100,19 +104,19 @@ the following directories and files are contained in the Application writable an
 <!-- markdownlint-disable max-one-sentence-per-line line-length no-inline-html -->
 | Name | Type | Description | App Writable | Hermes Writable |
 | --- | ----------- | ---- | -------- | --- |
-| `/`   | :octicons-file-directory-fill-16: | Root Directory | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
+| `/` | :octicons-file-directory-fill-16: | Root Directory | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 | `/etc` | :octicons-file-directory-fill-16: | Writable settings | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 | `/etc/settings.json` | :octicons-file-16: | Hermes Engine settings for this application. | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
 | `/etc/<module-name>/settings.json` | :octicons-file-16: | Module specific</br>Runtime Configurable Settings | <span style="color: orange;">:octicons-circle-16:</span> | <span style="color: green;">:octicons-check-circle-fill-12:</span> |
-| `/var` | :octicons-file-directory-fill-16: |  Contains variable data files. (Persistent) | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
+| `/var` | :octicons-file-directory-fill-16: | Contains variable data files. (Persistent) | <span style="color: green;">:octicons-check-circle-fill-12:</span> | <span style="color: orange;">:octicons-circle-16:</span> |
 <!-- markdownlint-enable max-one-sentence-per-line line-length no-inline-html -->
 
 The application can store any configuration it likes into `/etc`.
 Provided it does not modify or delete any settings.json files managed by Hermes itself.
 The application can read these files at any time.
 
-The application can store any data it requires, with any organization it needs in the `/var` directory.
-The only checks performed by hermes on these files are to ensure that the maximum size of the file system is not exceeded.
+Once `/var` is implemented, the application can store any data it requires there.
+The only checks performed by hermes on these files will be to ensure that the maximum size of the file system is not exceeded.
 
 These files/directories may *NEVER* appear in a Hermes application package.
 
@@ -186,7 +190,7 @@ This data is completely optional.
 
 Applications can also include sharable static data.
 This data is not served automatically, but can be read by any WASM module within the application.
-Application Data is found in the `/src/share` path.
+Application Data is found in the `/srv/share` path (mounted to `/share` in the VFS).
 
 For detailed information see [Hermes Application Data](./app_data.md).
 
