@@ -314,7 +314,7 @@ Payload-body Keys:
 | --- | --- | --- | --- |
 | 1 | **root** | root-hash | BLAKE3-256 of the sender’s SMT root |
 | 2 | **count** | uint | sender’s current document count |
-| 3 | **docs**  | array of cidv1<br>*OPTIONAL* | inline CIDs the sender believes others may be missing (≤ 1 MiB total) |
+| 3 | **docs** | array of cidv1<br>*OPTIONAL* | inline CIDs the sender believes others may be missing (≤ 1 MiB total) |
 | 4 | **manifest** | cidv1<br>*OPTIONAL* | manifest CID listing CIDs when message size would exceed 1 MiB. |
 | 5 | **ttl** | uint<br>REQUIRED with manifest | seconds the manifest remains available.<br>The responder MUST keep the manifest block available for at least this time.<br>Present only when `manifest` is used; absent otherwise. |
 | 6 | **in_reply_to** | UUIDv7 | `seq` of the `.syn` message which caused this message to be sent. (Not used in `.new`) |
@@ -518,8 +518,8 @@ sequenceDiagram
 | --- | --- | --- | --- |
 | 1 | **root** | root-hash | BLAKE3-256 of the requester’s SMT root |
 | 2 | **count** | uint | requester’s current document count |
-| 3 | **to**   | peer-pubkey | target peer to respond (required; hint only — other peers MAY reply) |
-| 4 | **prefix**  | array of prefix-hash<br>*OPTIONAL* | SMT node hashes at depth $D$, left-to-right across the tree.<br>Array length MUST be a power of two (2,4,8,…,16384). Include only when count > 64. |
+| 3 | **to** | peer-pubkey | target peer to respond (required; hint only — other peers MAY reply) |
+| 4 | **prefix** | array of prefix-hash<br>*OPTIONAL* | SMT node hashes at depth $D$, left-to-right across the tree.<br>Array length MUST be a power of two (2,4,8,…,16384). Include only when count > 64. |
 | 5 | **peer_root** | root-hash | last observed SMT root of the target peer (as believed by requester) |
 | 6 | **peer_count** | uint | last observed document count of the target peer (as believed by requester) |
 

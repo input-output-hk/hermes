@@ -34,8 +34,8 @@ depending on whether that specific [*Hermes application*] has subscribed to such
 *Hermes events queue* - a queue-like data structure.
 [*Hermes events*] are added to the one end, one by one, by the [*HRE*].
 Applications then consume these events from the other end of the queue.
-The queue preserves the order of event execution per-source while allowing unrelated sources
-to proceed in parallel via a worker pool.
+The queue preserves FIFO order of enqueueing, but execution can overlap when parallel
+event handling is enabled; strict ordering requires disabling parallel execution.
 
 ## WASM execution model
 
@@ -53,7 +53,8 @@ to proceed in parallel via a worker pool.
 ## IPFS/libp2p integration
 
 * Embedded node bootstrapped on engine start (configurable default bootstraps).
-* Pub/sub topics and DHT used for distributing structured, signed data and messages.
+* Pub/sub topics and DHT used for distributing structured data; validation is currently
+  limited to basic checks and does not enforce per-topic signature schemes.
 * Per-application tracking of topic subscriptions and pinned files.
 
 ## Hermes application
