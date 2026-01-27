@@ -1338,7 +1338,6 @@ _test-pubsub-visualize:
         echo "${OTHERS[-1]}"
     done
     echo ""
-    echo -e "  ${BLUE}ℹ️  NO LONGER CORRECT: Each node maintains 5 peer connections (5 peers × 6 nodes = 30 total)${RESET}"
 
     # Final Status
     echo ""
