@@ -1,6 +1,8 @@
 //! Hermes IPFS service.
 mod api;
+mod doc_sync_topic_handler;
 mod task;
+mod topic_message_context;
 
 use std::{
     collections::HashSet,

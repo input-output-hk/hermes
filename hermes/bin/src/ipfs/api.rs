@@ -180,16 +180,16 @@ pub(crate) fn hermes_ipfs_subscribe(
     app_name: &ApplicationName,
     tree: Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
     topic: &PubsubTopic,
-    module_ids: &Option<Vec<ModuleId>>,
+    module_ids: Option<&Vec<ModuleId>>,
 ) -> Result<bool, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "subscribing to PubSub topic");
+    let module_ids_owned = module_ids.cloned();
     if ipfs.apps.topic_subscriptions_contains(kind, topic) {
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription stream already exists");
     } else {
         let topic_owned = topic.clone();
         let app_name_owned = app_name.clone();
-        let module_ids_owned = module_ids.clone();
         let handle = if let Ok(rt) = tokio::runtime::Handle::try_current() {
             tracing::debug!("subscribe with existing Tokio runtime");
             let (tx, rx) = std::sync::mpsc::channel();
