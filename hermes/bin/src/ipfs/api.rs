@@ -180,7 +180,7 @@ pub(crate) fn hermes_ipfs_subscribe(
     app_name: &ApplicationName,
     tree: Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
     topic: &PubsubTopic,
-    module_ids: Option<Vec<ModuleId>>,
+    module_ids: &Option<Vec<ModuleId>>,
 ) -> Result<bool, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "subscribing to PubSub topic");
@@ -189,6 +189,7 @@ pub(crate) fn hermes_ipfs_subscribe(
     } else {
         let topic_owned = topic.clone();
         let app_name_owned = app_name.clone();
+        let module_ids_owned = module_ids.clone();
         let handle = if let Ok(rt) = tokio::runtime::Handle::try_current() {
             tracing::debug!("subscribe with existing Tokio runtime");
             let (tx, rx) = std::sync::mpsc::channel();
@@ -198,7 +199,7 @@ pub(crate) fn hermes_ipfs_subscribe(
                     &topic_owned,
                     tree,
                     &app_name_owned,
-                    module_ids,
+                    module_ids_owned,
                 ));
                 drop(tx.send(res));
             });
@@ -206,7 +207,7 @@ pub(crate) fn hermes_ipfs_subscribe(
         } else {
             tracing::debug!("subscribe without existing Tokio runtime");
             let rt = tokio::runtime::Runtime::new().map_err(|_| Errno::ServiceUnavailable)?;
-            rt.block_on(ipfs.pubsub_subscribe(kind, topic, tree, app_name, module_ids))?
+            rt.block_on(ipfs.pubsub_subscribe(kind, topic, tree, app_name, module_ids_owned))?
         };
 
         ipfs.apps.added_topic_stream(kind, topic.clone(), handle);

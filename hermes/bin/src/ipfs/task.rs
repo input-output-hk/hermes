@@ -440,16 +440,129 @@ fn topic_message_handler(
     }
 }
 
-// TODO - Generalize this function, it should be able to handle multiple topics, not just
-// .new
-/// Handler for Doc Sync `PubSub` messages on "*.new" topics.
-///
-/// Receives P2P messages containing CBOR-encoded CID lists, spawns an async task
-/// to fetch document content from IPFS, and dispatches `OnNewDocEvent` to subscribed
-/// apps.
-///
-/// Uses async file operations (`file_get_async`) to avoid blocking the `PubSub` handler.
-/// Message format: `payload::New` → `DocumentDisseminationBody::Docs { docs: Vec<Cid> }`
+trait DocSyncTopicHandler<'a>: Sized
+where Self: minicbor::Decode<'a, ()>
+{
+    const TOPIC_SUFFIX: &'static str;
+
+    fn decode(payload: &'a [u8]) -> Result<Self, minicbor::decode::Error> {
+        minicbor::decode::<Self>(&payload)
+    }
+
+    fn handle(
+        self,
+        topic: &str,
+        source: Option<hermes_ipfs::PeerId>,
+        context: &TopicMessageContext,
+    ) -> Result<(), ()>;
+}
+
+impl DocSyncTopicHandler<'_> for payload::New {
+    const TOPIC_SUFFIX: &'static str = ".new";
+
+    fn handle(
+        self,
+        topic: &str,
+        source: Option<hermes_ipfs::PeerId>,
+        context: &TopicMessageContext,
+    ) -> Result<(), ()> {
+        let Some(tree) = &context.tree else {
+            tracing::error!("Context for payload::New handler must contain an SMT.");
+            // TODO[RC]: Add error type and log errors in the upper layer.
+            return Err(());
+        };
+
+        match DocumentDisseminationBody::from(self) {
+            DocumentDisseminationBody::Docs {
+                docs,
+                common_fields:
+                    CommonFields {
+                        root: their_root,
+                        count: their_count,
+                        ..
+                    },
+            } => {
+                // DO NOT remove this log, since it is used in tests
+                tracing::info!("RECEIVED PubSub message with CIDs: {:?}", docs);
+
+                if docs.is_empty() {
+                    match create_reconciliation_state(their_root, their_count, tree.as_ref()) {
+                        Ok(doc_reconciliation) => {
+                            match doc_reconciliation {
+                                DocReconciliation::NotNeeded => {
+                                    tracing::info!("reconciliation not needed");
+                                    return Ok(());
+                                },
+                                DocReconciliation::Needed(doc_reconciliation_data) => {
+                                    tracing::info!("starting reconciliation");
+                                    let Some(channel_name) = topic.strip_suffix(Self::TOPIC_SUFFIX)
+                                    else {
+                                        tracing::error!(%topic, "Wrong topic suffix, expected {}", Self::TOPIC_SUFFIX);
+                                        return Err(());
+                                    };
+                                    if let Err(err) = start_reconciliation(
+                                        doc_reconciliation_data,
+                                        &context.app_name,
+                                        Arc::clone(tree),
+                                        channel_name,
+                                        &context.module_ids,
+                                        source.map(|p| p.to_string()),
+                                    ) {
+                                        tracing::error!(%err, "Failed to start reconciliation");
+                                        return Err(());
+                                    }
+                                    return Ok(());
+                                },
+                            }
+                        },
+                        Err(err) => {
+                            tracing::error!(%err, "Failed to create reconciliation state");
+                            return Err(());
+                        },
+                    }
+                } else {
+                    let Some(channel_name) = topic.strip_suffix(Self::TOPIC_SUFFIX) else {
+                        tracing::error!(%topic, "Wrong topic suffix, expected {}", Self::TOPIC_SUFFIX);
+                        return Err(());
+                    };
+                    process_broadcasted_cids(
+                        &topic,
+                        channel_name,
+                        docs,
+                        source,
+                        &context.module_ids,
+                    );
+                    return Ok(());
+                }
+            },
+            DocumentDisseminationBody::Manifest { .. } => {
+                tracing::error!("Manifest is not supported in a .new payload");
+                return Err(());
+            },
+        }
+    }
+}
+
+fn handle_doc_sync_topic<'a, TH: DocSyncTopicHandler<'a>>(
+    message: &'a hermes_ipfs::rust_ipfs::GossipsubMessage,
+    topic: String,
+    context: TopicMessageContext,
+) -> Result<(), ()> {
+    if !topic.ends_with(TH::TOPIC_SUFFIX) {
+        return Err(());
+    }
+
+    let decoded = <TH as DocSyncTopicHandler>::decode(&message.data);
+    match decoded {
+        Ok(handler) => handler.handle(&topic, message.source, &context),
+        Err(err) => {
+            tracing::error!(%topic, %err, topic_suffix = %TH::TOPIC_SUFFIX, "Failed to decode payload from IPFS message");
+            return Err(());
+        },
+    }
+}
+
+/// Handler for Doc Sync `PubSub` messages.
 #[allow(
     clippy::needless_pass_by_value,
     reason = "the other handler consumes the message and we need to keep the signatures consistent"
@@ -466,83 +579,8 @@ fn doc_sync_topic_message_handler(
         );
     }
 
-    // TODO: match the topic against a static list.
-    let Some(channel_name) = topic.strip_suffix(".new") else {
-        tracing::error!("Handling an IPFS message on a wrong channel.");
-        return;
-    };
-
-    let Some(tree) = &context.tree else {
-        tracing::error!("Context for the Doc Sync handler must contain an SMT.");
-        return;
-    };
-
-    let payload = match minicbor::decode::<payload::New>(&message.data) {
-        Ok(payload) => DocumentDisseminationBody::from(payload),
-        Err(err) => {
-            tracing::error!(%channel_name, %err, "Failed to decode .new payload from IPFS message");
-            return;
-        },
-    };
-
-    match payload {
-        DocumentDisseminationBody::Docs {
-            docs,
-            common_fields:
-                CommonFields {
-                    root: their_root,
-                    count: their_count,
-                    ..
-                },
-        } => {
-            // DO NOT remove this log, since it is used in tests
-            tracing::info!("RECEIVED PubSub message with CIDs: {:?}", docs);
-
-            if docs.is_empty() {
-                match create_reconciliation_state(their_root, their_count, tree.as_ref()) {
-                    Ok(doc_reconciliation) => {
-                        match doc_reconciliation {
-                            DocReconciliation::NotNeeded => {
-                                tracing::info!("reconciliation not needed");
-                            },
-                            DocReconciliation::Needed(doc_reconciliation_data) => {
-                                tracing::info!("starting reconciliation");
-                                let Some(channel_name) = topic.strip_suffix(".new") else {
-                                    tracing::error!(%topic, "Wrong topic, expected .new");
-                                    return;
-                                };
-
-                                if let Err(err) = start_reconciliation(
-                                    doc_reconciliation_data,
-                                    &context.app_name,
-                                    Arc::clone(tree),
-                                    channel_name,
-                                    context.module_ids,
-                                    message.source.map(|p| p.to_string()),
-                                ) {
-                                    tracing::error!(%err, "Failed to start reconciliation");
-                                }
-                            },
-                        }
-                    },
-                    Err(err) => {
-                        tracing::error!(%err, "Failed to create reconciliation state");
-                    },
-                }
-            } else {
-                process_broadcasted_cids(
-                    &topic,
-                    channel_name,
-                    docs,
-                    message.source,
-                    context.module_ids,
-                );
-            }
-        },
-        DocumentDisseminationBody::Manifest { .. } => {
-            tracing::error!("Manifest is not supported in a .new payload");
-        },
-    }
+    // TODO[RC]: Handle properly.
+    let _ = handle_doc_sync_topic::<payload::New>(&message, topic, context);
 }
 
 /// Creates the reconciliation state based on our and remote peer SMT states.
@@ -607,7 +645,7 @@ fn start_reconciliation(
     app_name: &ApplicationName,
     tree: Arc<Mutex<Tree<doc_sync::Cid>>>,
     channel: &str,
-    module_ids: Option<Vec<ModuleId>>,
+    module_ids: &Option<Vec<ModuleId>>,
     peer: Option<PeerId>,
 ) -> anyhow::Result<()> {
     subscribe_to_dif(app_name, tree, channel, module_ids)?;
@@ -631,7 +669,7 @@ fn subscribe_to_dif(
     app_name: &ApplicationName,
     tree: Arc<Mutex<Tree<doc_sync::Cid>>>,
     channel: &str,
-    module_ids: Option<Vec<ModuleId>>,
+    module_ids: &Option<Vec<ModuleId>>,
 ) -> anyhow::Result<()> {
     let topic = format!("{channel}.dif");
     hermes_ipfs_subscribe(
@@ -721,10 +759,11 @@ fn process_broadcasted_cids(
     channel_name: &str,
     cids: Vec<Cid>,
     publisher: Option<hermes_ipfs::PeerId>,
-    module_ids: Option<Vec<ModuleId>>,
+    module_ids: &Option<Vec<ModuleId>>,
 ) {
     let channel_name_owned = channel_name.to_string();
     let topic_owned = topic.to_string();
+    let module_ids_owned = module_ids.clone();
     // Spawn async task to avoid blocking PubSub handler during file operations
     tokio::spawn(async move {
         // Fetch content with providers (hermes-ipfs connects to them first)
@@ -826,7 +865,7 @@ fn process_broadcasted_cids(
         for content in contents {
             drop(
                 OnNewDocEvent::new(&channel_name_owned, &content)
-                    .build_and_send(app_names.clone(), module_ids.clone()),
+                    .build_and_send(app_names.clone(), module_ids_owned.clone()),
             );
         }
     });

@@ -109,7 +109,8 @@ impl Host for HermesRuntimeContext {
             self.app_name(),
             None,
             &topic,
-            None,
+            // TODO[RC]: Get rid of &
+            &None,
         ))
     }
 

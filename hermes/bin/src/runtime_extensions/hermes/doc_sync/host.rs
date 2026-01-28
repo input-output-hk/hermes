@@ -136,7 +136,7 @@ impl HostSyncChannel for HermesRuntimeContext {
                 self.app_name(),
                 Some(tree),
                 &topic,
-                Some(vec![self.module_id().clone()]),
+                &Some(vec![self.module_id().clone()]),
             ) {
                 DOC_SYNC_STATE.remove(&resource);
                 return Err(wasmtime::Error::msg(format!(
@@ -481,7 +481,7 @@ fn publish_new_payload(
         ctx.app_name(),
         None,
         &topic_new,
-        Some(vec![ctx.module_id().clone()]),
+        &Some(vec![ctx.module_id().clone()]),
     ) {
         Ok(_) => tracing::info!("✓ Subscribed to topic: {topic_new}"),
         Err(e) => tracing::warn!("⚠ Subscribe warning: {e}"),
