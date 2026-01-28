@@ -10,7 +10,7 @@ use crate::ipfs::{
     topic_message_context::TopicMessageContext,
 };
 
-pub(super) trait DocSyncTopicHandler<'a>: Sized
+pub(crate) trait DocSyncTopicHandler<'a>: Sized
 where Self: minicbor::Decode<'a, ()>
 {
     const TOPIC_SUFFIX: &'static str;
@@ -113,7 +113,7 @@ impl DocSyncTopicHandler<'_> for payload::New {
     }
 }
 
-pub(super) fn handle_doc_sync_topic<'a, TH: DocSyncTopicHandler<'a>>(
+pub(crate) fn handle_doc_sync_topic<'a, TH: DocSyncTopicHandler<'a>>(
     message: &'a hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
     context: TopicMessageContext,

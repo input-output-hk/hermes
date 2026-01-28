@@ -26,9 +26,7 @@ use super::HERMES_IPFS;
 use crate::{
     app::ApplicationName,
     ipfs::{
-        self, api::hermes_ipfs_unsubscribe, doc_sync_topic_handler::handle_doc_sync_topic,
-        hermes_ipfs_get_peer_identity, hermes_ipfs_publish, hermes_ipfs_subscribe,
-        topic_message_context::TopicMessageContext,
+        self, api::hermes_ipfs_unsubscribe, doc_sync::handle_doc_sync_topic, hermes_ipfs_get_peer_identity, hermes_ipfs_publish, hermes_ipfs_subscribe, topic_message_context::TopicMessageContext
     },
     runtime_extensions::{
         bindings::hermes::ipfs::api::{
