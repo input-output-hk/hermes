@@ -21,7 +21,7 @@ where Self: minicbor::Decode<'a, ()>
         topic: &str,
         source: Option<hermes_ipfs::PeerId>,
         context: &TopicMessageContext,
-    ) -> Result<(), ()>;
+    ) -> anyhow::Result<()>;
 }
 
 impl DocSyncTopicHandler<'_> for payload::New {
@@ -32,11 +32,11 @@ impl DocSyncTopicHandler<'_> for payload::New {
         topic: &str,
         source: Option<hermes_ipfs::PeerId>,
         context: &TopicMessageContext,
-    ) -> Result<(), ()> {
+    ) -> anyhow::Result<()> {
         let Some(tree) = context.tree() else {
-            tracing::error!("Context for payload::New handler must contain an SMT.");
-            // TODO[RC]: Add error type and log errors in the upper layer.
-            return Err(());
+            return Err(anyhow::anyhow!(
+                "Context for payload::New handler must contain an SMT."
+            ));
         };
 
         match DocumentDisseminationBody::from(self) {
@@ -70,8 +70,11 @@ impl DocSyncTopicHandler<'_> for payload::New {
                                     tracing::info!("starting reconciliation");
                                     let Some(channel_name) = topic.strip_suffix(Self::TOPIC_SUFFIX)
                                     else {
-                                        tracing::error!(%topic, "Wrong topic suffix, expected {}", Self::TOPIC_SUFFIX);
-                                        return Err(());
+                                        return Err(anyhow::anyhow!(
+                                            "Wrong topic, expected topic with suffix {}, but got {}",
+                                            Self::TOPIC_SUFFIX,
+                                            topic
+                                        ));
                                     };
                                     if let Err(err) = reconciliation::start_reconciliation(
                                         doc_reconciliation_data,
@@ -81,22 +84,27 @@ impl DocSyncTopicHandler<'_> for payload::New {
                                         context.module_ids(),
                                         source.map(|p| p.to_string()),
                                     ) {
-                                        tracing::error!(%err, "Failed to start reconciliation");
-                                        return Err(());
+                                        return Err(anyhow::anyhow!(
+                                            "Failed to start reconciliation: {err}",
+                                        ));
                                     }
                                     return Ok(());
                                 },
                             }
                         },
                         Err(err) => {
-                            tracing::error!(%err, "Failed to create reconciliation state");
-                            return Err(());
+                            return Err(anyhow::anyhow!(
+                                "Failed to create reconciliation state: {err}",
+                            ));
                         },
                     }
                 } else {
                     let Some(channel_name) = topic.strip_suffix(Self::TOPIC_SUFFIX) else {
-                        tracing::error!(%topic, "Wrong topic suffix, expected {}", Self::TOPIC_SUFFIX);
-                        return Err(());
+                        return Err(anyhow::anyhow!(
+                            "Wrong topic, expected topic with suffix {}, but got {}",
+                            Self::TOPIC_SUFFIX,
+                            topic,
+                        ));
                     };
                     process_broadcasted_cids(
                         &topic,
@@ -109,8 +117,9 @@ impl DocSyncTopicHandler<'_> for payload::New {
                 }
             },
             DocumentDisseminationBody::Manifest { .. } => {
-                tracing::error!("Manifest is not supported in a .new payload");
-                return Err(());
+                return Err(anyhow::anyhow!(
+                    "Manifest is not supported in a .new payload",
+                ));
             },
         }
     }
@@ -120,17 +129,20 @@ pub(crate) fn handle_doc_sync_topic<'a, TH: DocSyncTopicHandler<'a>>(
     message: &'a hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
     context: TopicMessageContext,
-) -> Result<(), ()> {
+) -> Option<anyhow::Result<()>> {
     if !topic.ends_with(TH::TOPIC_SUFFIX) {
-        return Err(());
+        return None;
     }
 
     let decoded = <TH as DocSyncTopicHandler>::decode(&message.data);
     match decoded {
-        Ok(handler) => handler.handle(&topic, message.source, &context),
+        Ok(handler) => Some(handler.handle(&topic, message.source, &context)),
         Err(err) => {
-            tracing::error!(%topic, %err, topic_suffix = %TH::TOPIC_SUFFIX, "Failed to decode payload from IPFS message");
-            return Err(());
+            return Some(Err(anyhow::anyhow!(
+                "Failed to decode payload from IPFS message on topic {}: {}",
+                topic,
+                err
+            )));
         },
     }
 }

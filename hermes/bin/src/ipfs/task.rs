@@ -397,8 +397,10 @@ fn doc_sync_topic_message_handler(
         );
     }
 
-    // TODO[RC]: Handle properly.
-    let _ = handle_doc_sync_topic::<payload::New>(&message, topic, context);
+    let result = handle_doc_sync_topic::<payload::New>(&message, topic, context);
+    if let Some(Err(err)) = result {
+        tracing::error!("Failed to handle IPFS message: {}", err);
+    }
 }
 
 /// Processes the received CIDs from a broadcasted message.
