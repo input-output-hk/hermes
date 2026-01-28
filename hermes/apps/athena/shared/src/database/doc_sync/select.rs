@@ -68,3 +68,20 @@ pub fn get_documents_cids_by_topic(
         })
         .collect()
 }
+
+/// Selects all of the available channels.
+///
+/// # Errors
+///
+/// Returns an error if sqlite returns it during data fetching or query preparation
+/// or if the row cannot be converted into [`DocumentRow`].
+pub fn get_channels(conn: &mut sqlite::Connection) -> anyhow::Result<Vec<String>> {
+    conn.prepare(sql::DOC_SYNC.select_topics)?
+        .query(&[])?
+        .and_then(|row_result| {
+            row_result?
+                .get_as::<String>(0)
+                .map_err(|err| anyhow::anyhow!("get cids by topic error: {err}"))
+        })
+        .collect()
+}

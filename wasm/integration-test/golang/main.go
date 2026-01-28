@@ -70,6 +70,10 @@ func (t TestModule) RetrieveDoc(channel doc_sync_read.ChannelName, doc doc_sync_
 	return cm.None[doc_sync_read.DocData]()
 }
 
+func (t TestModule) ReturnChannels() cm.List[doc_sync_read.ChannelName] {
+    return cm.ToList([]doc_sync_read.ChannelName{})
+}
+
 
 func init() {
 	module := TestModule{}
@@ -88,6 +92,7 @@ func init() {
 	doc_sync.Exports.OnNewDoc = module.OnNewDoc
 	doc_sync_read.Exports.ReturnCids = module.ReturnCids
 	doc_sync_read.Exports.RetrieveDoc = module.RetrieveDoc
+	doc_sync_read.Exports.ReturnChannels = module.ReturnChannels
 }
 
 func main() {}

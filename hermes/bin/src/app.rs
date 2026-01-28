@@ -5,6 +5,8 @@ use std::{
     sync::{Arc, Once},
 };
 
+use hermes_ipfs::Cid;
+
 use crate::{
     event::HermesEventPayload,
     pool,
@@ -118,6 +120,20 @@ impl Application {
             }
         }
         Ok(())
+    }
+
+    /// Tries to get SMT from every app module.
+    pub(crate) fn get_cids(&self) -> Vec<(String, Vec<Cid>)> {
+        let mut cids = vec![];
+        for module in self.indexed_modules.values() {
+            match module.try_get_cids(self.vfs.clone()) {
+                Ok(inner_cids) => cids.extend_from_slice(&inner_cids),
+                Err(e) => {
+                    tracing::debug!("Failed to get cids for module {}: {:#}", module.id(), e);
+                },
+            }
+        }
+        cids
     }
 
     /// Dispatch event for the target module by the `module_id`.

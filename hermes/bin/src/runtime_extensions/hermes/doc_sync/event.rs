@@ -18,6 +18,20 @@ unchecked_exports::define! {
     }
 }
 
+unchecked_exports::define! {
+    /// Extends [`wasmtime::component::Instance`] with guest functions for Doc Sync.
+    pub(crate) trait ReadComponentInstanceExt {
+         #[wit("hermes:doc-sync/event-document-provider", "return-cids")]
+        fn hermes_event_document_provider_return_cids(channel: &str) -> Vec<Vec<u8>>;
+
+         #[wit("hermes:doc-sync/event-document-provider", "retrieve-doc")]
+        fn hermes_event_document_provider_retrieve_doc(channel: &str, cid: &[u8]) -> Option<Vec<u8>>;
+
+         #[wit("hermes:doc-sync/event-document-provider", "return-channels")]
+        fn hermes_event_document_provider_return_channels() -> Vec<String>;
+    }
+}
+
 /// Event payload for the `on-http-response` event.
 #[derive(Clone)]
 pub(crate) struct OnNewDocEvent {
