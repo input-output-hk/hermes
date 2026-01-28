@@ -32,7 +32,6 @@ impl TopicMessageContext {
         }
     }
 
-    // TODO[RC]: Option<&[ModuleId]>?
     pub(super) fn module_ids(&self) -> Option<&Vec<ModuleId>> {
         self.module_ids.as_ref()
     }
