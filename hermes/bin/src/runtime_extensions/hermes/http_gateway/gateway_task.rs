@@ -14,8 +14,8 @@ use tracing::{debug, error, info};
 
 use super::routing::router;
 
-/// HTTP Gateway default port
-const DEFAULT_GATEWAY_PORT: u16 = 5000;
+/// HTTP Gateway default port (`7878` avoids conflicts with macOS `AirPlay` on `5000`)
+const DEFAULT_GATEWAY_PORT: u16 = 7878;
 
 /// hostname (node name)
 #[cfg_attr(debug_assertions, derive(Debug))]

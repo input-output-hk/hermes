@@ -260,7 +260,7 @@ clean-hfs:
     fi
 
 # Run the Athena application
-# Test with: curl -H "Host: app.hermes.local" http://localhost:5000/api/gateway/v1/rbac/registration
+# Test with: curl -H "Host: app.hermes.local" http://localhost:7878/api/gateway/v1/rbac/registration
 run-athena:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -289,7 +289,7 @@ run-athena:
     echo "   Allowed Path Prefixes: $REDIRECT_ALLOWED_PATH_PREFIXES"
     echo ""
     echo "🌐 Starting HTTP server..."
-    echo "💡 Test with: curl -H 'Host: app.hermes.local' http://localhost:5000/api/gateway/v1/rbac/registration"
+    echo "💡 Test with: curl -H 'Host: app.hermes.local' http://localhost:7878/api/gateway/v1/rbac/registration"
     echo "🛑 Press Ctrl+C to stop"
     echo ""
 
