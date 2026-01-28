@@ -112,13 +112,10 @@ fn make_syn_payload(
     let peer_info = hermes_ipfs_get_peer_identity(app_name, peer);
     let public_key = match peer_info {
         Ok(peer_info) => {
-            let public_key = peer_info.public_key;
-            let maybe_ed25519_public_key = public_key.try_into_ed25519();
-            match maybe_ed25519_public_key {
+            match peer_info.public_key.try_into_ed25519() {
                 Ok(key) => {
                     let ed25519_public_key_bytes = key.to_bytes();
-                    let ed25519_public_key_hermes = PublicKey::try_from(ed25519_public_key_bytes)?;
-                    Some(ed25519_public_key_hermes)
+                    PublicKey::try_from(ed25519_public_key_bytes).ok()
                 },
                 Err(err) => {
                     tracing::info!(%err, "failed to convert key to ed25519, sending SYN request without explicit 'to' field");
