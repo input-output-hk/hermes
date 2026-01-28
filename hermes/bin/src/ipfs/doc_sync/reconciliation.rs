@@ -17,6 +17,11 @@ use crate::{
     wasm::module::ModuleId,
 };
 
+/// If we have less documents than this we'll always request full state form peer
+/// during the document reconciliation process. If we have more, we'll request
+/// just a proper subtree.
+const DOC_SYNC_PREFIXES_THRESHOLD: u64 = 64;
+
 /// A result of deciding whether the document reconciliation process is needed
 pub(crate) enum DocReconciliation {
     /// Reconciliation is not needed
@@ -37,24 +42,6 @@ pub(crate) struct DocReconciliationData {
     their_count: u64,
     /// A set of SMT prefixes at a coarse height
     prefixes: Vec<Option<Blake3256>>,
-}
-
-impl DocReconciliationData {
-    pub(crate) fn new(
-        our_root: Blake3256,
-        our_count: u64,
-        their_root: Blake3256,
-        their_count: u64,
-        prefixes: Vec<Option<Blake3256>>,
-    ) -> Self {
-        Self {
-            our_root,
-            our_count,
-            their_root,
-            their_count,
-            prefixes,
-        }
-    }
 }
 
 /// Starts the document reconciliation process.
@@ -169,4 +156,60 @@ fn send_syn_payload(
         .map_err(|e| anyhow::anyhow!("Failed to encode syn_payload::MsgSyn: {e}"))?;
     hermes_ipfs_publish(app_name, &topic, payload_bytes)?;
     Ok(())
+}
+
+/// Creates the reconciliation state based on our and remote peer SMT states.
+pub(super) fn create_reconciliation_state(
+    their_root: Blake3256,
+    their_count: u64,
+    tree: &Mutex<Tree<doc_sync::Cid>>,
+) -> anyhow::Result<DocReconciliation> {
+    let Ok(tree) = tree.lock() else {
+        return Err(anyhow::anyhow!("SMT lock poisoned"));
+    };
+
+    let our_root = tree.root();
+    let maybe_our_root_bytes: Result<[u8; 32], _> = our_root.as_slice().try_into();
+    let Ok(our_root_bytes) = maybe_our_root_bytes else {
+        return Err(anyhow::anyhow!("SMT root should be 32 bytes"));
+    };
+    let our_root = Blake3256::from(our_root_bytes);
+
+    if our_root == their_root {
+        return Ok(DocReconciliation::NotNeeded);
+    }
+
+    let our_count = tree.count();
+    let Ok(our_count) = our_count.try_into() else {
+        return Err(anyhow::anyhow!(
+            "tree element count must be representable as u64"
+        ));
+    };
+
+    let prefixes = if our_count > DOC_SYNC_PREFIXES_THRESHOLD {
+        let coarse_height = tree.coarse_height();
+        let slice = tree.horizontal_slice_at(coarse_height)?;
+        let mut prefixes = Vec::with_capacity(2_usize.pow(u32::from(coarse_height)));
+        for node in slice {
+            let maybe_node = node?;
+            match maybe_node {
+                Some(node) => {
+                    let node_bytes: [u8; 32] = node.as_slice().try_into()?;
+                    prefixes.push(Some(Blake3256::from(node_bytes)));
+                },
+                None => prefixes.push(None),
+            }
+        }
+        prefixes
+    } else {
+        vec![]
+    };
+
+    Ok(DocReconciliation::Needed(DocReconciliationData {
+        our_root,
+        our_count,
+        their_root,
+        their_count,
+        prefixes,
+    }))
 }

@@ -3,8 +3,7 @@ use std::sync::Arc;
 use hermes_ipfs::doc_sync::payload::{self, CommonFields, DocumentDisseminationBody};
 
 use crate::ipfs::{
-    doc_sync::reconciliation,
-    task::{create_reconciliation_state, process_broadcasted_cids},
+    doc_sync::reconciliation, task::process_broadcasted_cids,
     topic_message_context::TopicMessageContext,
 };
 
@@ -54,7 +53,11 @@ impl DocSyncTopicHandler<'_> for payload::New {
                 tracing::info!("RECEIVED PubSub message with CIDs: {:?}", docs);
 
                 if docs.is_empty() {
-                    match create_reconciliation_state(their_root, their_count, tree.as_ref()) {
+                    match reconciliation::create_reconciliation_state(
+                        their_root,
+                        their_count,
+                        tree.as_ref(),
+                    ) {
                         Ok(doc_reconciliation) => {
                             match doc_reconciliation {
                                 reconciliation::DocReconciliation::NotNeeded => {
