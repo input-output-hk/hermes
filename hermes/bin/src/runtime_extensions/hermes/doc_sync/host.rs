@@ -127,26 +127,27 @@ impl HostSyncChannel for HermesRuntimeContext {
             )));
         }
 
-        let tree = Arc::clone(&channel_state.smt);
+        for topic_suffix in [".new", ".syn"] {
+            let tree = Arc::clone(&channel_state.smt);
+            let topic = format!("{name}{topic_suffix}");
+            // When the channel is created, subscribe to two topics: <name>.new and <name>.syn
+            if let Err(err) = hermes_ipfs_subscribe(
+                ipfs::SubscriptionKind::DocSync,
+                self.app_name(),
+                Some(tree),
+                &topic,
+                Some(vec![self.module_id().clone()]),
+            ) {
+                DOC_SYNC_STATE.remove(&resource);
+                return Err(wasmtime::Error::msg(format!(
+                    "Subscription to {topic} failed: {err}",
+                )));
+            }
+            tracing::info!("Created Doc Sync Channel: {name}");
 
-        let topic_new = format!("{name}.new");
-        // When the channel is created, subscribe to .new <base>.<topic>
-        if let Err(err) = hermes_ipfs_subscribe(
-            ipfs::SubscriptionKind::DocSync,
-            self.app_name(),
-            Some(tree),
-            &topic_new,
-            Some(vec![self.module_id().clone()]),
-        ) {
-            DOC_SYNC_STATE.remove(&resource);
-            return Err(wasmtime::Error::msg(format!(
-                "Subscription to {topic_new} failed: {err}",
-            )));
+            // DO NOT REMOVE THIS LOG, it is used in the test
+            tracing::info!("Subscribed to {topic_suffix} with base {name}");
         }
-        tracing::info!("Created Doc Sync Channel: {name}");
-
-        // DO NOT REMOVE THIS LOG, it is used in the test
-        tracing::info!("Subscribed to .new with base {name}");
 
         let timers_to_start;
         // When subscribe is successful, create and start the timer

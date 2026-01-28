@@ -1,6 +1,6 @@
 # Hermes P2P Testing
 
-6-node P2P mesh for testing Gossipsub message propagation.
+12-node P2P mesh for testing Gossipsub message propagation.
 
 ---
 
@@ -23,7 +23,7 @@ The mesh starts, tests run automatically, and you'll see if PubSub propagation w
 
 ```bash
 # Start the mesh
-just start                       # Starts 6 nodes, waits for mesh formation
+just start                       # Starts all nodes, waits for mesh formation
 
 # Test PubSub propagation
 just test-pubsub-propagation     # Sends message from node 1 → all others
@@ -64,8 +64,8 @@ test-peer-connectivity:
     #!/usr/bin/env bash
     set -euo pipefail
     echo "Testing peer connectivity..."
-    for NODE in {1..6}; do
-      PORT=$((7878 + (NODE-1)*2))
+    for NODE in {1..12}; do
+      PORT=$((5000 + (NODE-1)*2))
       if curl -s -f http://localhost:$PORT/health > /dev/null 2>&1; then
         echo "✅ Node $NODE (port $PORT) responding"
       else
@@ -202,23 +202,18 @@ just troubleshoot                            # Full diagnostics report
 
 ## How It Works
 
-**Why 6 nodes?**
-Gossipsub uses `mesh_n=6` by default.
-With fewer nodes, you get "Mesh low" warnings and incomplete propagation.
-With 6 nodes, each connects to 5 others forming a complete mesh.
-
 **Network Topology:**
 
-* 6 nodes in full mesh (15 bidirectional connections)
-* IPs: 172.20.0.10 through 172.20.0.15
-* HTTP ports: 7878, 7880, 7882, 7884, 7886, 7888
+* 6 nodes in full mesh (66 bidirectional connections)
+* IPs: 172.20.0.10 through 172.20.0.21
+* HTTP ports: 5000, 5002, 5004, 5006, 5008, 5010, 5012, 5014, 5016, 5018, 5020, 5022
 * Persistent peer IDs stored in Docker volumes
 
 **What happens in a test:**
 
 1. Node 1 receives HTTP POST → publishes to PubSub topic "documents.new"
 2. Gossipsub propagates message through mesh
-3. All other nodes (2-6) receive and validate the message
+3. All other nodes (2-12) receive and validate the message
 4. Test verifies propagation by checking logs
 
 **Behind `just quickstart`:**
@@ -296,7 +291,7 @@ just start-ci && just test-ci && just clean
 ## Files
 
 * `justfile` - All commands and documentation
-* `docker-compose.yml` - 6-node configuration
+* `docker-compose.yml` - 12-node configuration
 * `Dockerfile` - Container image
 * `TROUBLESHOOTING.md` - Detailed debugging guide
 
@@ -307,14 +302,20 @@ just start-ci && just test-ci && just clean
 **Network Topology:**
 
 ```text
-Full Mesh: Each node connects to all 5 others
-Total connections: 15 bidirectional links
+Full Mesh: Each node connects to all 11 others
+Total connections: 66 bidirectional links
 
 Node 1 (172.20.0.10) ←→ Node 2 (172.20.0.11)
 Node 1 (172.20.0.10) ←→ Node 3 (172.20.0.12)
 Node 1 (172.20.0.10) ←→ Node 4 (172.20.0.13)
 Node 1 (172.20.0.10) ←→ Node 5 (172.20.0.14)
 Node 1 (172.20.0.10) ←→ Node 6 (172.20.0.15)
+Node 1 (172.20.0.10) ←→ Node 7 (172.20.0.16)
+Node 1 (172.20.0.10) ←→ Node 8 (172.20.0.17)
+Node 1 (172.20.0.10) ←→ Node 9 (172.20.0.18)
+Node 1 (172.20.0.10) ←→ Node 10 (172.20.0.19)
+Node 1 (172.20.0.10) ←→ Node 11 (172.20.0.20)
+Node 1 (172.20.0.10) ←→ Node 12 (172.20.0.21)
 ... (and so on for all node pairs)
 ```
 

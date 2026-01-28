@@ -98,8 +98,8 @@ just start
 
 ```bash
 # Check what's using ports
-lsof -i :7878
-netstat -tuln | grep -E ':(7878|7880|7882|7884|7886|7888)'
+lsof -i :5000
+netstat -tuln | grep -E ':(5000|5002|5004|5006|5008|5010|5012|5014|5016|5018|5020|5022)'
 
 # Fix: Stop existing instances
 just stop
@@ -302,8 +302,8 @@ When things go wrong, run through this checklist:
 * [ ] **Prerequisites OK?** → `just validate-prereqs`
 * [ ] **Docker running?** → `docker info`
 * [ ] **Nodes running?** → `docker compose ps`
-* [ ] **All 6 nodes up?** → Should show 6 containers "Up"
-* [ ] **Ports available?** → `lsof -i :7878` (should be empty or show our containers)
+* [ ] **All 12 nodes up?** → Should show 12 containers "Up"
+* [ ] **Ports available?** → `lsof -i :5000` (should be empty or show our containers)
 * [ ] **Peer connections?** → `just check-connectivity` (should see 30 connections)
 * [ ] **Gossipsub active?** → `just logs | grep -i gossipsub` (should see many entries)
 * [ ] **Bootstrap OK?** → `just logs | grep "All bootstrap peers connected"`
