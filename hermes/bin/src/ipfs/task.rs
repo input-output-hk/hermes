@@ -460,7 +460,10 @@ fn doc_sync_topic_message_handler(
     context: TopicMessageContext,
 ) {
     if let Ok(msg_str) = std::str::from_utf8(&message.data) {
-        tracing::info!("RECEIVED PubSub message on topic: {topic} - data: {msg_str}",);
+        tracing::info!(
+            "RECEIVED PubSub message on topic: {topic} - data: {}",
+            &msg_str[..100]
+        );
     }
 
     // TODO: match the topic against a static list.
