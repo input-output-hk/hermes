@@ -7,7 +7,7 @@ use crate::ipfs::{
     topic_message_context::TopicMessageContext,
 };
 
-pub(crate) trait DocSyncTopicHandler<'a>: Sized
+pub(crate) trait TopicHandler<'a>: Sized
 where Self: minicbor::Decode<'a, ()>
 {
     const TOPIC_SUFFIX: &'static str;
@@ -24,7 +24,7 @@ where Self: minicbor::Decode<'a, ()>
     ) -> anyhow::Result<()>;
 }
 
-impl DocSyncTopicHandler<'_> for payload::New {
+impl TopicHandler<'_> for payload::New {
     const TOPIC_SUFFIX: &'static str = ".new";
 
     fn handle(
@@ -125,7 +125,7 @@ impl DocSyncTopicHandler<'_> for payload::New {
     }
 }
 
-pub(crate) fn handle_doc_sync_topic<'a, TH: DocSyncTopicHandler<'a>>(
+pub(crate) fn handle_doc_sync_topic<'a, TH: TopicHandler<'a>>(
     message: &'a hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
     context: TopicMessageContext,
@@ -134,7 +134,7 @@ pub(crate) fn handle_doc_sync_topic<'a, TH: DocSyncTopicHandler<'a>>(
         return None;
     }
 
-    let decoded = <TH as DocSyncTopicHandler>::decode(&message.data);
+    let decoded = <TH as TopicHandler>::decode(&message.data);
     match decoded {
         Ok(handler) => Some(handler.handle(&topic, message.source, &context)),
         Err(err) => {
