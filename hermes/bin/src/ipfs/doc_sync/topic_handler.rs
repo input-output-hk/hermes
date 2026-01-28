@@ -3,10 +3,8 @@ use std::sync::Arc;
 use hermes_ipfs::doc_sync::payload::{self, CommonFields, DocumentDisseminationBody};
 
 use crate::ipfs::{
-    task::{
-        DocReconciliation, create_reconciliation_state, process_broadcasted_cids,
-        start_reconciliation,
-    },
+    doc_sync::reconciliation,
+    task::{create_reconciliation_state, process_broadcasted_cids},
     topic_message_context::TopicMessageContext,
 };
 
@@ -59,18 +57,20 @@ impl DocSyncTopicHandler<'_> for payload::New {
                     match create_reconciliation_state(their_root, their_count, tree.as_ref()) {
                         Ok(doc_reconciliation) => {
                             match doc_reconciliation {
-                                DocReconciliation::NotNeeded => {
+                                reconciliation::DocReconciliation::NotNeeded => {
                                     tracing::info!("reconciliation not needed");
                                     return Ok(());
                                 },
-                                DocReconciliation::Needed(doc_reconciliation_data) => {
+                                reconciliation::DocReconciliation::Needed(
+                                    doc_reconciliation_data,
+                                ) => {
                                     tracing::info!("starting reconciliation");
                                     let Some(channel_name) = topic.strip_suffix(Self::TOPIC_SUFFIX)
                                     else {
                                         tracing::error!(%topic, "Wrong topic suffix, expected {}", Self::TOPIC_SUFFIX);
                                         return Err(());
                                     };
-                                    if let Err(err) = start_reconciliation(
+                                    if let Err(err) = reconciliation::start_reconciliation(
                                         doc_reconciliation_data,
                                         context.app_name(),
                                         Arc::clone(tree),
