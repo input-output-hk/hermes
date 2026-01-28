@@ -93,8 +93,8 @@ _wait-for-http retries="6" delay="5":
     DELAY={{delay}}
 
     for ((i=1; i<=MAX_RETRIES; i++)); do
-        if curl -s -f -m 5 http://localhost:7878/health >/dev/null 2>&1 || \
-           curl -s -f -m 5 http://localhost:7878/ >/dev/null 2>&1; then
+        if curl -s -f -m 5 http://localhost:5000/health >/dev/null 2>&1 || \
+           curl -s -f -m 5 http://localhost:5000/ >/dev/null 2>&1; then
             exit 0
         fi
 
@@ -115,7 +115,7 @@ _post-message message retries="3":
     MESSAGE="{{message}}"
 
     for ((i=1; i<=MAX_RETRIES; i++)); do
-        RESPONSE=$(curl -s -X POST http://localhost:7878/api/doc-sync/post \
+        RESPONSE=$(curl -s -X POST http://localhost:5000/api/doc-sync/post \
           -H "Host: athena.hermes.local" \
           -H "Content-Type: text/plain" \
           -d "$MESSAGE" 2>&1)
@@ -623,7 +623,7 @@ troubleshoot:
         fi
 
         # Check for port conflicts
-        if ss -tuln 2>/dev/null | grep -qE ":(7878|7880|7882)" || netstat -tuln 2>/dev/null | grep -qE ":(7878|7880|7882)"; then
+        if ss -tuln 2>/dev/null | grep -qE ":(5000|5002|5004)" || netstat -tuln 2>/dev/null | grep -qE ":(5000|5002|5004)"; then
             echo "⚠️  Port conflicts detected"
             echo "   → Solution: just stop"
             echo ""
@@ -1062,7 +1062,7 @@ _test-pubsub-explain:
     echo ""
     echo -e "  ${BLUE}┌─────────────────────────────────────────────────────┐${RESET}"
     echo -e "  ${BLUE}│${RESET}  Our test sends HTTP POST to Node 1's endpoint:  ${BLUE}│${RESET}"
-    echo -e "  ${BLUE}│${RESET}  ${BOLD}http://localhost:7878/api/doc-sync/post${RESET}        ${BLUE}│${RESET}"
+    echo -e "  ${BLUE}│${RESET}  ${BOLD}http://localhost:5000/api/doc-sync/post${RESET}        ${BLUE}│${RESET}"
     echo -e "  ${BLUE}│${RESET}                                                   ${BLUE}│${RESET}"
     echo -e "  ${BLUE}│${RESET}  → Node 1 receives the message via HTTP          ${BLUE}│${RESET}"
     echo -e "  ${BLUE}│${RESET}  → Node 1 publishes to PubSub topic 'doc-sync'   ${BLUE}│${RESET}"
@@ -1101,7 +1101,7 @@ _test-pubsub-explain:
     echo ""
     echo -e "  The test sends an HTTP POST to Node 1's endpoint:"
     echo ""
-    echo -e "  ${BLUE}curl -X POST http://localhost:7878/api/doc-sync/post${RESET} \\"
+    echo -e "  ${BLUE}curl -X POST http://localhost:5000/api/doc-sync/post${RESET} \\"
     echo -e "       ${BLUE}-H \"Host: athena.hermes.local\"${RESET} \\"
     echo -e "       ${BLUE}-H \"Content-Type: text/plain\"${RESET} \\"
     echo -e "       ${BLUE}-d \"PubSub Test - Timestamp: <timestamp>\"${RESET}"
@@ -1111,7 +1111,7 @@ _test-pubsub-explain:
     echo -e "  ${GREEN}→${RESET} Gossipsub propagates the message to all subscribed nodes"
     echo ""
     echo -e "  ${YELLOW}Note:${RESET} Any node could be the publisher if you POST to its endpoint"
-    echo -e "        (e.g., POST to localhost:7880 would make Node 2 the publisher)"
+    echo -e "        (e.g., POST to localhost:5002 would make Node 2 the publisher)"
     echo ""
 
 # Internal: Execute core test and store results
@@ -1136,7 +1136,7 @@ _test-pubsub-execute:
     echo -e "${BLUE}Waiting for HTTP endpoints to initialize...${RESET}"
     sleep 5
     echo -n "  Checking Node 1 HTTP endpoint... "
-    if curl -s -f -m 5 -H "Host: athena.hermes.local" http://localhost:7878/ >/dev/null 2>&1; then
+    if curl -s -f -m 5 -H "Host: athena.hermes.local" http://localhost:5000/ >/dev/null 2>&1; then
         echo -e "${GREEN}✓${RESET}"
     else
         echo -e "${YELLOW}⚠️  Not responding yet, waiting...${RESET}"
@@ -1153,7 +1153,7 @@ _test-pubsub-execute:
     echo -e "  ${BOLD}📨 Message:${RESET} ${BLUE}\"$TEST_MESSAGE\"${RESET}"
     echo ""
 
-    RESPONSE=$(curl -s -X POST http://localhost:7878/api/doc-sync/post \
+    RESPONSE=$(curl -s -X POST http://localhost:5000/api/doc-sync/post \
       -H "Host: athena.hermes.local" \
       -H "Content-Type: text/plain" \
       -d "$TEST_MESSAGE" 2>&1)
@@ -1602,7 +1602,7 @@ test-bidirectional-sync:
     TIMESTAMP=$(date +%s)
     # TODO - replace this with real document
     DOC="Test Document sync - Timestamp: $TIMESTAMP"
-    CID=$(just _post-document "$DOC" "7878")
+    CID=$(just _post-document "$DOC" "5000")
     CID_LIST+=($CID)
 
     echo ""
@@ -1693,7 +1693,7 @@ test-late-join-sync:
     TIMESTAMP=$(date +%s)
     # TODO - replace this with real document
     DOC="Test Document 1 - Timestamp: $TIMESTAMP"
-    CID=$(just _post-document "$DOC" "7878")
+    CID=$(just _post-document "$DOC" "5000")
     CID_LIST+=($CID)
     echo ""
 
@@ -1701,7 +1701,7 @@ test-late-join-sync:
     TIMESTAMP=$(date +%s)
     # TODO - replace this with real document
     DOC="Test Document 1.1 - Timestamp: $TIMESTAMP"
-    CID=$(just _post-document "$DOC" "7878")
+    CID=$(just _post-document "$DOC" "5000")
     CID_LIST+=($CID)
     echo ""
 
@@ -1709,7 +1709,7 @@ test-late-join-sync:
     TIMESTAMP=$(date +%s)
     # TODO - replace this with real document
     DOC="Test Document 2 - Timestamp: $TIMESTAMP"
-    CID=$(just _post-document "$DOC" "7878")
+    CID=$(just _post-document "$DOC" "5000")
     CID_LIST+=($CID)
     echo ""
 
@@ -1717,7 +1717,7 @@ test-late-join-sync:
     TIMESTAMP=$(date +%s)
     # TODO - replace this with real document
     DOC="Test Document 3 - Timestamp: $TIMESTAMP"
-    CID=$(just _post-document "$DOC" "7878")
+    CID=$(just _post-document "$DOC" "5000")
     CID_LIST+=($CID)
     echo ""
 

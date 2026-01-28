@@ -112,7 +112,7 @@ test-throughput COUNT="100":
 
     START=$(date +%s)
     for i in $(seq 1 {{COUNT}}); do
-      curl -s -X POST http://localhost:7878/api/doc-sync/post \
+      curl -s -X POST http://localhost:5000/api/doc-sync/post \
         -H "Host: athena.hermes.local" \
         -H "Content-Type: text/plain" \
         -d "msg-$i" > /dev/null

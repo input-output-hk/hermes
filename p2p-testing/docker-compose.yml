@@ -35,7 +35,7 @@ services:
 
     environment:
       # HTTP Gateway Configuration
-      - HERMES_HTTP_PORT=7878            # Internal port (mapped to 7878 on host)
+      - HERMES_HTTP_PORT=5000            # Internal port (mapped to 5000 on host)
       - HERMES_ACTIVATE_AUTH=true        # Enable authentication
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
@@ -53,7 +53,7 @@ services:
 
     ports:
       # Format: "host:container"
-      - "7878:7878"  # HTTP Gateway - test messages via POST to this port
+      - "5000:5000"  # HTTP Gateway - test messages via POST to this port
       - "4001:4001"  # IPFS Swarm (P2P networking)
       - "5001:5001"  # IPFS API (optional, for debugging)
 
@@ -84,7 +84,7 @@ services:
     hostname: node2
 
     environment:
-      - HERMES_HTTP_PORT=7878
+      - HERMES_HTTP_PORT=5000
       - HERMES_ACTIVATE_AUTH=true
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
@@ -95,7 +95,7 @@ services:
 
     ports:
       # Different host ports to avoid conflicts (all containers expose same internal ports)
-      - "7880:7878"  # HTTP Gateway on host port 7880
+      - "5002:5000"  # HTTP Gateway on host port 5002
       - "4002:4001"  # IPFS Swarm
       - "5003:5001"  # IPFS API
 
@@ -124,7 +124,7 @@ services:
     hostname: node3
 
     environment:
-      - HERMES_HTTP_PORT=7878
+      - HERMES_HTTP_PORT=5000
       - HERMES_ACTIVATE_AUTH=true
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
@@ -134,7 +134,7 @@ services:
       - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWC8vWNWqQQ24rV4SyjQNuuzvANssHji1zmKX5PrtuX5QE,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWCthvwVSv2jcxiJbGwCRXatrhmt86TZJkuWixtudYNzDW
 
     ports:
-      - "7882:7878"
+      - "5004:5000"
       - "4003:4001"
       - "5005:5001"
 
@@ -163,7 +163,7 @@ services:
     hostname: node4
 
     environment:
-      - HERMES_HTTP_PORT=7878
+      - HERMES_HTTP_PORT=5000
       - HERMES_ACTIVATE_AUTH=true
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
@@ -175,7 +175,7 @@ services:
       - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWC8vWNWqQQ24rV4SyjQNuuzvANssHji1zmKX5PrtuX5QE,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWCthvwVSv2jcxiJbGwCRXatrhmt86TZJkuWixtudYNzDW
 
     ports:
-      - "7884:7878"
+      - "5006:5000"
       - "4004:4001"
       - "5007:5001"
 
@@ -204,7 +204,7 @@ services:
     hostname: node5
 
     environment:
-      - HERMES_HTTP_PORT=7878
+      - HERMES_HTTP_PORT=5000
       - HERMES_ACTIVATE_AUTH=true
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
@@ -214,7 +214,7 @@ services:
       - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWC8vWNWqQQ24rV4SyjQNuuzvANssHji1zmKX5PrtuX5QE,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWCthvwVSv2jcxiJbGwCRXatrhmt86TZJkuWixtudYNzDW
 
     ports:
-      - "7886:7878"
+      - "5008:5000"
       - "4005:4001"
       - "5009:5001"
 
@@ -243,7 +243,7 @@ services:
     hostname: node6
 
     environment:
-      - HERMES_HTTP_PORT=7878
+      - HERMES_HTTP_PORT=5000
       - HERMES_ACTIVATE_AUTH=true
       - REDIRECT_ALLOWED_HOSTS=app.dev.projectcatalyst.io
       - REDIRECT_ALLOWED_PATH_PREFIXES=/api/gateway/v1/config/frontend,/api/gateway/v1/cardano/assets,/api/gateway/v1/rbac/registration
@@ -253,7 +253,7 @@ services:
       - IPFS_BOOTSTRAP_PEERS=/ip4/172.20.0.10/tcp/4001/p2p/12D3KooWC8vWNWqQQ24rV4SyjQNuuzvANssHji1zmKX5PrtuX5QE,/ip4/172.20.0.11/tcp/4001/p2p/12D3KooWCthvwVSv2jcxiJbGwCRXatrhmt86TZJkuWixtudYNzDW
 
     ports:
-      - "7888:7878"
+      - "5010:5000"
       - "4006:4001"
       - "5011:5001"
 
