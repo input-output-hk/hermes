@@ -13,7 +13,7 @@ where Self: minicbor::Decode<'a, ()>
     const TOPIC_SUFFIX: &'static str;
 
     fn decode(payload: &'a [u8]) -> Result<Self, minicbor::decode::Error> {
-        minicbor::decode::<Self>(&payload)
+        minicbor::decode::<Self>(payload)
     }
 
     fn handle(
@@ -62,7 +62,7 @@ impl TopicHandler<'_> for payload::New {
                             match doc_reconciliation {
                                 reconciliation::DocReconciliation::NotNeeded => {
                                     tracing::info!("reconciliation not needed");
-                                    return Ok(());
+                                    Ok(())
                                 },
                                 reconciliation::DocReconciliation::Needed(
                                     doc_reconciliation_data,
@@ -88,14 +88,14 @@ impl TopicHandler<'_> for payload::New {
                                             "Failed to start reconciliation: {err}",
                                         ));
                                     }
-                                    return Ok(());
+                                    Ok(())
                                 },
                             }
                         },
                         Err(err) => {
-                            return Err(anyhow::anyhow!(
+                            Err(anyhow::anyhow!(
                                 "Failed to create reconciliation state: {err}",
-                            ));
+                            ))
                         },
                     }
                 } else {
@@ -107,19 +107,19 @@ impl TopicHandler<'_> for payload::New {
                         ));
                     };
                     process_broadcasted_cids(
-                        &topic,
+                        topic,
                         channel_name,
                         docs,
                         source,
                         context.module_ids(),
                     );
-                    return Ok(());
+                    Ok(())
                 }
             },
             DocumentDisseminationBody::Manifest { .. } => {
-                return Err(anyhow::anyhow!(
+                Err(anyhow::anyhow!(
                     "Manifest is not supported in a .new payload",
-                ));
+                ))
             },
         }
     }
@@ -138,11 +138,9 @@ pub(crate) fn handle_doc_sync_topic<'a, TH: TopicHandler<'a>>(
     match decoded {
         Ok(handler) => Some(handler.handle(&topic, message.source, &context)),
         Err(err) => {
-            return Some(Err(anyhow::anyhow!(
-                "Failed to decode payload from IPFS message on topic {}: {}",
-                topic,
-                err
-            )));
+            Some(Err(anyhow::anyhow!(
+                "Failed to decode payload from IPFS message on topic {topic}: {err}"
+            )))
         },
     }
 }
