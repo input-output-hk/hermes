@@ -1,6 +1,8 @@
 //! Hermes IPFS service.
 mod api;
+mod doc_sync;
 mod task;
+mod topic_message_context;
 
 use std::{
     collections::HashSet,
@@ -56,7 +58,7 @@ use crate::{
         bindings::hermes::ipfs::api::{
             DhtKey, DhtValue, Errno, IpfsFile, IpfsPath, MessageData, PeerId, PubsubTopic,
         },
-        hermes::doc_sync,
+        hermes,
     },
     wasm::module::ModuleId,
 };
@@ -750,7 +752,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         &self,
         kind: SubscriptionKind,
         topic: &PubsubTopic,
-        tree: Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
+        tree: Option<Arc<Mutex<Tree<hermes::doc_sync::Cid>>>>,
         app_name: &ApplicationName,
         module_ids: Option<Vec<ModuleId>>,
     ) -> Result<JoinHandle<()>, Errno> {
