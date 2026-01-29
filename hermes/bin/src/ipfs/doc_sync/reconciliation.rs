@@ -56,7 +56,7 @@ pub(super) fn start_reconciliation(
     subscribe_to_dif(app_name, tree, channel, module_ids)?;
     tracing::info!(%channel, "subscribed to .dif");
 
-    let syn_payload = make_syn_payload(doc_reconciliation_data, app_name, peer)?;
+    let syn_payload = make_syn_payload(doc_reconciliation_data, app_name, peer);
     tracing::info!("SYN payload created");
 
     if let Err(err) = send_syn_payload(&syn_payload, app_name, channel) {
@@ -108,35 +108,51 @@ fn make_syn_payload(
     }: DocReconciliationData,
     app_name: &ApplicationName,
     peer: Option<PeerId>,
-) -> anyhow::Result<MsgSyn> {
-    let peer_info = hermes_ipfs_get_peer_identity(app_name, peer);
-    let public_key = match peer_info {
-        Ok(peer_info) => {
-            match peer_info.public_key.try_into_ed25519() {
-                Ok(key) => {
-                    let ed25519_public_key_bytes = key.to_bytes();
-                    PublicKey::try_from(ed25519_public_key_bytes).ok()
-                },
-                Err(err) => {
-                    tracing::info!(%err, "failed to convert key to ed25519, sending SYN request without explicit 'to' field");
-                    None
-                },
-            }
-        },
-        Err(err) => {
-            tracing::info!(%err, "failed to get peer identity, sending SYN request without explicit 'to' field");
-            None
-        },
-    };
+) -> MsgSyn {
+    let public_key = hermes_ipfs_get_peer_identity(app_name, peer)
+        .map_err(|err| {
+            tracing::info!(
+                %err,
+                "failed to get peer identity"
+            );
+        })
+        .ok()
+        .and_then(|peer_info| {
+            peer_info
+                .public_key
+                .try_into_ed25519()
+                .map_err(|err| {
+                    tracing::info!(
+                        %err,
+                        "failed to convert key to ed25519"
+                    );
+                })
+                .ok()
+        })
+        .and_then(|key| {
+            let bytes = key.to_bytes();
+            PublicKey::try_from(bytes)
+                .map_err(|err| {
+                    tracing::info!(
+                        %err,
+                        "failed to convert key to Hermes PublicKey"
+                    );
+                })
+                .ok()
+        });
 
-    Ok(MsgSyn {
+    if public_key.is_none() {
+        tracing::warn!("constructing SYN request without explicit 'to' field")
+    }
+
+    MsgSyn {
         root: our_root,
         count: our_count,
         to: public_key,
         prefixes: (!prefixes.is_empty()).then_some(prefixes),
         peer_root: their_root,
         peer_count: their_count,
-    })
+    }
 }
 
 /// Sends the SYN payload to request the reconciliation data.
