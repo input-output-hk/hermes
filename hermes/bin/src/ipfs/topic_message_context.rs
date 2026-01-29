@@ -1,3 +1,5 @@
+//! A context attached to every IPFS message
+
 use std::sync::{Arc, Mutex};
 
 use catalyst_types::smt::Tree;
@@ -8,6 +10,7 @@ use crate::{
     wasm::module::ModuleId,
 };
 
+/// IPFS topic message context
 #[derive(Clone)]
 pub(super) struct TopicMessageContext {
     /// SMT.
@@ -32,14 +35,17 @@ impl TopicMessageContext {
         }
     }
 
+    /// Returns the module IDs
     pub(super) fn module_ids(&self) -> Option<&Vec<ModuleId>> {
         self.module_ids.as_ref()
     }
 
+    /// Returns the SMT
     pub(super) fn tree(&self) -> Option<&Arc<Mutex<Tree<doc_sync::Cid>>>> {
         self.tree.as_ref()
     }
 
+    /// Returns the application name
     pub(super) fn app_name(&self) -> &ApplicationName {
         &self.app_name
     }

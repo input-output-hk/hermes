@@ -393,11 +393,11 @@ fn doc_sync_topic_message_handler(
     if let Ok(msg_str) = std::str::from_utf8(&message.data) {
         tracing::info!(
             "RECEIVED PubSub message on topic: {topic} - data: {}",
-            &msg_str[..100]
+            &msg_str.chars().take(100).collect::<String>()
         );
     }
 
-    let result = handle_doc_sync_topic::<payload::New>(&message, topic, context);
+    let result = handle_doc_sync_topic::<payload::New>(&message, &topic, &context);
     if let Some(Err(err)) = result {
         tracing::error!("Failed to handle IPFS message: {}", err);
     }

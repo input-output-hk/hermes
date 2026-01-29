@@ -1,3 +1,5 @@
+//! IPFS module related to document sync
+
 mod reconciliation;
 mod topic_handler;
 

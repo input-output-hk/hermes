@@ -1,3 +1,5 @@
+//! IPFS module related to the reconciliation process
+
 use std::sync::{Arc, Mutex};
 
 use catalyst_types::smt::Tree;
@@ -142,7 +144,7 @@ fn make_syn_payload(
         });
 
     if public_key.is_none() {
-        tracing::warn!("constructing SYN request without explicit 'to' field")
+        tracing::warn!("constructing SYN request without explicit 'to' field");
     }
 
     MsgSyn {

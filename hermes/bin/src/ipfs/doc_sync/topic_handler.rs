@@ -1,3 +1,5 @@
+//! IPFS module related to the topic handling
+
 use std::sync::Arc;
 
 use hermes_ipfs::doc_sync::payload::{self, CommonFields, DocumentDisseminationBody};
@@ -7,6 +9,7 @@ use crate::ipfs::{
     topic_message_context::TopicMessageContext,
 };
 
+/// A helper trait to handle the IPFS messages of a specific topic.
 pub(crate) trait TopicHandler<'a>: Sized
 where Self: minicbor::Decode<'a, ()>
 {
@@ -127,8 +130,8 @@ impl TopicHandler<'_> for payload::New {
 
 pub(crate) fn handle_doc_sync_topic<'a, TH: TopicHandler<'a>>(
     message: &'a hermes_ipfs::rust_ipfs::GossipsubMessage,
-    topic: String,
-    context: TopicMessageContext,
+    topic: &str,
+    context: &TopicMessageContext,
 ) -> Option<anyhow::Result<()>> {
     if !topic.ends_with(TH::TOPIC_SUFFIX) {
         return None;
@@ -136,7 +139,7 @@ pub(crate) fn handle_doc_sync_topic<'a, TH: TopicHandler<'a>>(
 
     let decoded = <TH as TopicHandler>::decode(&message.data);
     match decoded {
-        Ok(handler) => Some(handler.handle(&topic, message.source, &context)),
+        Ok(handler) => Some(handler.handle(topic, message.source, context)),
         Err(err) => {
             Some(Err(anyhow::anyhow!(
                 "Failed to decode payload from IPFS message on topic {topic}: {err}"
