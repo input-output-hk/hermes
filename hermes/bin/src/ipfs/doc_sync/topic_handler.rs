@@ -13,12 +13,15 @@ use crate::ipfs::{
 pub(crate) trait TopicHandler<'a>: Sized
 where Self: minicbor::Decode<'a, ()>
 {
+    /// A suffix of the IPFS topic to which the handler is subscribed
     const TOPIC_SUFFIX: &'static str;
 
+    /// Decodes the payload of the IPFS message.
     fn decode(payload: &'a [u8]) -> Result<Self, minicbor::decode::Error> {
         minicbor::decode::<Self>(payload)
     }
 
+    /// Handles the IPFS message.
     fn handle(
         self,
         topic: &str,
@@ -128,6 +131,7 @@ impl TopicHandler<'_> for payload::New {
     }
 }
 
+/// Handles the IPFS messages of a specific topic.
 pub(crate) fn handle_doc_sync_topic<'a, TH: TopicHandler<'a>>(
     message: &'a hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: &str,

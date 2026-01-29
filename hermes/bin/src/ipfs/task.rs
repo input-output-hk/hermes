@@ -284,6 +284,10 @@ pub(super) struct TopicMessageHandler {
     topic: String,
 
     /// The handler implementation.
+    #[allow(
+        clippy::type_complexity,
+        reason = "to be revisited after the doc sync functionality is fully implemented as this type still evolves"
+    )]
     callback: Box<
         dyn Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, &TopicMessageContext)
             + Send
