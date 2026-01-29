@@ -285,7 +285,7 @@ pub(super) struct TopicMessageHandler {
 
     /// The handler implementation.
     callback: Box<
-        dyn Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, TopicMessageContext)
+        dyn Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, &TopicMessageContext)
             + Send
             + Sync
             + 'static,
@@ -303,7 +303,7 @@ impl TopicMessageHandler {
         context: TopicMessageContext,
     ) -> Self
     where
-        F: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, TopicMessageContext)
+        F: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, &TopicMessageContext)
             + Send
             + Sync
             + 'static,
@@ -320,7 +320,7 @@ impl TopicMessageHandler {
         &self,
         msg: hermes_ipfs::rust_ipfs::GossipsubMessage,
     ) {
-        (self.callback)(msg, self.topic.clone(), self.context.clone());
+        (self.callback)(msg, self.topic.clone(), &self.context);
     }
 }
 
@@ -362,7 +362,7 @@ where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'stati
 fn topic_message_handler(
     message: hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
-    context: TopicMessageContext,
+    context: &TopicMessageContext,
 ) {
     if let Some(ipfs) = HERMES_IPFS.get() {
         let app_names = ipfs.apps.subscribed_apps(SubscriptionKind::Default, &topic);
@@ -388,7 +388,7 @@ fn topic_message_handler(
 fn doc_sync_topic_message_handler(
     message: hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
-    context: TopicMessageContext,
+    context: &TopicMessageContext,
 ) {
     if let Ok(msg_str) = std::str::from_utf8(&message.data) {
         tracing::info!(
@@ -397,7 +397,7 @@ fn doc_sync_topic_message_handler(
         );
     }
 
-    let result = handle_doc_sync_topic::<payload::New>(&message, &topic, &context);
+    let result = handle_doc_sync_topic::<payload::New>(&message, &topic, context);
     if let Some(Err(err)) = result {
         tracing::error!("Failed to handle IPFS message: {}", err);
     }
