@@ -26,6 +26,7 @@ cardano
 catid
 cbor
 cdylib
+CFLAGS
 chaincode
 childs
 chksum
@@ -195,6 +196,7 @@ subpaths
 subsec
 symlinkat
 syscall
+sysroot
 tailscale
 Tdiff
 testcov
