@@ -26,6 +26,7 @@ cardano
 catid
 cbor
 cdylib
+CFLAGS
 chaincode
 childs
 chksum
@@ -100,10 +101,7 @@ jsonschema
 justfile
 keepalives
 keypair
-Keypair
-KEYPAIR
 keypairs
-Keypairs
 libp
 libsqlite
 libtest
@@ -125,7 +123,6 @@ mkcron
 mkdelay
 mkdirat
 multiaddr
-Multiaddr
 multiaddrs
 multicodec
 multihash
@@ -164,7 +161,6 @@ pubkey
 pwrite
 qmark
 quic
-QUIC
 rafal
 rankdir
 ranksep
@@ -200,6 +196,7 @@ subpaths
 subsec
 symlinkat
 syscall
+sysroot
 tailscale
 Tdiff
 testcov

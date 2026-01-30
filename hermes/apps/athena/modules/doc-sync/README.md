@@ -26,7 +26,7 @@ All heavy operations are delegated to the host-side implementation for performan
 The module exposes an HTTP endpoint for testing:
 
 ```bash
-curl -X POST http://localhost:5000/api/doc-sync/post \
+curl -X POST http://localhost:7878/api/doc-sync/post \
   -H "Host: athena.hermes.local" \
   -H "Content-Type: text/plain" \
   -d "Hello, IPFS!"

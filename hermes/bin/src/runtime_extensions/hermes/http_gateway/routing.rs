@@ -142,7 +142,7 @@ pub(crate) fn host_resolver(headers: &HeaderMap) -> anyhow::Result<(ApplicationN
         .and_then(|h| h.to_str().ok())
         .ok_or_else(|| anyhow!("Missing or invalid Host header"))?;
 
-    // Strip port if present (e.g., "app.hermes.local:5000" -> "app.hermes.local")
+    // Strip port if present (e.g., "app.hermes.local:7878" -> "app.hermes.local")
     let host_without_port = host.split(':').next().unwrap_or(host);
 
     // Parse <app.name>.hermes.local format
