@@ -33,10 +33,10 @@ impl OnTopicEvent {
     pub fn build_and_send(
         &self,
         app_names: Vec<ApplicationName>,
-        module_ids: Option<Vec<ModuleId>>,
+        module_ids: Option<&Vec<ModuleId>>,
     ) -> anyhow::Result<()> {
         let target_module = match module_ids {
-            Some(module_ids) => crate::event::TargetModule::List(module_ids),
+            Some(module_ids) => crate::event::TargetModule::List(module_ids.clone()),
             None => crate::event::TargetModule::All,
         };
 
