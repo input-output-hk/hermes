@@ -1,4 +1,15 @@
 //! Hermes IPFS service.
+//!
+//! Why DHT Server Mode is Required:
+//! - DHT (Distributed Hash Table) server mode makes this node actively participate in the
+//!   DHT by storing and serving routing information
+//! - This is REQUIRED for Gossipsub PubSub to work properly because:
+//!   1. PubSub uses the DHT to discover which peers are subscribed to topics
+//!   2. Gossipsub builds mesh connections based on DHT peer discovery
+//!   3. Without server mode, the node would be a "leech" that can't help other peers
+//!      discover the network, weakening the mesh
+//! - All Hermes nodes should be DHT servers to form a robust P2P network
+
 mod api;
 mod doc_sync;
 mod task;
@@ -47,7 +58,7 @@ use once_cell::sync::OnceCell;
 pub(crate) use task::SubscriptionKind;
 use task::{IpfsCommand, ipfs_command_handler};
 use tokio::{
-    runtime::Builder,
+    runtime::{Builder, Runtime},
     sync::{mpsc, oneshot},
     task::JoinHandle,
 };
@@ -426,6 +437,9 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
     sender: Option<mpsc::Sender<IpfsCommand>>,
     /// State related to `ApplicationName`
     apps: AppIpfsState,
+    /// Tokio runtime
+    #[allow(dead_code, reason = "We don't use the shared runtime yet")]
+    runtime: Runtime,
     /// Phantom data.
     _phantom_data: PhantomData<N>,
 }
@@ -440,63 +454,60 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         custom_peers: Option<Vec<String>>,
     ) -> anyhow::Result<Self> {
         let runtime = Builder::new_multi_thread().enable_all().build()?;
-        let (sender, receiver) = mpsc::channel(1);
 
-        // Build and start IPFS node, before moving into the thread
-        let node = runtime.block_on(async move { builder.start().await })?;
+        // Create a channel to send commands to the IPFS node
+        let (command_sender, command_receiver) = mpsc::channel(1);
 
         // Create a oneshot channel to signal when the command handler is ready
         let (ready_tx, ready_rx) = oneshot::channel();
 
-        let _handle = std::thread::spawn(move || {
-            let result = runtime.block_on(async move {
-                // Configure listening address for P2P connections
-                configure_listening_address(&node).await;
+        // Start the async block.
+        runtime.block_on(async {
+            // Spin-up the IPFS node
+            let node = builder.start().await?;
+            configure_listening_address(&node).await;
 
-                // Connect to bootstrap peers
-                if let Some(peers) = custom_peers {
-                    connect_to_bootstrap_peers(&node, peers).await;
-                } else if default_bootstrap {
-                    // Use public IPFS bootstrap nodes
-                    let addresses = node.default_bootstrap().await?;
-                    node.bootstrap().await?;
-                    tracing::debug!(
-                        "Bootstrapped IPFS node with default addresses: {:?}",
-                        addresses
-                    );
-                }
+            // Connect to bootstrap peers
+            if let Some(peers) = custom_peers {
+                connect_to_bootstrap_peers(&node, peers).await;
+            } else if default_bootstrap {
+                // Use public IPFS bootstrap nodes
+                let addresses = node.default_bootstrap().await?;
+                node.bootstrap().await?;
+                tracing::debug!(
+                    "Bootstrapped IPFS node with default addresses: {:?}",
+                    addresses
+                );
+            }
 
-                // Why DHT Server Mode is Required:
-                // - DHT (Distributed Hash Table) server mode makes this node actively participate
-                //   in the DHT by storing and serving routing information
-                // - This is REQUIRED for Gossipsub PubSub to work properly because:
-                //   1. PubSub uses the DHT to discover which peers are subscribed to topics
-                //   2. Gossipsub builds mesh connections based on DHT peer discovery
-                //   3. Without server mode, the node would be a "leech" that can't help other peers
-                //      discover the network, weakening the mesh
-                // - All Hermes nodes should be DHT servers to form a robust P2P network
-                let hermes_node: HermesIpfs = node.into();
-                hermes_node
-                    .dht_mode(hermes_ipfs::rust_ipfs::DhtMode::Server)
-                    .await?;
-                tracing::debug!("IPFS node set to DHT server mode");
+            // Build the Hermes wrapper around IPFS node
+            let hermes_node: HermesIpfs = node.into();
+            hermes_node
+                .dht_mode(hermes_ipfs::rust_ipfs::DhtMode::Server)
+                .await?;
+            tracing::debug!("IPFS node set to DHT server mode");
 
-                // Start command handler
-
-                // Signal that the command handler is about to start
-                // Ignore the error if the receiver was dropped
+            // Spawn the command handler task
+            tokio::spawn(async move {
                 let _ = ready_tx.send(());
+                if let Err(err) = ipfs_command_handler(hermes_node, command_receiver).await {
+                    tracing::error!(%err, "IPFS command handler failed");
 
-                // Start command handler
-                let h = tokio::spawn(ipfs_command_handler(hermes_node, receiver));
-                let (..) = tokio::join!(h);
-                Ok::<(), anyhow::Error>(())
+                    // TODO[rafal-ch]: In the future we should make sure that:
+                    // 1. command handler continues to work when it encounters an error
+                    //    that is recoverable (i.e. such errors are logged internally but
+                    //    not bubbled up to here)
+                    // 2. command handler returns only in case of fatal error in which
+                    //    case we should shutdown the Hermes here.
+                    //
+                    // Currently we just report the error and keep the Hermes running, but
+                    // without IPFS command handler.
+                }
             });
 
-            if let Err(e) = result {
-                tracing::error!("IPFS thread error: {}", e);
-            }
-        });
+            // All done
+            Ok::<(), anyhow::Error>(())
+        })?;
 
         // Wait for the command handler to be ready before returning
         // This prevents the race condition where auto-subscribe happens before
@@ -508,8 +519,9 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         tracing::debug!("IPFS command handler is ready");
 
         Ok(Self {
-            sender: Some(sender),
+            sender: Some(command_sender),
             apps: AppIpfsState::new(),
+            runtime,
             _phantom_data: PhantomData,
         })
     }
