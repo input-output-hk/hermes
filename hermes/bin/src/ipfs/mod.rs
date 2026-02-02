@@ -481,16 +481,15 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
             }
 
             // Build the Hermes wrapper around IPFS node
-            let hermes_node: HermesIpfs = node.into();
-            hermes_node
-                .dht_mode(hermes_ipfs::rust_ipfs::DhtMode::Server)
+            let ipfs: HermesIpfs = node.into();
+            ipfs.dht_mode(hermes_ipfs::rust_ipfs::DhtMode::Server)
                 .await?;
             tracing::debug!("IPFS node set to DHT server mode");
 
             // Spawn the command handler task
             tokio::spawn(async move {
                 let _ = ready_tx.send(());
-                if let Err(err) = ipfs_command_handler(hermes_node, command_receiver).await {
+                if let Err(err) = ipfs_command_handler(ipfs, command_receiver).await {
                     tracing::error!(%err, "IPFS command handler failed");
 
                     // TODO[rafal-ch]: In the future we should make sure that:

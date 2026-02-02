@@ -95,11 +95,10 @@ pub(crate) enum IpfsCommand {
 /// Handle IPFS commands in asynchronous task.
 #[allow(clippy::too_many_lines)]
 pub(crate) async fn ipfs_command_handler(
-    hermes_node: HermesIpfs,
+    ipfs: HermesIpfs,
     mut queue_rx: mpsc::Receiver<IpfsCommand>,
 ) -> anyhow::Result<()> {
-    // Wrap in Arc to allow sharing across spawned tasks
-    let hermes_node = Arc::new(hermes_node);
+    let ipfs = Arc::new(ipfs);
 
     while let Some(ipfs_command) = queue_rx.recv().await {
         tracing::debug!(
@@ -108,14 +107,14 @@ pub(crate) async fn ipfs_command_handler(
         );
         match ipfs_command {
             IpfsCommand::AddFile(ipfs_file, tx) => {
-                let response = hermes_node
+                let response = ipfs
                     .add_ipfs_file(ipfs_file)
                     .await
                     .map_err(|_| Errno::FileAddError);
                 send_response(response, tx);
             },
             IpfsCommand::GetFile(cid, tx) => {
-                let response = hermes_node
+                let response = ipfs
                     .get_ipfs_file_cbor(&cid)
                     .await
                     .map_err(|_| Errno::FileGetError);
@@ -124,7 +123,7 @@ pub(crate) async fn ipfs_command_handler(
             IpfsCommand::GetFileWithProviders(cid, providers, tx) => {
                 // Spawn task to avoid blocking the command handler
                 // This allows concurrent file fetches and retry logic to work
-                let node = Arc::clone(&hermes_node);
+                let node = Arc::clone(&ipfs);
                 tokio::spawn(async move {
                     let response = node
                         .get_ipfs_file_cbor_with_providers(&cid, &providers)
@@ -134,7 +133,7 @@ pub(crate) async fn ipfs_command_handler(
                 });
             },
             IpfsCommand::PinFile(cid, tx) => {
-                let response = match hermes_node.insert_pin(&cid).await {
+                let response = match ipfs.insert_pin(&cid).await {
                     Ok(()) => {
                         tracing::info!("Pin succeeded for CID: {}", cid.to_string());
                         Ok(true)
@@ -152,7 +151,7 @@ pub(crate) async fn ipfs_command_handler(
                 send_response(response, tx);
             },
             IpfsCommand::UnPinFile(cid, tx) => {
-                let response = match hermes_node.remove_pin(&cid).await {
+                let response = match ipfs.remove_pin(&cid).await {
                     Ok(()) => Ok(true),
                     Err(err) => {
                         tracing::error!(cid = %cid, "failed to un-pin: {}", err);
@@ -162,29 +161,26 @@ pub(crate) async fn ipfs_command_handler(
                 send_response(response, tx);
             },
             IpfsCommand::GetDhtValue(key, tx) => {
-                let response = hermes_node.dht_get(key.clone()).await.map_err(|err| {
+                let response = ipfs.dht_get(key.clone()).await.map_err(|err| {
                     tracing::error!(dht_key = ?key, "failed to get DHT value: {}", err);
                     Errno::DhtGetError
                 });
                 send_response(response, tx);
             },
             IpfsCommand::PutDhtValue(key, value, tx) => {
-                let response = hermes_node.dht_put(key, value).await.is_ok();
+                let response = ipfs.dht_put(key, value).await.is_ok();
                 send_response(Ok(response), tx);
             },
             IpfsCommand::Publish(topic, message, tx) => {
-                let result = hermes_node
-                    .pubsub_publish(&topic, message)
-                    .await
-                    .map_err(|e| {
-                        tracing::error!(topic = %topic, "pubsub_publish failed: {}", e);
-                        Errno::PubsubPublishError
-                    });
+                let result = ipfs.pubsub_publish(&topic, message).await.map_err(|e| {
+                    tracing::error!(topic = %topic, "pubsub_publish failed: {}", e);
+                    Errno::PubsubPublishError
+                });
                 send_response(result, tx);
             },
             IpfsCommand::Subscribe(topic, kind, tree, app_name, module_ids, tx) => {
                 tracing::info!(topic, "received Subscribe request");
-                let stream = hermes_node
+                let stream = ipfs
                     .pubsub_subscribe(&topic)
                     .await
                     .map_err(|_| Errno::PubsubSubscribeError)?;
@@ -221,32 +217,28 @@ pub(crate) async fn ipfs_command_handler(
             },
             IpfsCommand::Unsubscribe(topic, tx) => {
                 tracing::info!(topic, "received Unsubscribe request");
-                hermes_node
-                    .pubsub_unsubscribe(topic)
+                ipfs.pubsub_unsubscribe(topic)
                     .await
                     .map_err(|_| Errno::PubsubUnsubscribeError)?;
                 send_response(Ok(()), tx);
             },
             IpfsCommand::EvictPeer(peer, tx) => {
                 let peer_id = TargetPeerId::from_str(&peer).map_err(|_| Errno::InvalidPeerId)?;
-                let status = hermes_node.ban_peer(peer_id).await.is_ok();
+                let status = ipfs.ban_peer(peer_id).await.is_ok();
                 send_response(Ok(status), tx);
             },
             IpfsCommand::DhtProvide(key, tx) => {
-                let response = hermes_node.dht_provide(key.clone()).await.map_err(|err| {
+                let response = ipfs.dht_provide(key.clone()).await.map_err(|err| {
                     tracing::error!(dht_key = ?key, "DHT provide failed: {}", err);
                     Errno::DhtProvideError
                 });
                 send_response(response, tx);
             },
             IpfsCommand::DhtGetProviders(key, tx) => {
-                let response = hermes_node
-                    .dht_get_providers(key.clone())
-                    .await
-                    .map_err(|err| {
-                        tracing::error!(dht_key = ?key, "DHT get providers failed: {}", err);
-                        Errno::DhtGetProvidersError
-                    });
+                let response = ipfs.dht_get_providers(key.clone()).await.map_err(|err| {
+                    tracing::error!(dht_key = ?key, "DHT get providers failed: {}", err);
+                    Errno::DhtGetProvidersError
+                });
                 send_response(response, tx);
             },
             IpfsCommand::Identity(peer_id, tx) => {
@@ -260,7 +252,7 @@ pub(crate) async fn ipfs_command_handler(
                     None => None,
                 };
 
-                let response = hermes_node.identity(peer_id).await.map_err(|err| {
+                let response = ipfs.identity(peer_id).await.map_err(|err| {
                     tracing::error!(peer_id = ?peer_id, "Identity failed: {}", err);
                     Errno::GetPeerIdError
                 });
@@ -270,7 +262,7 @@ pub(crate) async fn ipfs_command_handler(
         }
     }
     // Try to stop the node - only works if this is the last reference
-    if let Ok(node) = Arc::try_unwrap(hermes_node) {
+    if let Ok(node) = Arc::try_unwrap(ipfs) {
         node.stop().await;
     } else {
         tracing::warn!("Could not stop IPFS node - other references still exist");
