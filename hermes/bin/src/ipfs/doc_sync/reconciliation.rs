@@ -10,7 +10,7 @@ use crate::{
     app::ApplicationName,
     ipfs::{
         self, api::hermes_ipfs_unsubscribe, hermes_ipfs_get_peer_identity, hermes_ipfs_publish,
-        hermes_ipfs_subscribe,
+        hermes_ipfs_subscribe_blocking,
     },
     runtime_extensions::{
         bindings::hermes::ipfs::api::PeerId,
@@ -79,7 +79,7 @@ fn subscribe_to_dif(
     module_ids: Option<&Vec<ModuleId>>,
 ) -> anyhow::Result<()> {
     let topic = format!("{channel}.dif");
-    hermes_ipfs_subscribe(
+    hermes_ipfs_subscribe_blocking(
         ipfs::SubscriptionKind::DocSync,
         app_name,
         Some(tree),

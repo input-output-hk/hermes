@@ -45,7 +45,7 @@ pub(crate) use api::{
     hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_dht_get_providers,
     hermes_ipfs_dht_provide, hermes_ipfs_evict_peer, hermes_ipfs_get_dht_value,
     hermes_ipfs_get_file, hermes_ipfs_get_peer_identity, hermes_ipfs_pin_file, hermes_ipfs_publish,
-    hermes_ipfs_put_dht_value, hermes_ipfs_subscribe, hermes_ipfs_unpin_file,
+    hermes_ipfs_put_dht_value, hermes_ipfs_subscribe_blocking, hermes_ipfs_unpin_file,
     hermes_ipfs_unsubscribe,
 };
 use catalyst_types::smt::Tree;
@@ -437,11 +437,19 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
     sender: Option<mpsc::Sender<IpfsCommand>>,
     /// State related to `ApplicationName`
     apps: AppIpfsState,
-    /// Tokio runtime
-    #[allow(dead_code, reason = "We don't use the shared runtime yet")]
-    runtime: Runtime,
+    /// Tokio runtime kept alive by the Hermes IPFS node
+    _tokio_runtime: Runtime,
     /// Phantom data.
     _phantom_data: PhantomData<N>,
+}
+
+impl<N> Drop for HermesIpfsNode<N>
+where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send + Sync
+{
+    fn drop(&mut self) {
+        // Close the sender to signal shutdown
+        self.sender.take();
+    }
 }
 
 impl<N> HermesIpfsNode<N>
@@ -453,7 +461,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         default_bootstrap: bool,
         custom_peers: Option<Vec<String>>,
     ) -> anyhow::Result<Self> {
-        let runtime = Builder::new_multi_thread().enable_all().build()?;
+        let tokio_runtime = Builder::new_multi_thread().enable_all().build()?;
 
         // Create a channel to send commands to the IPFS node
         let (command_sender, command_receiver) = mpsc::channel(1);
@@ -462,7 +470,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         let (ready_tx, ready_rx) = oneshot::channel();
 
         // Start the async block.
-        runtime.block_on(async {
+        tokio_runtime.block_on(async {
             // Spin-up the IPFS node
             let node = builder.start().await?;
             configure_listening_address(&node).await;
@@ -486,10 +494,13 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
                 .await?;
             tracing::debug!("IPFS node set to DHT server mode");
 
+            // Get the handle to the Tokio runtime
+            let tokio_handle = tokio::runtime::Handle::current();
+
             // Spawn the command handler task
             tokio::spawn(async move {
                 let _ = ready_tx.send(());
-                if let Err(err) = ipfs_command_handler(ipfs, command_receiver).await {
+                if let Err(err) = ipfs_command_handler(ipfs, tokio_handle, command_receiver).await {
                     tracing::error!(%err, "IPFS command handler failed");
 
                     // TODO[rafal-ch]: In the future we should make sure that:
@@ -520,7 +531,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         Ok(Self {
             sender: Some(command_sender),
             apps: AppIpfsState::new(),
-            runtime,
+            _tokio_runtime: tokio_runtime,
             _phantom_data: PhantomData,
         })
     }
@@ -759,29 +770,31 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
     }
 
     /// Subscribe to a `PubSub` topic
-    async fn pubsub_subscribe(
+    fn pubsub_subscribe_blocking(
         &self,
         kind: SubscriptionKind,
         topic: &PubsubTopic,
         tree: Option<Arc<Mutex<Tree<hermes::doc_sync::Cid>>>>,
         app_name: &ApplicationName,
-        module_ids: Option<Vec<ModuleId>>,
+        module_ids: Option<&Vec<ModuleId>>,
     ) -> Result<JoinHandle<()>, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
+        let module_ids_owned = module_ids.cloned();
         self.sender
             .as_ref()
             .ok_or(Errno::PubsubSubscribeError)?
-            .send(IpfsCommand::Subscribe(
+            .blocking_send(IpfsCommand::Subscribe(
                 topic.clone(),
                 kind,
                 tree,
                 app_name.clone(),
-                module_ids,
+                module_ids_owned,
                 cmd_tx,
             ))
-            .await
             .map_err(|_| Errno::PubsubSubscribeError)?;
-        cmd_rx.await.map_err(|_| Errno::PubsubSubscribeError)?
+        cmd_rx
+            .blocking_recv()
+            .map_err(|_| Errno::PubsubSubscribeError)?
     }
 
     /// Unsubscribe from a `PubSub` topic

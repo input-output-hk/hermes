@@ -1,6 +1,7 @@
 //! IPFS Task
 use std::{
     collections::HashSet,
+    pin::Pin,
     str::FromStr,
     sync::{Arc, Mutex},
     time::Duration,
@@ -96,6 +97,8 @@ pub(crate) enum IpfsCommand {
 #[allow(clippy::too_many_lines)]
 pub(crate) async fn ipfs_command_handler(
     ipfs: HermesIpfs,
+    // TODO[rafal-ch]: Prolly not needed here.
+    _tokio: tokio::runtime::Handle,
     mut queue_rx: mpsc::Receiver<IpfsCommand>,
 ) -> anyhow::Result<()> {
     let ipfs = Arc::new(ipfs);
@@ -207,10 +210,16 @@ pub(crate) async fn ipfs_command_handler(
                 let handle = hermes_ipfs::subscription_stream_task(
                     stream,
                     move |msg| {
-                        message_handler.handle(msg);
+                        let message_handler_owned = message_handler.clone();
+                        async move {
+                            message_handler_owned.handle(msg).await;
+                        }
                     },
                     move |msg| {
-                        subscription_handler.handle(msg);
+                        let subscription_handler_owned = subscription_handler.clone();
+                        async move {
+                            subscription_handler_owned.handle(msg);
+                        }
                     },
                 );
                 send_response(Ok(handle), tx);
@@ -271,6 +280,8 @@ pub(crate) async fn ipfs_command_handler(
 }
 
 /// A handler for messages from the IPFS pubsub topic
+// TODO[rafal-ch]: Move to a dedicated module
+#[derive(Clone)]
 pub(super) struct TopicMessageHandler {
     /// The topic.
     topic: String,
@@ -280,8 +291,13 @@ pub(super) struct TopicMessageHandler {
         clippy::type_complexity,
         reason = "to be revisited after the doc sync functionality is fully implemented as this type still evolves"
     )]
-    callback: Box<
-        dyn Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, &TopicMessageContext)
+    callback: Arc<
+        dyn Fn(
+                hermes_ipfs::rust_ipfs::GossipsubMessage,
+                String,
+                TopicMessageContext, /* TODO[rafal-ch]: Should become a borrow, but if not
+                                      * possible, at least an Arc */
+            ) -> Pin<Box<dyn Future<Output = ()> + Send>>
             + Send
             + Sync
             + 'static,
@@ -293,34 +309,36 @@ pub(super) struct TopicMessageHandler {
 
 impl TopicMessageHandler {
     /// Creates the new handler.
-    pub fn new<F>(
-        topic: &impl ToString,
-        callback: F,
+    pub fn new<F, Fut>(
+        topic: &str,
+        handler: F,
         context: TopicMessageContext,
     ) -> Self
     where
-        F: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, &TopicMessageContext)
+        F: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, TopicMessageContext) -> Fut
             + Send
             + Sync
             + 'static,
+        Fut: Future<Output = ()> + Send + 'static,
     {
         Self {
             topic: topic.to_string(),
-            callback: Box::new(callback),
+            callback: Arc::new(move |msg, topic, ctx| Box::pin(handler(msg, topic, ctx))),
             context,
         }
     }
 
     /// Forwards the message to the handler.
-    pub fn handle(
+    pub async fn handle(
         &self,
         msg: hermes_ipfs::rust_ipfs::GossipsubMessage,
     ) {
-        (self.callback)(msg, self.topic.clone(), &self.context);
+        (self.callback)(msg, self.topic.clone(), self.context.clone()).await;
     }
 }
 
 /// A handler for subscribe/unsubscribe events from the IPFS pubsub topic
+#[derive(Clone)]
 pub(super) struct TopicSubscriptionStatusHandler<T>
 where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static
 {
@@ -355,10 +373,10 @@ where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'stati
 }
 
 /// Handler function for topic message streams.
-fn topic_message_handler(
+async fn topic_message_handler(
     message: hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
-    context: &TopicMessageContext,
+    context: TopicMessageContext,
 ) {
     if let Some(ipfs) = HERMES_IPFS.get() {
         let app_names = ipfs.apps.subscribed_apps(SubscriptionKind::Default, &topic);
@@ -381,10 +399,10 @@ fn topic_message_handler(
     clippy::needless_pass_by_value,
     reason = "the other handler consumes the message and we need to keep the signatures consistent"
 )]
-fn doc_sync_topic_message_handler(
+async fn doc_sync_topic_message_handler(
     message: hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: String,
-    context: &TopicMessageContext,
+    context: TopicMessageContext,
 ) {
     if let Ok(msg_str) = std::str::from_utf8(&message.data) {
         tracing::info!(
@@ -393,7 +411,7 @@ fn doc_sync_topic_message_handler(
         );
     }
 
-    let result = handle_doc_sync_topic::<payload::New>(&message, &topic, context);
+    let result = handle_doc_sync_topic::<payload::New>(&message, &topic, context).await;
     if let Some(Err(err)) = result {
         tracing::error!("Failed to handle IPFS message: {}", err);
     }

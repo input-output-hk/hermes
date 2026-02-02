@@ -10,34 +10,33 @@ use crate::ipfs::{
 };
 
 /// A helper trait to handle the IPFS messages of a specific topic.
-pub(crate) trait TopicHandler<'a>: Sized
-where Self: minicbor::Decode<'a, ()>
-{
+pub(crate) trait TopicHandler: Sized {
     /// A suffix of the IPFS topic to which the handler is subscribed
     const TOPIC_SUFFIX: &'static str;
 
     /// Decodes the payload of the IPFS message.
-    fn decode(payload: &'a [u8]) -> Result<Self, minicbor::decode::Error> {
+    fn decode<'a>(payload: &'a [u8]) -> Result<Self, minicbor::decode::Error>
+    where Self: minicbor::Decode<'a, ()> {
         minicbor::decode::<Self>(payload)
     }
 
     /// Handles the IPFS message.
-    fn handle(
+    async fn handle(
         self,
         topic: &str,
         source: Option<hermes_ipfs::PeerId>,
-        context: &TopicMessageContext,
+        context: TopicMessageContext,
     ) -> anyhow::Result<()>;
 }
 
-impl TopicHandler<'_> for payload::New {
+impl TopicHandler for payload::New {
     const TOPIC_SUFFIX: &'static str = ".new";
 
-    fn handle(
+    async fn handle(
         self,
         topic: &str,
         source: Option<hermes_ipfs::PeerId>,
-        context: &TopicMessageContext,
+        context: TopicMessageContext,
     ) -> anyhow::Result<()> {
         let Some(tree) = context.tree() else {
             return Err(anyhow::anyhow!(
@@ -132,10 +131,10 @@ impl TopicHandler<'_> for payload::New {
 }
 
 /// Handles the IPFS messages of a specific topic.
-pub(crate) fn handle_doc_sync_topic<'a, TH: TopicHandler<'a>>(
+pub(crate) async fn handle_doc_sync_topic<'a, TH: TopicHandler + minicbor::Decode<'a, ()>>(
     message: &'a hermes_ipfs::rust_ipfs::GossipsubMessage,
     topic: &str,
-    context: &TopicMessageContext,
+    context: TopicMessageContext,
 ) -> Option<anyhow::Result<()>> {
     if !topic.ends_with(TH::TOPIC_SUFFIX) {
         return None;
@@ -143,7 +142,7 @@ pub(crate) fn handle_doc_sync_topic<'a, TH: TopicHandler<'a>>(
 
     let decoded = <TH as TopicHandler>::decode(&message.data);
     match decoded {
-        Ok(handler) => Some(handler.handle(topic, message.source, context)),
+        Ok(handler) => Some(handler.handle(topic, message.source, context).await),
         Err(err) => {
             Some(Err(anyhow::anyhow!(
                 "Failed to decode payload from IPFS message on topic {topic}: {err}"

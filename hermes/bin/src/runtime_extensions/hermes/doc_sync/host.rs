@@ -14,7 +14,7 @@ use wasmtime::component::Resource;
 use super::ChannelState;
 use crate::{
     app::ApplicationName,
-    ipfs::{self, SubscriptionKind, hermes_ipfs_publish, hermes_ipfs_subscribe},
+    ipfs::{self, SubscriptionKind, hermes_ipfs_publish, hermes_ipfs_subscribe_blocking},
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::hermes::{
@@ -131,7 +131,7 @@ impl HostSyncChannel for HermesRuntimeContext {
             let tree = Arc::clone(&channel_state.smt);
             let topic = format!("{name}{topic_suffix}");
             // When the channel is created, subscribe to two topics: <name>.new and <name>.syn
-            if let Err(err) = hermes_ipfs_subscribe(
+            if let Err(err) = hermes_ipfs_subscribe_blocking(
                 ipfs::SubscriptionKind::DocSync,
                 self.app_name(),
                 Some(tree),
@@ -476,7 +476,7 @@ fn publish_new_payload(
     // is performed in `new()`). Invoking the subscription again to ensure
     // the topic is active, because Gossipsub enforces that peers must subscribe
     // to a topic before they are permitted to publish on it.
-    match hermes_ipfs_subscribe(
+    match hermes_ipfs_subscribe_blocking(
         SubscriptionKind::DocSync,
         ctx.app_name(),
         None,
