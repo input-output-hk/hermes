@@ -45,8 +45,9 @@ pub(crate) use api::{
     hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_dht_get_providers,
     hermes_ipfs_dht_provide, hermes_ipfs_evict_peer, hermes_ipfs_get_dht_value,
     hermes_ipfs_get_file, hermes_ipfs_get_peer_identity, hermes_ipfs_get_peer_identity_blocking,
-    hermes_ipfs_pin_file, hermes_ipfs_publish, hermes_ipfs_put_dht_value,
-    hermes_ipfs_subscribe_blocking, hermes_ipfs_unpin_file, hermes_ipfs_unsubscribe,
+    hermes_ipfs_pin_file, hermes_ipfs_publish, hermes_ipfs_publish_blocking,
+    hermes_ipfs_put_dht_value, hermes_ipfs_subscribe_blocking, hermes_ipfs_unpin_file,
+    hermes_ipfs_unsubscribe,
 };
 use catalyst_types::smt::Tree;
 use dashmap::DashMap;
@@ -766,17 +767,34 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         cmd_rx.await.map_err(|_| Errno::GetPeerIdError)?
     }
 
-    /// Publish message to a `PubSub` topic
-    async fn pubsub_publish(
+    /// Publish message to a `PubSub` topic in the non-async context.
+    fn pubsub_publish_blocking(
         &self,
-        topic: PubsubTopic,
+        topic: &PubsubTopic,
         message: MessageData,
     ) -> Result<(), Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()
             .ok_or(Errno::PubsubPublishError)?
-            .send(IpfsCommand::Publish(topic, message, cmd_tx))
+            .blocking_send(IpfsCommand::Publish(topic.clone(), message, cmd_tx))
+            .map_err(|_| Errno::PubsubPublishError)?;
+        cmd_rx
+            .blocking_recv()
+            .map_err(|_| Errno::PubsubPublishError)?
+    }
+
+    /// Publish message to a `PubSub` topic
+    async fn pubsub_publish(
+        &self,
+        topic: &PubsubTopic,
+        message: MessageData,
+    ) -> Result<(), Errno> {
+        let (cmd_tx, cmd_rx) = oneshot::channel();
+        self.sender
+            .as_ref()
+            .ok_or(Errno::PubsubPublishError)?
+            .send(IpfsCommand::Publish(topic.clone(), message, cmd_tx))
             .await
             .map_err(|_| Errno::PubsubPublishError)?;
         cmd_rx.await.map_err(|_| Errno::PubsubPublishError)?

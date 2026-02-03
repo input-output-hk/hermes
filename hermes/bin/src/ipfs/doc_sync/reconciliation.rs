@@ -62,7 +62,7 @@ pub(super) async fn start_reconciliation(
     let syn_payload = make_syn_payload(doc_reconciliation_data, peer).await;
     tracing::info!("SYN payload created");
 
-    if let Err(err) = send_syn_payload(&syn_payload, app_name, channel) {
+    if let Err(err) = send_syn_payload(&syn_payload, app_name, channel).await {
         unsubscribe_from_dif(app_name, channel)?;
         tracing::info!(%channel, "unsubscribed from .dif");
         return Err(err);
@@ -161,7 +161,7 @@ async fn make_syn_payload(
 }
 
 /// Sends the SYN payload to request the reconciliation data.
-fn send_syn_payload(
+async fn send_syn_payload(
     payload: &MsgSyn,
     app_name: &ApplicationName,
     channel: &str,
@@ -172,7 +172,7 @@ fn send_syn_payload(
     payload
         .encode(&mut enc, &mut ())
         .map_err(|e| anyhow::anyhow!("Failed to encode syn_payload::MsgSyn: {e}"))?;
-    hermes_ipfs_publish(app_name, &topic, payload_bytes)?;
+    hermes_ipfs_publish(app_name, &topic, payload_bytes).await?;
     Ok(())
 }
 

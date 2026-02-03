@@ -14,7 +14,7 @@ use wasmtime::component::Resource;
 use super::ChannelState;
 use crate::{
     app::ApplicationName,
-    ipfs::{self, SubscriptionKind, hermes_ipfs_publish, hermes_ipfs_subscribe_blocking},
+    ipfs::{self, SubscriptionKind, hermes_ipfs_publish_blocking, hermes_ipfs_subscribe_blocking},
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::hermes::{
@@ -494,7 +494,7 @@ fn publish_new_payload(
         topic_new
     );
 
-    match hermes_ipfs_publish(ctx.app_name(), &topic_new, payload_bytes) {
+    match hermes_ipfs_publish_blocking(ctx.app_name(), &topic_new, payload_bytes) {
         Ok(()) => {
             tracing::info!("✅ Step {STEP}/{POST_STEP_COUNT}: Published to PubSub → {topic_new}");
             if let Some(timers) = channel_state.timers.as_ref() {
@@ -565,7 +565,7 @@ fn send_new_keepalive(
         .map_err(|e| anyhow::anyhow!("Failed to encode payload::New: {e}"))?;
 
     let new_topic = format!("{channel_name}.new");
-    hermes_ipfs_publish(app_name, &new_topic, payload_bytes)
+    hermes_ipfs_publish_blocking(app_name, &new_topic, payload_bytes)
         .map_err(|e| anyhow::Error::msg(format!("Keepalive publish failed: {e:?}")))?;
     Ok(())
 }
