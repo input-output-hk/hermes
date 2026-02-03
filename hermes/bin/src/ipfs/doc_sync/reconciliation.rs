@@ -63,7 +63,7 @@ pub(super) async fn start_reconciliation(
     tracing::info!("SYN payload created");
 
     if let Err(err) = send_syn_payload(&syn_payload, app_name, channel).await {
-        unsubscribe_from_dif(app_name, channel)?;
+        unsubscribe_from_dif(app_name, channel).await?;
         tracing::info!(%channel, "unsubscribed from .dif");
         return Err(err);
     }
@@ -92,12 +92,12 @@ async fn subscribe_to_dif(
 }
 
 /// Unsubscribes from ".dif" topic.
-fn unsubscribe_from_dif(
+async fn unsubscribe_from_dif(
     app_name: &ApplicationName,
     channel: &str,
 ) -> anyhow::Result<()> {
     let topic = format!("{channel}.dif");
-    hermes_ipfs_unsubscribe(ipfs::SubscriptionKind::DocSync, app_name, &topic)?;
+    hermes_ipfs_unsubscribe(ipfs::SubscriptionKind::DocSync, app_name, &topic).await?;
     Ok(())
 }
 

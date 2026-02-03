@@ -8,7 +8,7 @@ use crate::{
         hermes_ipfs_dht_provide, hermes_ipfs_evict_peer, hermes_ipfs_get_dht_value,
         hermes_ipfs_get_file, hermes_ipfs_get_peer_identity_blocking, hermes_ipfs_pin_file,
         hermes_ipfs_publish_blocking, hermes_ipfs_put_dht_value, hermes_ipfs_subscribe_blocking,
-        hermes_ipfs_unpin_file, hermes_ipfs_unsubscribe,
+        hermes_ipfs_unpin_file, hermes_ipfs_unsubscribe_blocking,
     },
     runtime_context::HermesRuntimeContext,
     runtime_extensions::bindings::hermes::ipfs::api::{
@@ -123,7 +123,7 @@ impl Host for HermesRuntimeContext {
         &mut self,
         topic: PubsubTopic,
     ) -> wasmtime::Result<Result<bool, Errno>> {
-        Ok(hermes_ipfs_unsubscribe(
+        Ok(hermes_ipfs_unsubscribe_blocking(
             ipfs::SubscriptionKind::Default,
             self.app_name(),
             &topic,

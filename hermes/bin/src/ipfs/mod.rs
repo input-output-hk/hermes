@@ -47,7 +47,7 @@ pub(crate) use api::{
     hermes_ipfs_get_file, hermes_ipfs_get_peer_identity, hermes_ipfs_get_peer_identity_blocking,
     hermes_ipfs_pin_file, hermes_ipfs_publish, hermes_ipfs_publish_blocking,
     hermes_ipfs_put_dht_value, hermes_ipfs_subscribe_blocking, hermes_ipfs_unpin_file,
-    hermes_ipfs_unsubscribe,
+    hermes_ipfs_unsubscribe_blocking,
 };
 use catalyst_types::smt::Tree;
 use dashmap::DashMap;
@@ -853,6 +853,22 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
             .await
             .map_err(|_| Errno::PubsubSubscribeError)?;
         cmd_rx.await.map_err(|_| Errno::PubsubSubscribeError)?
+    }
+
+    /// Unsubscribe from a `PubSub` topic in the non-async context
+    fn pubsub_unsubscribe_blocking(
+        &self,
+        topic: &PubsubTopic,
+    ) -> Result<(), Errno> {
+        let (cmd_tx, cmd_rx) = oneshot::channel();
+        self.sender
+            .as_ref()
+            .ok_or(Errno::PubsubUnsubscribeError)?
+            .blocking_send(IpfsCommand::Unsubscribe(topic.clone(), cmd_tx))
+            .map_err(|_| Errno::PubsubUnsubscribeError)?;
+        cmd_rx
+            .blocking_recv()
+            .map_err(|_| Errno::PubsubUnsubscribeError)?
     }
 
     /// Unsubscribe from a `PubSub` topic
