@@ -88,7 +88,9 @@ impl TopicHandler for payload::New {
                                         channel_name,
                                         context.module_ids(),
                                         source.map(|p| p.to_string()),
-                                    ) {
+                                    )
+                                    .await
+                                    {
                                         return Err(anyhow::anyhow!(
                                             "Failed to start reconciliation: {err}",
                                         ));

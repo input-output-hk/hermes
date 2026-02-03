@@ -143,38 +143,31 @@ pub(crate) fn hermes_ipfs_dht_get_providers(
     Ok(providers)
 }
 
-/// Returns the peer id of the node.
-pub(crate) fn hermes_ipfs_get_peer_identity(
-    app_name: &ApplicationName,
-    peer: Option<PeerId>,
-) -> Result<hermes_ipfs::PeerInfo, Errno> {
+/// Returns the peer id of the node in the non-async context.
+pub(crate) fn hermes_ipfs_get_peer_identity_blocking(
+    peer: Option<PeerId>
+) -> Result<Option<hermes_ipfs::PeerInfo>, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
 
-    let res = if tokio::runtime::Handle::try_current().is_ok() {
-        tracing::debug!("identity with existing Tokio runtime");
+    let identity = ipfs.get_peer_identity_blocking(peer)?;
+    tracing::debug!("Got peer identity");
 
-        let (tx, rx) = std::sync::mpsc::channel();
-
-        tokio::task::spawn_blocking(move || {
-            let handle = tokio::runtime::Handle::current();
-            let res = handle.block_on(ipfs.get_peer_identity(peer));
-            drop(tx.send(res));
-        });
-
-        rx.recv().map_err(|_| Errno::PubsubPublishError)
-    } else {
-        tracing::debug!("identity without existing Tokio runtime");
-        let rt = tokio::runtime::Runtime::new().map_err(|_| Errno::ServiceUnavailable)?;
-
-        Ok(rt.block_on(ipfs.get_peer_identity(peer)))
-    }??;
-
-    tracing::debug!(app_name = %app_name, "Got peer identity");
-
-    Ok(res)
+    Ok(identity)
 }
 
-/// Subscribe to a topic from the Sync context
+/// Returns the peer id of the node.
+pub(crate) async fn hermes_ipfs_get_peer_identity(
+    peer: Option<PeerId>
+) -> Result<Option<hermes_ipfs::PeerInfo>, Errno> {
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
+
+    let identity = ipfs.get_peer_identity(peer).await?;
+    tracing::debug!("Got peer identity");
+
+    Ok(identity)
+}
+
+/// Subscribe to a topic from in the non-async context.
 pub(crate) fn hermes_ipfs_subscribe_blocking(
     kind: SubscriptionKind,
     app_name: &ApplicationName,
@@ -188,6 +181,32 @@ pub(crate) fn hermes_ipfs_subscribe_blocking(
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription stream already exists");
     } else {
         let handle = ipfs.pubsub_subscribe_blocking(kind, topic, tree, app_name, module_ids)?;
+        ipfs.apps.added_topic_stream(kind, topic.clone(), handle);
+        tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "added subscription topic stream");
+    }
+    ipfs.apps
+        .added_app_topic_subscription(kind, app_name.clone(), topic.clone());
+    Ok(true)
+}
+
+/// Subscribe to a topic.
+// TODO[rafal-ch]: Handling of the `ipfs.apps` collection should be extracted to a common
+// behaviour for both this and the _blocking version of the function
+pub(crate) async fn hermes_ipfs_subscribe(
+    kind: SubscriptionKind,
+    app_name: &ApplicationName,
+    tree: Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
+    topic: &PubsubTopic,
+    module_ids: Option<&Vec<ModuleId>>,
+) -> Result<bool, Errno> {
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
+    tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "subscribing to PubSub topic");
+    if ipfs.apps.topic_subscriptions_contains(kind, topic) {
+        tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription stream already exists");
+    } else {
+        let handle = ipfs
+            .pubsub_subscribe(kind, topic, tree, app_name, module_ids)
+            .await?;
         ipfs.apps.added_topic_stream(kind, topic.clone(), handle);
         tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "added subscription topic stream");
     }

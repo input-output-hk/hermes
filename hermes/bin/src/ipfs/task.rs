@@ -34,6 +34,8 @@ use crate::{
     wasm::module::ModuleId,
 };
 
+const IDENTITY_CALL_TIMEOUT: Duration = Duration::from_millis(300);
+
 /// Chooses how subscription messages are handled.
 #[derive(Copy, Clone, Debug, Default)]
 pub(crate) enum SubscriptionKind {
@@ -89,7 +91,7 @@ pub(crate) enum IpfsCommand {
     /// Gets the peer identity
     Identity(
         Option<PeerId>,
-        oneshot::Sender<Result<hermes_ipfs::PeerInfo, Errno>>,
+        oneshot::Sender<Result<Option<hermes_ipfs::PeerInfo>, Errno>>,
     ),
 }
 
@@ -261,10 +263,23 @@ pub(crate) async fn ipfs_command_handler(
                     None => None,
                 };
 
-                let response = ipfs.identity(peer_id).await.map_err(|err| {
-                    tracing::error!(peer_id = ?peer_id, "Identity failed: {}", err);
-                    Errno::GetPeerIdError
-                });
+                // TODO[rafal-ch]: Timeout here is a workaround: https://github.com/input-output-hk/hermes/issues/798
+                let response =
+                    match tokio::time::timeout(IDENTITY_CALL_TIMEOUT, ipfs.identity(peer_id)).await
+                    {
+                        Ok(Ok(identity)) => {
+                            tracing::info!("got identity");
+                            Ok(Some(identity))
+                        },
+                        Ok(Err(err)) => {
+                            tracing::warn!(peer_id = ?peer_id, %err, "identity call failed");
+                            Ok(None)
+                        },
+                        Err(_) => {
+                            tracing::warn!(peer_id = ?peer_id, "identity call timeout");
+                            Ok(None)
+                        },
+                    };
 
                 send_response(response, tx);
             },

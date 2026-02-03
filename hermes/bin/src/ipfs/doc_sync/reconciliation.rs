@@ -9,8 +9,9 @@ use minicbor::{Encode, Encoder};
 use crate::{
     app::ApplicationName,
     ipfs::{
-        self, api::hermes_ipfs_unsubscribe, hermes_ipfs_get_peer_identity, hermes_ipfs_publish,
-        hermes_ipfs_subscribe_blocking,
+        self,
+        api::{hermes_ipfs_subscribe, hermes_ipfs_unsubscribe},
+        hermes_ipfs_get_peer_identity, hermes_ipfs_publish,
     },
     runtime_extensions::{
         bindings::hermes::ipfs::api::PeerId,
@@ -47,7 +48,7 @@ pub(crate) struct DocReconciliationData {
 }
 
 /// Starts the document reconciliation process.
-pub(super) fn start_reconciliation(
+pub(super) async fn start_reconciliation(
     doc_reconciliation_data: DocReconciliationData,
     app_name: &ApplicationName,
     tree: Arc<Mutex<Tree<doc_sync::Cid>>>,
@@ -55,10 +56,10 @@ pub(super) fn start_reconciliation(
     module_ids: Option<&Vec<ModuleId>>,
     peer: Option<PeerId>,
 ) -> anyhow::Result<()> {
-    subscribe_to_dif(app_name, tree, channel, module_ids)?;
+    subscribe_to_dif(app_name, tree, channel, module_ids).await?;
     tracing::info!(%channel, "subscribed to .dif");
 
-    let syn_payload = make_syn_payload(doc_reconciliation_data, app_name, peer);
+    let syn_payload = make_syn_payload(doc_reconciliation_data, peer).await;
     tracing::info!("SYN payload created");
 
     if let Err(err) = send_syn_payload(&syn_payload, app_name, channel) {
@@ -72,20 +73,21 @@ pub(super) fn start_reconciliation(
 }
 
 /// Subscribes to ".dif" topic in order to receive responses for the ".syn" requests.
-fn subscribe_to_dif(
+async fn subscribe_to_dif(
     app_name: &ApplicationName,
     tree: Arc<Mutex<Tree<doc_sync::Cid>>>,
     channel: &str,
     module_ids: Option<&Vec<ModuleId>>,
 ) -> anyhow::Result<()> {
     let topic = format!("{channel}.dif");
-    hermes_ipfs_subscribe_blocking(
+    hermes_ipfs_subscribe(
         ipfs::SubscriptionKind::DocSync,
         app_name,
         Some(tree),
         &topic,
         module_ids,
-    )?;
+    )
+    .await?;
     Ok(())
 }
 
@@ -100,7 +102,7 @@ fn unsubscribe_from_dif(
 }
 
 /// Creates the new SYN payload.
-fn make_syn_payload(
+async fn make_syn_payload(
     DocReconciliationData {
         our_root,
         our_count,
@@ -108,10 +110,10 @@ fn make_syn_payload(
         their_root,
         their_count,
     }: DocReconciliationData,
-    app_name: &ApplicationName,
     peer: Option<PeerId>,
 ) -> MsgSyn {
-    let public_key = hermes_ipfs_get_peer_identity(app_name, peer)
+    let public_key = hermes_ipfs_get_peer_identity(peer)
+        .await
         .map_err(|err| {
             tracing::info!(
                 %err,
@@ -119,6 +121,7 @@ fn make_syn_payload(
             );
         })
         .ok()
+        .flatten()
         .and_then(|peer_info| {
             peer_info
                 .public_key

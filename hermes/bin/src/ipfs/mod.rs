@@ -44,9 +44,9 @@ const KEYPAIR_FILENAME: &str = "keypair";
 pub(crate) use api::{
     hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_dht_get_providers,
     hermes_ipfs_dht_provide, hermes_ipfs_evict_peer, hermes_ipfs_get_dht_value,
-    hermes_ipfs_get_file, hermes_ipfs_get_peer_identity, hermes_ipfs_pin_file, hermes_ipfs_publish,
-    hermes_ipfs_put_dht_value, hermes_ipfs_subscribe_blocking, hermes_ipfs_unpin_file,
-    hermes_ipfs_unsubscribe,
+    hermes_ipfs_get_file, hermes_ipfs_get_peer_identity, hermes_ipfs_get_peer_identity_blocking,
+    hermes_ipfs_pin_file, hermes_ipfs_publish, hermes_ipfs_put_dht_value,
+    hermes_ipfs_subscribe_blocking, hermes_ipfs_unpin_file, hermes_ipfs_unsubscribe,
 };
 use catalyst_types::smt::Tree;
 use dashmap::DashMap;
@@ -737,12 +737,25 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
             .map_err(|_| Errno::DhtGetProvidersError)?
     }
 
+    /// Get the peer identity in a non-async context.
+    fn get_peer_identity_blocking(
+        &self,
+        peer: Option<PeerId>,
+    ) -> Result<Option<hermes_ipfs::PeerInfo>, Errno> {
+        let (cmd_tx, cmd_rx) = oneshot::channel();
+        self.sender
+            .as_ref()
+            .ok_or(Errno::GetPeerIdError)?
+            .blocking_send(IpfsCommand::Identity(peer, cmd_tx))
+            .map_err(|_| Errno::GetPeerIdError)?;
+        cmd_rx.blocking_recv().map_err(|_| Errno::GetPeerIdError)?
+    }
+
     /// Get the peer identity
-    // TODO[rafal-ch]: We should not be using API errors here.
     async fn get_peer_identity(
         &self,
         peer: Option<PeerId>,
-    ) -> Result<hermes_ipfs::PeerInfo, Errno> {
+    ) -> Result<Option<hermes_ipfs::PeerInfo>, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()
@@ -769,7 +782,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         cmd_rx.await.map_err(|_| Errno::PubsubPublishError)?
     }
 
-    /// Subscribe to a `PubSub` topic
+    /// Subscribe to a `PubSub` topic in a non-async context.
     fn pubsub_subscribe_blocking(
         &self,
         kind: SubscriptionKind,
@@ -795,6 +808,33 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         cmd_rx
             .blocking_recv()
             .map_err(|_| Errno::PubsubSubscribeError)?
+    }
+
+    /// Subscribe to a `PubSub` topic.
+    async fn pubsub_subscribe(
+        &self,
+        kind: SubscriptionKind,
+        topic: &PubsubTopic,
+        tree: Option<Arc<Mutex<Tree<hermes::doc_sync::Cid>>>>,
+        app_name: &ApplicationName,
+        module_ids: Option<&Vec<ModuleId>>,
+    ) -> Result<JoinHandle<()>, Errno> {
+        let (cmd_tx, cmd_rx) = oneshot::channel();
+        let module_ids_owned = module_ids.cloned();
+        self.sender
+            .as_ref()
+            .ok_or(Errno::PubsubSubscribeError)?
+            .send(IpfsCommand::Subscribe(
+                topic.clone(),
+                kind,
+                tree,
+                app_name.clone(),
+                module_ids_owned,
+                cmd_tx,
+            ))
+            .await
+            .map_err(|_| Errno::PubsubSubscribeError)?;
+        cmd_rx.await.map_err(|_| Errno::PubsubSubscribeError)?
     }
 
     /// Unsubscribe from a `PubSub` topic
