@@ -30,6 +30,7 @@ use crate::{
     wasm::module::ModuleId,
 };
 
+/// Timeout for IPFS identity call
 const IDENTITY_CALL_TIMEOUT: Duration = Duration::from_millis(300);
 
 /// Chooses how subscription messages are handled.

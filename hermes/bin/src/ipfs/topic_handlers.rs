@@ -1,3 +1,7 @@
+//! Hermes IPFS service.
+//!
+//! Handlers for IPFS topics.
+
 use std::{pin::Pin, sync::Arc};
 
 use hermes_ipfs::doc_sync::payload::{self};

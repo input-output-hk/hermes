@@ -1,3 +1,8 @@
+//! Hermes IPFS service.
+//!
+//! This module contains the blocking alternatives to IPFS function as opposed to async
+//! enabled functions.
+
 use std::{
     convert::Infallible,
     sync::{Arc, Mutex},

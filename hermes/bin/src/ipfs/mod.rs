@@ -3,8 +3,8 @@
 //! Why DHT Server Mode is Required:
 //! - DHT (Distributed Hash Table) server mode makes this node actively participate in the
 //!   DHT by storing and serving routing information
-//! - This is REQUIRED for Gossipsub PubSub to work properly because:
-//!   1. PubSub uses the DHT to discover which peers are subscribed to topics
+//! - This is REQUIRED for Gossipsub `PubSub` to work properly because:
+//!   1. `PubSub` uses the DHT to discover which peers are subscribed to topics
 //!   2. Gossipsub builds mesh connections based on DHT peer discovery
 //!   3. Without server mode, the node would be a "leech" that can't help other peers
 //!      discover the network, weakening the mesh
