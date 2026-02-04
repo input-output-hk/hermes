@@ -469,7 +469,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         // Create a oneshot channel to signal when the command handler is ready
         let (ready_tx, ready_rx) = oneshot::channel();
 
-        // Start the async block.
+        // Start the async block
         tokio_runtime.block_on(async {
             // Spin-up the IPFS node
             let node = builder.start().await?;
