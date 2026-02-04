@@ -14,7 +14,7 @@ use wasmtime::component::Resource;
 use super::ChannelState;
 use crate::{
     app::ApplicationName,
-    ipfs::{self, SubscriptionKind, hermes_ipfs_publish_blocking, hermes_ipfs_subscribe_blocking},
+    ipfs::{self, SubscriptionKind, blocking},
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::hermes::{
@@ -131,7 +131,7 @@ impl HostSyncChannel for HermesRuntimeContext {
             let tree = Arc::clone(&channel_state.smt);
             let topic = format!("{name}{topic_suffix}");
             // When the channel is created, subscribe to two topics: <name>.new and <name>.syn
-            if let Err(err) = hermes_ipfs_subscribe_blocking(
+            if let Err(err) = blocking::hermes_ipfs_subscribe(
                 ipfs::SubscriptionKind::DocSync,
                 self.app_name(),
                 Some(tree),
@@ -476,7 +476,7 @@ fn publish_new_payload(
     // is performed in `new()`). Invoking the subscription again to ensure
     // the topic is active, because Gossipsub enforces that peers must subscribe
     // to a topic before they are permitted to publish on it.
-    match hermes_ipfs_subscribe_blocking(
+    match blocking::hermes_ipfs_subscribe(
         SubscriptionKind::DocSync,
         ctx.app_name(),
         None,
@@ -494,7 +494,7 @@ fn publish_new_payload(
         topic_new
     );
 
-    match hermes_ipfs_publish_blocking(ctx.app_name(), &topic_new, payload_bytes) {
+    match blocking::hermes_ipfs_publish(ctx.app_name(), &topic_new, payload_bytes) {
         Ok(()) => {
             tracing::info!("✅ Step {STEP}/{POST_STEP_COUNT}: Published to PubSub → {topic_new}");
             if let Some(timers) = channel_state.timers.as_ref() {
@@ -565,7 +565,7 @@ fn send_new_keepalive(
         .map_err(|e| anyhow::anyhow!("Failed to encode payload::New: {e}"))?;
 
     let new_topic = format!("{channel_name}.new");
-    hermes_ipfs_publish_blocking(app_name, &new_topic, payload_bytes)
+    blocking::hermes_ipfs_publish(app_name, &new_topic, payload_bytes)
         .map_err(|e| anyhow::Error::msg(format!("Keepalive publish failed: {e:?}")))?;
     Ok(())
 }

@@ -11,7 +11,7 @@
 //! - All Hermes nodes should be DHT servers to form a robust P2P network
 
 mod api;
-mod blocking;
+pub(crate) mod blocking;
 mod doc_sync;
 mod task;
 mod topic_message_context;
@@ -45,10 +45,8 @@ const KEYPAIR_FILENAME: &str = "keypair";
 pub(crate) use api::{
     hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_dht_get_providers,
     hermes_ipfs_dht_provide, hermes_ipfs_evict_peer, hermes_ipfs_get_dht_value,
-    hermes_ipfs_get_file, hermes_ipfs_get_peer_identity, hermes_ipfs_get_peer_identity_blocking,
-    hermes_ipfs_pin_file, hermes_ipfs_publish, hermes_ipfs_publish_blocking,
-    hermes_ipfs_put_dht_value, hermes_ipfs_subscribe_blocking, hermes_ipfs_unpin_file,
-    hermes_ipfs_unsubscribe_blocking,
+    hermes_ipfs_get_file, hermes_ipfs_get_peer_identity, hermes_ipfs_pin_file, hermes_ipfs_publish,
+    hermes_ipfs_put_dht_value, hermes_ipfs_unpin_file,
 };
 use catalyst_types::smt::Tree;
 use dashmap::DashMap;

@@ -10,10 +10,11 @@ use super::task::IpfsCommand;
 pub(crate) use super::task::SubscriptionKind;
 use crate::{
     app::ApplicationName,
-    ipfs::HermesIpfsNode,
+    ipfs::{HERMES_IPFS, HermesIpfsNode},
     runtime_extensions::{
         bindings::hermes::ipfs::api::{Errno, MessageData, PeerId, PubsubTopic},
         hermes,
+        hermes::doc_sync,
     },
     wasm::module::ModuleId,
 };
@@ -95,4 +96,101 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
             .blocking_recv()
             .map_err(|_| Errno::PubsubUnsubscribeError)?
     }
+}
+
+/// Returns the peer id of the node in the non-async context.
+pub(crate) fn hermes_ipfs_get_peer_identity(
+    peer: Option<PeerId>
+) -> Result<Option<hermes_ipfs::PeerInfo>, Errno> {
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
+
+    let identity = ipfs.get_peer_identity_blocking(peer)?;
+    tracing::debug!("Got peer identity");
+
+    Ok(identity)
+}
+
+/// Subscribe to a topic from in the non-async context.
+pub(crate) fn hermes_ipfs_subscribe(
+    kind: SubscriptionKind,
+    app_name: &ApplicationName,
+    tree: Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
+    topic: &PubsubTopic,
+    module_ids: Option<&Vec<ModuleId>>,
+) -> Result<bool, Errno> {
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
+    tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "subscribing to PubSub topic");
+    if ipfs.apps.topic_subscriptions_contains(kind, topic) {
+        tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription stream already exists");
+    } else {
+        let handle = ipfs.pubsub_subscribe_blocking(kind, topic, tree, app_name, module_ids)?;
+        ipfs.apps.added_topic_stream(kind, topic.clone(), handle);
+        tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "added subscription topic stream");
+    }
+    ipfs.apps
+        .added_app_topic_subscription(kind, app_name.clone(), topic.clone());
+    Ok(true)
+}
+
+/// Unsubscribe from a topic in the non-async context
+pub(crate) fn hermes_ipfs_unsubscribe(
+    kind: SubscriptionKind,
+    app_name: &ApplicationName,
+    topic: &PubsubTopic,
+) -> Result<bool, Errno> {
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
+    tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "unsubscribing from PubSub topic");
+
+    if ipfs.apps.topic_subscriptions_contains(kind, topic) {
+        ipfs.pubsub_unsubscribe_blocking(topic)?;
+
+        ipfs.apps.removed_topic_stream(kind, topic);
+        tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "removed subscription topic
+stream");
+    } else {
+        tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription does not
+exist");
+    }
+    ipfs.apps
+        .removed_app_topic_subscription(kind, app_name, topic);
+    Ok(true)
+}
+
+/// Publish message to a topic in the non-async context.
+pub(crate) fn hermes_ipfs_publish(
+    app_name: &ApplicationName,
+    topic: &PubsubTopic,
+    message: MessageData,
+) -> Result<(), Errno> {
+    let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
+
+    // Log publish attempt with message size
+    tracing::info!(
+    app_name = %app_name,
+    topic = %topic,
+    message_size = message.len(),
+    "📤 Publishing PubSub message"
+    );
+
+    let res = ipfs.pubsub_publish_blocking(topic, message);
+
+    match &res {
+        Ok(()) => {
+            tracing::info!(
+            app_name = %app_name,
+            topic = %topic,
+            "✅ PubSub publish succeeded"
+            );
+        },
+        Err(e) => {
+            tracing::error!(
+            app_name = %app_name,
+            topic = %topic,
+            error = ?e,
+            "❌ PubSub publish failed"
+            );
+        },
+    }
+
+    res
 }
