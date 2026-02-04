@@ -14,6 +14,7 @@ mod api;
 pub(crate) mod blocking;
 mod doc_sync;
 mod task;
+mod topic_handlers;
 mod topic_message_context;
 
 use std::{
