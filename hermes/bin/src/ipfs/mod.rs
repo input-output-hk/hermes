@@ -1,7 +1,20 @@
 //! Hermes IPFS service.
+//!
+//! Why DHT Server Mode is Required:
+//! - DHT (Distributed Hash Table) server mode makes this node actively participate in the
+//!   DHT by storing and serving routing information
+//! - This is REQUIRED for Gossipsub `PubSub` to work properly because:
+//!   1. `PubSub` uses the DHT to discover which peers are subscribed to topics
+//!   2. Gossipsub builds mesh connections based on DHT peer discovery
+//!   3. Without server mode, the node would be a "leech" that can't help other peers
+//!      discover the network, weakening the mesh
+//! - All Hermes nodes should be DHT servers to form a robust P2P network
+
 mod api;
+pub(crate) mod blocking;
 mod doc_sync;
 mod task;
+mod topic_handlers;
 mod topic_message_context;
 
 use std::{
@@ -34,8 +47,7 @@ pub(crate) use api::{
     hermes_ipfs_add_file, hermes_ipfs_content_validate, hermes_ipfs_dht_get_providers,
     hermes_ipfs_dht_provide, hermes_ipfs_evict_peer, hermes_ipfs_get_dht_value,
     hermes_ipfs_get_file, hermes_ipfs_get_peer_identity, hermes_ipfs_pin_file, hermes_ipfs_publish,
-    hermes_ipfs_put_dht_value, hermes_ipfs_subscribe, hermes_ipfs_unpin_file,
-    hermes_ipfs_unsubscribe,
+    hermes_ipfs_put_dht_value, hermes_ipfs_unpin_file,
 };
 use catalyst_types::smt::Tree;
 use dashmap::DashMap;
@@ -47,7 +59,7 @@ use once_cell::sync::OnceCell;
 pub(crate) use task::SubscriptionKind;
 use task::{IpfsCommand, ipfs_command_handler};
 use tokio::{
-    runtime::Builder,
+    runtime::{Builder, Runtime},
     sync::{mpsc, oneshot},
     task::JoinHandle,
 };
@@ -426,8 +438,19 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
     sender: Option<mpsc::Sender<IpfsCommand>>,
     /// State related to `ApplicationName`
     apps: AppIpfsState,
+    /// Tokio runtime kept alive by the Hermes IPFS node
+    _tokio_runtime: Runtime,
     /// Phantom data.
     _phantom_data: PhantomData<N>,
+}
+
+impl<N> Drop for HermesIpfsNode<N>
+where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send + Sync
+{
+    fn drop(&mut self) {
+        // Close the sender to signal shutdown
+        self.sender.take();
+    }
 }
 
 impl<N> HermesIpfsNode<N>
@@ -439,64 +462,60 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         default_bootstrap: bool,
         custom_peers: Option<Vec<String>>,
     ) -> anyhow::Result<Self> {
-        let runtime = Builder::new_multi_thread().enable_all().build()?;
-        let (sender, receiver) = mpsc::channel(1);
+        let tokio_runtime = Builder::new_multi_thread().enable_all().build()?;
 
-        // Build and start IPFS node, before moving into the thread
-        let node = runtime.block_on(async move { builder.start().await })?;
+        // Create a channel to send commands to the IPFS node
+        let (command_sender, command_receiver) = mpsc::channel(1);
 
         // Create a oneshot channel to signal when the command handler is ready
         let (ready_tx, ready_rx) = oneshot::channel();
 
-        let _handle = std::thread::spawn(move || {
-            let result = runtime.block_on(async move {
-                // Configure listening address for P2P connections
-                configure_listening_address(&node).await;
+        // Start the async block
+        tokio_runtime.block_on(async {
+            // Spin-up the IPFS node
+            let node = builder.start().await?;
+            configure_listening_address(&node).await;
 
-                // Connect to bootstrap peers
-                if let Some(peers) = custom_peers {
-                    connect_to_bootstrap_peers(&node, peers).await;
-                } else if default_bootstrap {
-                    // Use public IPFS bootstrap nodes
-                    let addresses = node.default_bootstrap().await?;
-                    node.bootstrap().await?;
-                    tracing::debug!(
-                        "Bootstrapped IPFS node with default addresses: {:?}",
-                        addresses
-                    );
-                }
+            // Connect to bootstrap peers
+            if let Some(peers) = custom_peers {
+                connect_to_bootstrap_peers(&node, peers).await;
+            } else if default_bootstrap {
+                // Use public IPFS bootstrap nodes
+                let addresses = node.default_bootstrap().await?;
+                node.bootstrap().await?;
+                tracing::debug!(
+                    "Bootstrapped IPFS node with default addresses: {:?}",
+                    addresses
+                );
+            }
 
-                // Why DHT Server Mode is Required:
-                // - DHT (Distributed Hash Table) server mode makes this node actively participate
-                //   in the DHT by storing and serving routing information
-                // - This is REQUIRED for Gossipsub PubSub to work properly because:
-                //   1. PubSub uses the DHT to discover which peers are subscribed to topics
-                //   2. Gossipsub builds mesh connections based on DHT peer discovery
-                //   3. Without server mode, the node would be a "leech" that can't help other peers
-                //      discover the network, weakening the mesh
-                // - All Hermes nodes should be DHT servers to form a robust P2P network
-                let hermes_node: HermesIpfs = node.into();
-                hermes_node
-                    .dht_mode(hermes_ipfs::rust_ipfs::DhtMode::Server)
-                    .await?;
-                tracing::debug!("IPFS node set to DHT server mode");
+            // Build the Hermes wrapper around IPFS node
+            let ipfs: HermesIpfs = node.into();
+            ipfs.dht_mode(hermes_ipfs::rust_ipfs::DhtMode::Server)
+                .await?;
+            tracing::debug!("IPFS node set to DHT server mode");
 
-                // Start command handler
-
-                // Signal that the command handler is about to start
-                // Ignore the error if the receiver was dropped
+            // Spawn the command handler task
+            tokio::spawn(async move {
                 let _ = ready_tx.send(());
+                if let Err(err) = ipfs_command_handler(ipfs, command_receiver).await {
+                    tracing::error!(%err, "IPFS command handler failed");
 
-                // Start command handler
-                let h = tokio::spawn(ipfs_command_handler(hermes_node, receiver));
-                let (..) = tokio::join!(h);
-                Ok::<(), anyhow::Error>(())
+                    // TODO[rafal-ch]: In the future we should make sure that:
+                    // 1. command handler continues to work when it encounters an error
+                    //    that is recoverable (i.e. such errors are logged internally but
+                    //    not bubbled up to here)
+                    // 2. command handler returns only in case of fatal error in which
+                    //    case we should shutdown the Hermes here.
+                    //
+                    // Currently we just report the error and keep the Hermes running, but
+                    // without IPFS command handler.
+                }
             });
 
-            if let Err(e) = result {
-                tracing::error!("IPFS thread error: {}", e);
-            }
-        });
+            // All done
+            Ok::<(), anyhow::Error>(())
+        })?;
 
         // Wait for the command handler to be ready before returning
         // This prevents the race condition where auto-subscribe happens before
@@ -508,8 +527,9 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
         tracing::debug!("IPFS command handler is ready");
 
         Ok(Self {
-            sender: Some(sender),
+            sender: Some(command_sender),
             apps: AppIpfsState::new(),
+            _tokio_runtime: tokio_runtime,
             _phantom_data: PhantomData,
         })
     }
@@ -716,11 +736,10 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
     }
 
     /// Get the peer identity
-    // TODO[rafal-ch]: We should not be using API errors here.
     async fn get_peer_identity(
         &self,
         peer: Option<PeerId>,
-    ) -> Result<hermes_ipfs::PeerInfo, Errno> {
+    ) -> Result<Option<hermes_ipfs::PeerInfo>, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()
@@ -734,29 +753,30 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
     /// Publish message to a `PubSub` topic
     async fn pubsub_publish(
         &self,
-        topic: PubsubTopic,
+        topic: &PubsubTopic,
         message: MessageData,
     ) -> Result<(), Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
         self.sender
             .as_ref()
             .ok_or(Errno::PubsubPublishError)?
-            .send(IpfsCommand::Publish(topic, message, cmd_tx))
+            .send(IpfsCommand::Publish(topic.clone(), message, cmd_tx))
             .await
             .map_err(|_| Errno::PubsubPublishError)?;
         cmd_rx.await.map_err(|_| Errno::PubsubPublishError)?
     }
 
-    /// Subscribe to a `PubSub` topic
+    /// Subscribe to a `PubSub` topic.
     async fn pubsub_subscribe(
         &self,
         kind: SubscriptionKind,
         topic: &PubsubTopic,
         tree: Option<Arc<Mutex<Tree<hermes::doc_sync::Cid>>>>,
         app_name: &ApplicationName,
-        module_ids: Option<Vec<ModuleId>>,
+        module_ids: Option<&Vec<ModuleId>>,
     ) -> Result<JoinHandle<()>, Errno> {
         let (cmd_tx, cmd_rx) = oneshot::channel();
+        let module_ids_owned = module_ids.cloned();
         self.sender
             .as_ref()
             .ok_or(Errno::PubsubSubscribeError)?
@@ -765,7 +785,7 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
                 kind,
                 tree,
                 app_name.clone(),
-                module_ids,
+                module_ids_owned,
                 cmd_tx,
             ))
             .await
@@ -1016,4 +1036,38 @@ fn is_valid_pubsub_content(
 ) -> bool {
     // TODO(anyone): https://github.com/input-output-hk/hermes/issues/288
     !message.is_empty()
+}
+
+/// Helper macro to keep the same `ipfs.apps` update logic for both sync
+/// and async subscription calls.
+#[macro_export]
+macro_rules! subscribe_to_topic {
+    ($ipfs:expr, $kind:expr, $app_name:expr, $topic:expr, $subscribe_call:expr) => {{
+        if $ipfs.apps.topic_subscriptions_contains($kind, $topic) {
+            tracing::debug!(app_name = %$app_name, pubsub_topic = %$topic, "topic subscription stream already exists");
+        } else {
+            let handle = $subscribe_call?;
+            $ipfs.apps.added_topic_stream($kind, $topic.clone(), handle);
+            tracing::debug!(app_name = %$app_name, pubsub_topic = %$topic, "added subscription topic stream");
+        }
+        $ipfs.apps
+            .added_app_topic_subscription($kind, $app_name.clone(), $topic.clone());
+    }};
+}
+
+/// Helper macro to keep the same `ipfs.apps` update logic for both sync
+/// and async unsubscription calls.
+#[macro_export]
+macro_rules! unsubscribe_from_topic {
+    ($ipfs:expr, $kind:expr, $app_name:expr, $topic:expr, $unsubscribe_call:expr) => {{
+        if $ipfs.apps.topic_subscriptions_contains($kind, $topic) {
+            $unsubscribe_call?;
+            $ipfs.apps.removed_topic_stream($kind, $topic);
+            tracing::debug!(app_name = %$app_name, pubsub_topic = %$topic, "removed subscription topic stream");
+        } else {
+            tracing::debug!(app_name = %$app_name, pubsub_topic = %$topic, "topic subscription does not exist");
+        }
+        $ipfs.apps
+            .removed_app_topic_subscription($kind, $app_name, $topic);
+    }};
 }

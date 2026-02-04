@@ -7,10 +7,7 @@ use std::{
 };
 
 use catalyst_types::smt::Tree;
-use hermes_ipfs::{
-    Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId,
-    doc_sync::payload::{self},
-};
+use hermes_ipfs::{Cid, HermesIpfs, IpfsPath as PathIpfsFile, PeerId as TargetPeerId};
 use tokio::{
     sync::{mpsc, oneshot},
     task::JoinHandle,
@@ -20,18 +17,21 @@ use tokio::{
 use super::HERMES_IPFS;
 use crate::{
     app::ApplicationName,
-    ipfs::{doc_sync::handle_doc_sync_topic, topic_message_context::TopicMessageContext},
+    ipfs::{
+        topic_handlers::{self, TopicMessageHandler, TopicSubscriptionStatusHandler},
+        topic_message_context::TopicMessageContext,
+    },
     runtime_extensions::{
         bindings::hermes::ipfs::api::{
-            DhtKey, DhtValue, Errno, IpfsFile, MessageData, PeerId, PubsubMessage, PubsubTopic,
+            DhtKey, DhtValue, Errno, IpfsFile, MessageData, PeerId, PubsubTopic,
         },
-        hermes::{
-            doc_sync::{self, OnNewDocEvent},
-            ipfs::event::OnTopicEvent,
-        },
+        hermes::doc_sync::{self, OnNewDocEvent},
     },
     wasm::module::ModuleId,
 };
+
+/// Timeout for IPFS identity call
+const IDENTITY_CALL_TIMEOUT: Duration = Duration::from_millis(300);
 
 /// Chooses how subscription messages are handled.
 #[derive(Copy, Clone, Debug, Default)]
@@ -88,18 +88,17 @@ pub(crate) enum IpfsCommand {
     /// Gets the peer identity
     Identity(
         Option<PeerId>,
-        oneshot::Sender<Result<hermes_ipfs::PeerInfo, Errno>>,
+        oneshot::Sender<Result<Option<hermes_ipfs::PeerInfo>, Errno>>,
     ),
 }
 
 /// Handle IPFS commands in asynchronous task.
 #[allow(clippy::too_many_lines)]
 pub(crate) async fn ipfs_command_handler(
-    hermes_node: HermesIpfs,
+    ipfs: HermesIpfs,
     mut queue_rx: mpsc::Receiver<IpfsCommand>,
 ) -> anyhow::Result<()> {
-    // Wrap in Arc to allow sharing across spawned tasks
-    let hermes_node = Arc::new(hermes_node);
+    let ipfs = Arc::new(ipfs);
 
     while let Some(ipfs_command) = queue_rx.recv().await {
         tracing::debug!(
@@ -108,14 +107,14 @@ pub(crate) async fn ipfs_command_handler(
         );
         match ipfs_command {
             IpfsCommand::AddFile(ipfs_file, tx) => {
-                let response = hermes_node
+                let response = ipfs
                     .add_ipfs_file(ipfs_file)
                     .await
                     .map_err(|_| Errno::FileAddError);
                 send_response(response, tx);
             },
             IpfsCommand::GetFile(cid, tx) => {
-                let response = hermes_node
+                let response = ipfs
                     .get_ipfs_file_cbor(&cid)
                     .await
                     .map_err(|_| Errno::FileGetError);
@@ -124,7 +123,7 @@ pub(crate) async fn ipfs_command_handler(
             IpfsCommand::GetFileWithProviders(cid, providers, tx) => {
                 // Spawn task to avoid blocking the command handler
                 // This allows concurrent file fetches and retry logic to work
-                let node = Arc::clone(&hermes_node);
+                let node = Arc::clone(&ipfs);
                 tokio::spawn(async move {
                     let response = node
                         .get_ipfs_file_cbor_with_providers(&cid, &providers)
@@ -134,7 +133,7 @@ pub(crate) async fn ipfs_command_handler(
                 });
             },
             IpfsCommand::PinFile(cid, tx) => {
-                let response = match hermes_node.insert_pin(&cid).await {
+                let response = match ipfs.insert_pin(&cid).await {
                     Ok(()) => {
                         tracing::info!("Pin succeeded for CID: {}", cid.to_string());
                         Ok(true)
@@ -152,7 +151,7 @@ pub(crate) async fn ipfs_command_handler(
                 send_response(response, tx);
             },
             IpfsCommand::UnPinFile(cid, tx) => {
-                let response = match hermes_node.remove_pin(&cid).await {
+                let response = match ipfs.remove_pin(&cid).await {
                     Ok(()) => Ok(true),
                     Err(err) => {
                         tracing::error!(cid = %cid, "failed to un-pin: {}", err);
@@ -162,29 +161,26 @@ pub(crate) async fn ipfs_command_handler(
                 send_response(response, tx);
             },
             IpfsCommand::GetDhtValue(key, tx) => {
-                let response = hermes_node.dht_get(key.clone()).await.map_err(|err| {
+                let response = ipfs.dht_get(key.clone()).await.map_err(|err| {
                     tracing::error!(dht_key = ?key, "failed to get DHT value: {}", err);
                     Errno::DhtGetError
                 });
                 send_response(response, tx);
             },
             IpfsCommand::PutDhtValue(key, value, tx) => {
-                let response = hermes_node.dht_put(key, value).await.is_ok();
+                let response = ipfs.dht_put(key, value).await.is_ok();
                 send_response(Ok(response), tx);
             },
             IpfsCommand::Publish(topic, message, tx) => {
-                let result = hermes_node
-                    .pubsub_publish(&topic, message)
-                    .await
-                    .map_err(|e| {
-                        tracing::error!(topic = %topic, "pubsub_publish failed: {}", e);
-                        Errno::PubsubPublishError
-                    });
+                let result = ipfs.pubsub_publish(&topic, message).await.map_err(|e| {
+                    tracing::error!(topic = %topic, "pubsub_publish failed: {}", e);
+                    Errno::PubsubPublishError
+                });
                 send_response(result, tx);
             },
             IpfsCommand::Subscribe(topic, kind, tree, app_name, module_ids, tx) => {
                 tracing::info!(topic, "received Subscribe request");
-                let stream = hermes_node
+                let stream = ipfs
                     .pubsub_subscribe(&topic)
                     .await
                     .map_err(|_| Errno::PubsubSubscribeError)?;
@@ -193,14 +189,14 @@ pub(crate) async fn ipfs_command_handler(
                     SubscriptionKind::Default => {
                         TopicMessageHandler::new(
                             &topic,
-                            topic_message_handler,
+                            topic_handlers::topic_message_handler,
                             TopicMessageContext::new(None, app_name, module_ids),
                         )
                     },
                     SubscriptionKind::DocSync => {
                         TopicMessageHandler::new(
                             &topic,
-                            doc_sync_topic_message_handler,
+                            topic_handlers::doc_sync_topic_message_handler,
                             TopicMessageContext::new(tree, app_name, module_ids),
                         )
                     },
@@ -211,42 +207,44 @@ pub(crate) async fn ipfs_command_handler(
                 let handle = hermes_ipfs::subscription_stream_task(
                     stream,
                     move |msg| {
-                        message_handler.handle(msg);
+                        let message_handler_owned = message_handler.clone();
+                        async move {
+                            message_handler_owned.handle(msg).await;
+                        }
                     },
                     move |msg| {
-                        subscription_handler.handle(msg);
+                        let subscription_handler_owned = subscription_handler.clone();
+                        async move {
+                            subscription_handler_owned.handle(msg);
+                        }
                     },
                 );
                 send_response(Ok(handle), tx);
             },
             IpfsCommand::Unsubscribe(topic, tx) => {
                 tracing::info!(topic, "received Unsubscribe request");
-                hermes_node
-                    .pubsub_unsubscribe(topic)
+                ipfs.pubsub_unsubscribe(topic)
                     .await
                     .map_err(|_| Errno::PubsubUnsubscribeError)?;
                 send_response(Ok(()), tx);
             },
             IpfsCommand::EvictPeer(peer, tx) => {
                 let peer_id = TargetPeerId::from_str(&peer).map_err(|_| Errno::InvalidPeerId)?;
-                let status = hermes_node.ban_peer(peer_id).await.is_ok();
+                let status = ipfs.ban_peer(peer_id).await.is_ok();
                 send_response(Ok(status), tx);
             },
             IpfsCommand::DhtProvide(key, tx) => {
-                let response = hermes_node.dht_provide(key.clone()).await.map_err(|err| {
+                let response = ipfs.dht_provide(key.clone()).await.map_err(|err| {
                     tracing::error!(dht_key = ?key, "DHT provide failed: {}", err);
                     Errno::DhtProvideError
                 });
                 send_response(response, tx);
             },
             IpfsCommand::DhtGetProviders(key, tx) => {
-                let response = hermes_node
-                    .dht_get_providers(key.clone())
-                    .await
-                    .map_err(|err| {
-                        tracing::error!(dht_key = ?key, "DHT get providers failed: {}", err);
-                        Errno::DhtGetProvidersError
-                    });
+                let response = ipfs.dht_get_providers(key.clone()).await.map_err(|err| {
+                    tracing::error!(dht_key = ?key, "DHT get providers failed: {}", err);
+                    Errno::DhtGetProvidersError
+                });
                 send_response(response, tx);
             },
             IpfsCommand::Identity(peer_id, tx) => {
@@ -260,151 +258,35 @@ pub(crate) async fn ipfs_command_handler(
                     None => None,
                 };
 
-                let response = hermes_node.identity(peer_id).await.map_err(|err| {
-                    tracing::error!(peer_id = ?peer_id, "Identity failed: {}", err);
-                    Errno::GetPeerIdError
-                });
+                // TODO[rafal-ch]: Timeout here is a workaround: https://github.com/input-output-hk/hermes/issues/798
+                let response =
+                    match tokio::time::timeout(IDENTITY_CALL_TIMEOUT, ipfs.identity(peer_id)).await
+                    {
+                        Ok(Ok(identity)) => {
+                            tracing::info!("got identity");
+                            Ok(Some(identity))
+                        },
+                        Ok(Err(err)) => {
+                            tracing::warn!(peer_id = ?peer_id, %err, "identity call failed");
+                            Ok(None)
+                        },
+                        Err(_) => {
+                            tracing::warn!(peer_id = ?peer_id, "identity call timeout");
+                            Ok(None)
+                        },
+                    };
 
                 send_response(response, tx);
             },
         }
     }
     // Try to stop the node - only works if this is the last reference
-    if let Ok(node) = Arc::try_unwrap(hermes_node) {
+    if let Ok(node) = Arc::try_unwrap(ipfs) {
         node.stop().await;
     } else {
         tracing::warn!("Could not stop IPFS node - other references still exist");
     }
     Ok(())
-}
-
-/// A handler for messages from the IPFS pubsub topic
-pub(super) struct TopicMessageHandler {
-    /// The topic.
-    topic: String,
-
-    /// The handler implementation.
-    #[allow(
-        clippy::type_complexity,
-        reason = "to be revisited after the doc sync functionality is fully implemented as this type still evolves"
-    )]
-    callback: Box<
-        dyn Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, &TopicMessageContext)
-            + Send
-            + Sync
-            + 'static,
-    >,
-
-    /// The context.
-    context: TopicMessageContext,
-}
-
-impl TopicMessageHandler {
-    /// Creates the new handler.
-    pub fn new<F>(
-        topic: &impl ToString,
-        callback: F,
-        context: TopicMessageContext,
-    ) -> Self
-    where
-        F: Fn(hermes_ipfs::rust_ipfs::GossipsubMessage, String, &TopicMessageContext)
-            + Send
-            + Sync
-            + 'static,
-    {
-        Self {
-            topic: topic.to_string(),
-            callback: Box::new(callback),
-            context,
-        }
-    }
-
-    /// Forwards the message to the handler.
-    pub fn handle(
-        &self,
-        msg: hermes_ipfs::rust_ipfs::GossipsubMessage,
-    ) {
-        (self.callback)(msg, self.topic.clone(), &self.context);
-    }
-}
-
-/// A handler for subscribe/unsubscribe events from the IPFS pubsub topic
-pub(super) struct TopicSubscriptionStatusHandler<T>
-where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static
-{
-    /// The topic.
-    topic: String,
-
-    /// The handler implementation.
-    callback: T,
-}
-
-impl<T> TopicSubscriptionStatusHandler<T>
-where T: Fn(hermes_ipfs::SubscriptionStatusEvent, String) + Send + Sync + 'static
-{
-    /// Creates the new handler.
-    pub fn new(
-        topic: &impl ToString,
-        callback: T,
-    ) -> Self {
-        Self {
-            topic: topic.to_string(),
-            callback,
-        }
-    }
-
-    /// Passes the subscription event to the handler.
-    pub fn handle(
-        &self,
-        subscription_event: hermes_ipfs::SubscriptionStatusEvent,
-    ) {
-        (self.callback)(subscription_event, self.topic.clone());
-    }
-}
-
-/// Handler function for topic message streams.
-fn topic_message_handler(
-    message: hermes_ipfs::rust_ipfs::GossipsubMessage,
-    topic: String,
-    context: &TopicMessageContext,
-) {
-    if let Some(ipfs) = HERMES_IPFS.get() {
-        let app_names = ipfs.apps.subscribed_apps(SubscriptionKind::Default, &topic);
-
-        drop(
-            OnTopicEvent::new(PubsubMessage {
-                topic,
-                message: message.data.into(),
-                publisher: message.source.map(|p| p.to_string()),
-            })
-            .build_and_send(app_names, context.module_ids()),
-        );
-    } else {
-        tracing::error!("Failed to send on_topic_event. IPFS is uninitialized");
-    }
-}
-
-/// Handler for Doc Sync `PubSub` messages.
-#[allow(
-    clippy::needless_pass_by_value,
-    reason = "the other handler consumes the message and we need to keep the signatures consistent"
-)]
-fn doc_sync_topic_message_handler(
-    message: hermes_ipfs::rust_ipfs::GossipsubMessage,
-    topic: String,
-    context: &TopicMessageContext,
-) {
-    if let Ok(msg_str) = std::str::from_utf8(&message.data) {
-        tracing::info!(
-            "RECEIVED PubSub message on topic: {topic} - data: {}",
-            &msg_str.chars().take(100).collect::<String>()
-        );
-    }
-
-    let result = handle_doc_sync_topic::<payload::New>(&message, &topic, context);
-    if let Some(Err(err)) = result {
-        tracing::error!("Failed to handle IPFS message: {}", err);
-    }
 }
 
 /// Processes the received CIDs from a broadcasted message.

@@ -13,6 +13,7 @@ use crate::{
         },
         hermes::doc_sync,
     },
+    subscribe_to_topic, unsubscribe_from_topic,
     wasm::module::ModuleId,
 };
 
@@ -144,38 +145,19 @@ pub(crate) fn hermes_ipfs_dht_get_providers(
 }
 
 /// Returns the peer id of the node.
-pub(crate) fn hermes_ipfs_get_peer_identity(
-    app_name: &ApplicationName,
-    peer: Option<PeerId>,
-) -> Result<hermes_ipfs::PeerInfo, Errno> {
+pub(crate) async fn hermes_ipfs_get_peer_identity(
+    peer: Option<PeerId>
+) -> Result<Option<hermes_ipfs::PeerInfo>, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
 
-    let res = if tokio::runtime::Handle::try_current().is_ok() {
-        tracing::debug!("identity with existing Tokio runtime");
+    let identity = ipfs.get_peer_identity(peer).await?;
+    tracing::debug!("Got peer identity");
 
-        let (tx, rx) = std::sync::mpsc::channel();
-
-        tokio::task::spawn_blocking(move || {
-            let handle = tokio::runtime::Handle::current();
-            let res = handle.block_on(ipfs.get_peer_identity(peer));
-            drop(tx.send(res));
-        });
-
-        rx.recv().map_err(|_| Errno::PubsubPublishError)
-    } else {
-        tracing::debug!("identity without existing Tokio runtime");
-        let rt = tokio::runtime::Runtime::new().map_err(|_| Errno::ServiceUnavailable)?;
-
-        Ok(rt.block_on(ipfs.get_peer_identity(peer)))
-    }??;
-
-    tracing::debug!(app_name = %app_name, "Got peer identity");
-
-    Ok(res)
+    Ok(identity)
 }
 
-/// Subscribe to a topic
-pub(crate) fn hermes_ipfs_subscribe(
+/// Subscribe to a topic.
+pub(crate) async fn hermes_ipfs_subscribe(
     kind: SubscriptionKind,
     app_name: &ApplicationName,
     tree: Option<Arc<Mutex<Tree<doc_sync::Cid>>>>,
@@ -184,42 +166,21 @@ pub(crate) fn hermes_ipfs_subscribe(
 ) -> Result<bool, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "subscribing to PubSub topic");
-    let module_ids_owned = module_ids.cloned();
-    if ipfs.apps.topic_subscriptions_contains(kind, topic) {
-        tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription stream already exists");
-    } else {
-        let topic_owned = topic.clone();
-        let app_name_owned = app_name.clone();
-        let handle = if let Ok(rt) = tokio::runtime::Handle::try_current() {
-            tracing::debug!("subscribe with existing Tokio runtime");
-            let (tx, rx) = std::sync::mpsc::channel();
-            tokio::task::spawn_blocking(move || {
-                let res = rt.block_on(ipfs.pubsub_subscribe(
-                    kind,
-                    &topic_owned,
-                    tree,
-                    &app_name_owned,
-                    module_ids_owned,
-                ));
-                drop(tx.send(res));
-            });
-            rx.recv().map_err(|_| Errno::PubsubSubscribeError)??
-        } else {
-            tracing::debug!("subscribe without existing Tokio runtime");
-            let rt = tokio::runtime::Runtime::new().map_err(|_| Errno::ServiceUnavailable)?;
-            rt.block_on(ipfs.pubsub_subscribe(kind, topic, tree, app_name, module_ids_owned))?
-        };
 
-        ipfs.apps.added_topic_stream(kind, topic.clone(), handle);
-        tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "added subscription topic stream");
-    }
-    ipfs.apps
-        .added_app_topic_subscription(kind, app_name.clone(), topic.clone());
+    subscribe_to_topic!(
+        ipfs,
+        kind,
+        app_name,
+        topic,
+        ipfs.pubsub_subscribe(kind, topic, tree, app_name, module_ids)
+            .await
+    );
+
     Ok(true)
 }
 
 /// Unsubscribe from a topic
-pub(crate) fn hermes_ipfs_unsubscribe(
+pub(crate) async fn hermes_ipfs_unsubscribe(
     kind: SubscriptionKind,
     app_name: &ApplicationName,
     topic: &PubsubTopic,
@@ -227,34 +188,19 @@ pub(crate) fn hermes_ipfs_unsubscribe(
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "unsubscribing from PubSub topic");
 
-    if ipfs.apps.topic_subscriptions_contains(kind, topic) {
-        let topic_owned = topic.clone();
-        if let Ok(rt) = tokio::runtime::Handle::try_current() {
-            tracing::debug!("unsubscribe with existing Tokio runtime");
-            let (tx, rx) = std::sync::mpsc::channel();
-            tokio::task::spawn_blocking(move || {
-                let res = rt.block_on(ipfs.pubsub_unsubscribe(&topic_owned));
-                let _ = tx.send(res);
-            });
-            rx.recv().map_err(|_| Errno::PubsubUnsubscribeError)??;
-        } else {
-            tracing::debug!("unsubscribe without existing Tokio runtime");
-            let rt = tokio::runtime::Runtime::new().map_err(|_| Errno::ServiceUnavailable)?;
-            rt.block_on(ipfs.pubsub_unsubscribe(topic))?;
-        }
+    unsubscribe_from_topic!(
+        ipfs,
+        kind,
+        app_name,
+        topic,
+        ipfs.pubsub_unsubscribe(topic).await
+    );
 
-        ipfs.apps.removed_topic_stream(kind, topic);
-        tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "removed subscription topic stream");
-    } else {
-        tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription does not exist");
-    }
-    ipfs.apps
-        .removed_app_topic_subscription(kind, app_name, topic);
     Ok(true)
 }
 
 /// Publish message to a topic
-pub(crate) fn hermes_ipfs_publish(
+pub(crate) async fn hermes_ipfs_publish(
     app_name: &ApplicationName,
     topic: &PubsubTopic,
     message: MessageData,
@@ -269,26 +215,7 @@ pub(crate) fn hermes_ipfs_publish(
         "📤 Publishing PubSub message"
     );
 
-    let res = if tokio::runtime::Handle::try_current().is_ok() {
-        tracing::debug!("publish with existing Tokio runtime");
-
-        let (tx, rx) = std::sync::mpsc::channel();
-        let topic_owned = topic.clone();
-
-        tokio::task::spawn_blocking(move || {
-            let handle = tokio::runtime::Handle::current();
-            let res = handle.block_on(ipfs.pubsub_publish(topic_owned, message));
-            let _ = tx.send(res);
-        });
-
-        rx.recv().map_err(|_| Errno::PubsubPublishError)
-    } else {
-        tracing::debug!("publish without existing Tokio runtime");
-
-        let rt = tokio::runtime::Runtime::new().map_err(|_| Errno::ServiceUnavailable)?;
-
-        Ok(rt.block_on(ipfs.pubsub_publish(topic.to_string(), message)))
-    }?;
+    let res = ipfs.pubsub_publish(topic, message).await;
 
     match &res {
         Ok(()) => {
