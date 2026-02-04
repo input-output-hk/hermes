@@ -63,3 +63,8 @@ void exports_hermes_doc_sync_event_document_provider_return_cids(exports_hermes_
 bool exports_hermes_doc_sync_event_document_provider_retrieve_doc(exports_hermes_doc_sync_event_document_provider_channel_name_t *channel, exports_hermes_doc_sync_event_document_provider_ipfs_cid_t *cid, exports_hermes_doc_sync_event_document_provider_doc_data_t *ret) {
   return false;
 }
+
+void exports_hermes_doc_sync_event_document_provider_return_channels(hermes_list_channel_name_t *ret) {
+    ret->ptr = NULL;
+    ret->len = 0;
+}

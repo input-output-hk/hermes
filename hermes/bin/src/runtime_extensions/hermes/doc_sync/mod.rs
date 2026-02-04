@@ -11,7 +11,8 @@ use once_cell::sync::Lazy;
 mod event;
 mod host;
 
-pub(crate) use event::OnNewDocEvent;
+pub(crate) use event::{OnNewDocEvent, ReadComponentInstanceExt};
+pub use host::add_cids_to_channel_smt;
 
 /// Wrapper for `hermes_ipfs::Cid` to implement `catalyst_types::smt::Value`.
 #[derive(Clone, Debug, Default)]

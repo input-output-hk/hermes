@@ -13,7 +13,9 @@ use std::{
 };
 
 use anyhow::Context as _;
+use hermes_ipfs::Cid;
 use rusty_ulid::Ulid;
+use tracing::debug;
 use wasmtime::{
     Store as WasmStore,
     component::{
@@ -27,7 +29,7 @@ use crate::{
     runtime_context::HermesRuntimeContext,
     runtime_extensions::{
         bindings::{self, LinkOptions, unchecked_exports},
-        hermes::init::ComponentInstanceExt as _,
+        hermes::{doc_sync::ReadComponentInstanceExt as _, init::ComponentInstanceExt as _},
         init::{
             trait_event::{RteEvent, RteInitEvent},
             trait_module::{RteInitModule, RteModule},
@@ -182,6 +184,60 @@ impl Module {
             anyhow::bail!("WASM component init function returned false")
         }
         Ok(())
+    }
+
+    /// Extracts cids with their channels to initialize smt.
+    pub(crate) fn try_get_cids(
+        &self,
+        vfs: Arc<Vfs>,
+    ) -> anyhow::Result<Vec<(String, Vec<Cid>)>> {
+        let runtime_ctx = self.new_context("init_function_call", vfs);
+
+        let mut store = WasmStore::new(&self.engine, runtime_ctx);
+        let instance = self.pre_instance.instantiate(&mut store)?;
+
+        let channels = match instance
+            .lookup_hermes_event_document_provider_return_channels(&mut store)
+        {
+            Ok(func) => {
+                let channels = func
+                    .call(&mut store, ())
+                    .context("unable to call WASM component init function")?
+                    .0;
+                let _unused = func
+                    .post_return(&mut store)
+                    .inspect_err(|error| tracing::error!(%error, "Module initialized, but return_channels() post-return failed"));
+                channels
+            },
+            Err(unchecked_exports::Error::NotExported) => {
+                anyhow::bail!("WASM component return_channels function not found")
+            },
+            Err(err) => return Err(err.into()),
+        };
+
+        let return_cids =
+            match instance.lookup_hermes_event_document_provider_return_cids(&mut store) {
+                Ok(func) => func,
+                Err(unchecked_exports::Error::NotExported) => {
+                    anyhow::bail!("WASM component return_cids function not found")
+                },
+                Err(err) => return Err(err.into()),
+            };
+
+        let cids_with_channel = channels.iter().filter_map(|channel| {
+                let init_result = return_cids
+                    .call(&mut store, (channel, ))
+                    .context("unable to call WASM component return_cids function")
+                    .inspect_err(|err| debug!("{}", err)).ok()?
+                    .0;
+                let _unused = return_cids
+                    .post_return(&mut store)
+                    .inspect_err(|error| tracing::error!(%error, "Module initialized, but return_cids() post-return failed"));
+                let cids = init_result.into_iter().filter_map(|bytes| Cid::try_from(bytes).inspect_err(|err| debug!("{}", err)).ok()).collect();
+                Some((channel.clone(), cids))
+        }).collect();
+
+        Ok(cids_with_channel)
     }
 
     /// Instantiate WASM module reader
