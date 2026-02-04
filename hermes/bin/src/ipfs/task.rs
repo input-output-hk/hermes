@@ -99,8 +99,6 @@ pub(crate) enum IpfsCommand {
 #[allow(clippy::too_many_lines)]
 pub(crate) async fn ipfs_command_handler(
     ipfs: HermesIpfs,
-    // TODO[rafal-ch]: Prolly not needed here.
-    _tokio: tokio::runtime::Handle,
     mut queue_rx: mpsc::Receiver<IpfsCommand>,
 ) -> anyhow::Result<()> {
     let ipfs = Arc::new(ipfs);

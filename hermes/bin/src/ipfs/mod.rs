@@ -494,13 +494,10 @@ where N: hermes_ipfs::rust_ipfs::NetworkBehaviour<ToSwarm = Infallible> + Send +
                 .await?;
             tracing::debug!("IPFS node set to DHT server mode");
 
-            // Get the handle to the Tokio runtime
-            let tokio_handle = tokio::runtime::Handle::current();
-
             // Spawn the command handler task
             tokio::spawn(async move {
                 let _ = ready_tx.send(());
-                if let Err(err) = ipfs_command_handler(ipfs, tokio_handle, command_receiver).await {
+                if let Err(err) = ipfs_command_handler(ipfs, command_receiver).await {
                     tracing::error!(%err, "IPFS command handler failed");
 
                     // TODO[rafal-ch]: In the future we should make sure that:
