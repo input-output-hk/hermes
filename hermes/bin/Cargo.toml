@@ -105,7 +105,7 @@ multihash = { version = "0.19.3", features = ["serde-codec"] }
 const_format = "0.2.35"
 
 # Pinned to the catalyst_types minicbor version.
-minicbor = { version = "=0.25.1", features = ["std", "derive"] }
+minicbor = { version = "=0.26.5", features = ["std", "derive"] }
 
 [build-dependencies]
 built = { version = "0.8.0", features = ["git2", "chrono"] }
