@@ -13,9 +13,9 @@ use crate::{
     ipfs::{HERMES_IPFS, HermesIpfsNode},
     runtime_extensions::{
         bindings::hermes::ipfs::api::{Errno, MessageData, PeerId, PubsubTopic},
-        hermes,
-        hermes::doc_sync,
+        hermes::{self, doc_sync},
     },
+    subscribe_to_topic, unsubscribe_from_topic,
     wasm::module::ModuleId,
 };
 
@@ -120,15 +120,15 @@ pub(crate) fn hermes_ipfs_subscribe(
 ) -> Result<bool, Errno> {
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "subscribing to PubSub topic");
-    if ipfs.apps.topic_subscriptions_contains(kind, topic) {
-        tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription stream already exists");
-    } else {
-        let handle = ipfs.pubsub_subscribe_blocking(kind, topic, tree, app_name, module_ids)?;
-        ipfs.apps.added_topic_stream(kind, topic.clone(), handle);
-        tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "added subscription topic stream");
-    }
-    ipfs.apps
-        .added_app_topic_subscription(kind, app_name.clone(), topic.clone());
+
+    subscribe_to_topic!(
+        ipfs,
+        kind,
+        app_name,
+        topic,
+        ipfs.pubsub_subscribe_blocking(kind, topic, tree, app_name, module_ids)
+    );
+
     Ok(true)
 }
 
@@ -141,18 +141,14 @@ pub(crate) fn hermes_ipfs_unsubscribe(
     let ipfs = HERMES_IPFS.get().ok_or(Errno::ServiceUnavailable)?;
     tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "unsubscribing from PubSub topic");
 
-    if ipfs.apps.topic_subscriptions_contains(kind, topic) {
-        ipfs.pubsub_unsubscribe_blocking(topic)?;
+    unsubscribe_from_topic!(
+        ipfs,
+        kind,
+        app_name,
+        topic,
+        ipfs.pubsub_unsubscribe_blocking(topic)
+    );
 
-        ipfs.apps.removed_topic_stream(kind, topic);
-        tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "removed subscription topic
-stream");
-    } else {
-        tracing::debug!(app_name = %app_name, pubsub_topic = %topic, "topic subscription does not
-exist");
-    }
-    ipfs.apps
-        .removed_app_topic_subscription(kind, app_name, topic);
     Ok(true)
 }
 

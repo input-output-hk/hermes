@@ -1039,3 +1039,37 @@ fn is_valid_pubsub_content(
     // TODO(anyone): https://github.com/input-output-hk/hermes/issues/288
     !message.is_empty()
 }
+
+/// Helper macro to keep the same `ipfs.apps` update logic for both sync
+/// and async subscription calls.
+#[macro_export]
+macro_rules! subscribe_to_topic {
+    ($ipfs:expr, $kind:expr, $app_name:expr, $topic:expr, $subscribe_call:expr) => {{
+        if $ipfs.apps.topic_subscriptions_contains($kind, $topic) {
+            tracing::debug!(app_name = %$app_name, pubsub_topic = %$topic, "topic subscription stream already exists");
+        } else {
+            let handle = $subscribe_call?;
+            $ipfs.apps.added_topic_stream($kind, $topic.clone(), handle);
+            tracing::debug!(app_name = %$app_name, pubsub_topic = %$topic, "added subscription topic stream");
+        }
+        $ipfs.apps
+            .added_app_topic_subscription($kind, $app_name.clone(), $topic.clone());
+    }};
+}
+
+/// Helper macro to keep the same `ipfs.apps` update logic for both sync
+/// and async unsubscription calls.
+#[macro_export]
+macro_rules! unsubscribe_from_topic {
+    ($ipfs:expr, $kind:expr, $app_name:expr, $topic:expr, $unsubscribe_call:expr) => {{
+        if $ipfs.apps.topic_subscriptions_contains($kind, $topic) {
+            $unsubscribe_call?;
+            $ipfs.apps.removed_topic_stream($kind, $topic);
+            tracing::debug!(app_name = %$app_name, pubsub_topic = %$topic, "removed subscription topic stream");
+        } else {
+            tracing::debug!(app_name = %$app_name, pubsub_topic = %$topic, "topic subscription does not exist");
+        }
+        $ipfs.apps
+            .removed_app_topic_subscription($kind, $app_name, $topic);
+    }};
+}
