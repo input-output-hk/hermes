@@ -161,46 +161,48 @@ _build-athena-common mode:
     # 4. Validates the package structure and dependencies
     # Running these in parallel saves significant time when packaging multiple modules
 
+    cd hermes
+
     # Start all packaging operations in background processes (non-blocking)
     (
         echo "  📦 Packaging http-proxy module..."
-        target/release/hermes module package hermes/apps/athena/modules/http-proxy/lib/manifest_module.json
+        target/release/hermes module package apps/athena/modules/http-proxy/lib/manifest_module.json
     ) &
     HTTP_PROXY_PKG_PID=$!  # Capture PID for synchronization
 
     (
         echo "  📦 Packaging rbac-registration-indexer module..."
-        target/release/hermes module package hermes/apps/athena/modules/rbac-registration-indexer/lib/manifest_module.json
+        target/release/hermes module package apps/athena/modules/rbac-registration-indexer/lib/manifest_module.json
     ) &
     RBAC_INDEXER_PKG_PID=$!  # Capture PID for synchronization
 
     (
         echo "  📦 Packaging rbac-registration module..."
-        target/release/hermes module package hermes/apps/athena/modules/rbac-registration/lib/manifest_module.json
+        target/release/hermes module package apps/athena/modules/rbac-registration/lib/manifest_module.json
     ) &
     RBAC_PKG_PID=$!  # Capture PID for synchronization
 
     (
         echo "  📦 Packaging staked-ada-indexer module..."
-        target/release/hermes module package hermes/apps/athena/modules/staked-ada-indexer/lib/manifest_module.json
+        target/release/hermes module package apps/athena/modules/staked-ada-indexer/lib/manifest_module.json
     ) &
     STAKED_INDEXER_PKG_PID=$!  # Capture PID for synchronization
 
     (
         echo "  📦 Packaging staked-ada module..."
-        target/release/hermes module package hermes/apps/athena/modules/staked-ada/lib/manifest_module.json
+        target/release/hermes module package apps/athena/modules/staked-ada/lib/manifest_module.json
     ) &
     STAKED_PKG_PID=$!  # Capture PID for synchronization
 
     (
         echo "  📦 Packaging auth module..."
-        target/release/hermes module package hermes/apps/athena/modules/auth/lib/manifest_module.json
+        target/release/hermes module package apps/athena/modules/auth/lib/manifest_module.json
     ) &
     AUTH_PKG_PID=$!  # Capture PID for synchronization
 
     (
         echo "  📦 Packaging doc-sync module..."
-        target/release/hermes module package hermes/apps/athena/modules/doc-sync/lib/manifest_module.json
+        target/release/hermes module package apps/athena/modules/doc-sync/lib/manifest_module.json
     ) &
     DOC_SYNC_PKG_PID=$!  # Capture PID for synchronization
 
@@ -230,16 +232,16 @@ _build-athena-common mode:
     echo "✅ Module packaging complete (.hmod files created)"
 
     echo "📦 Packaging application bundle..."
-    echo "📄 Using manifest: hermes/apps/athena/manifest_app.json"
+    echo "📄 Using manifest: apps/athena/manifest_app.json"
 
     # Step 3: Create final application package (.happ file)
     # The .happ file bundles all modules and application-level configuration
-    target/release/hermes app package hermes/apps/athena/manifest_app.json
+    target/release/hermes app package apps/athena/manifest_app.json
     echo "✅ Application packaging complete (.happ file created)"
 
     echo "$SUCCESS_MSG"
-    echo "📦 Application package: hermes/apps/athena/athena.happ"
-    echo "📏 Package size: $(ls -lh hermes/apps/athena/athena.happ | awk '{print $5}' 2>/dev/null || echo 'N/A')"
+    echo "📦 Application package: apps/athena/athena.happ"
+    echo "📏 Package size: $(ls -lh apps/athena/athena.happ | awk '{print $5}' 2>/dev/null || echo 'N/A')"
     echo "$ASSETS_STATUS"
 
 # Build WASM modules with full web assets (production)
@@ -293,9 +295,11 @@ run-athena:
     echo "🛑 Press Ctrl+C to stop"
     echo ""
 
+    cd hermes
+
     # Execute the application with security sandboxing
     # HERMES_LOG_LEVEL="debug"
-    target/release/hermes run --untrusted hermes/apps/athena/athena.happ
+    target/release/hermes run --untrusted apps/athena/athena.happ
 
 
 
