@@ -110,7 +110,7 @@ pub(crate) fn hermes_ipfs_get_peer_identity(
     Ok(identity)
 }
 
-/// Subscribe to a topic from in the non-async context.
+/// Subscribe to a topic in the non-async context.
 pub(crate) fn hermes_ipfs_subscribe(
     kind: SubscriptionKind,
     app_name: &ApplicationName,
