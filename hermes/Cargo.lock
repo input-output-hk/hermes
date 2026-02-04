@@ -3183,8 +3183,8 @@ dependencies = [
 
 [[package]]
 name = "hermes-ipfs"
-version = "0.0.12"
-source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=hermes-ipfs%2Fv0.0.12#30665e5bcf3d38738c8abcd2fb05cf9c2911033f"
+version = "0.0.13"
+source = "git+https://github.com/input-output-hk/catalyst-libs.git?tag=hermes-ipfs%2Fv0.0.13#acc9b3a93046f4643da48a43266f97cd795f7749"
 dependencies = [
  "anyhow",
  "blake3",
@@ -9000,9 +9000,9 @@ dependencies = [
 
 [[package]]
 name = "uuid"
-version = "1.19.0"
+version = "1.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2e054861b4bd027cd373e18e8d8d8e6548085000e41290d95ce0c373a654b4a"
+checksum = "ee48d38b119b0cd71fe4141b30f5ba9c7c5d9f4e7a3a8b4a674e4b6ef789976f"
 dependencies = [
  "getrandom 0.3.4",
  "js-sys",
