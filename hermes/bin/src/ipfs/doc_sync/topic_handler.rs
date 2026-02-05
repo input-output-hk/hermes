@@ -2,7 +2,10 @@
 
 use std::sync::Arc;
 
-use hermes_ipfs::doc_sync::payload::{self, CommonFields, DocumentDisseminationBody};
+use hermes_ipfs::doc_sync::{
+    payload::{self, CommonFields, DocumentDisseminationBody},
+    syn_payload::{self, MsgSyn},
+};
 
 use crate::ipfs::{
     doc_sync::reconciliation, task::process_broadcasted_cids,
@@ -129,6 +132,27 @@ impl TopicHandler for payload::New {
                 ))
             },
         }
+    }
+}
+
+impl TopicHandler for syn_payload::MsgSyn {
+    const TOPIC_SUFFIX: &'static str = ".syn";
+
+    async fn handle(
+        self,
+        _topic: &str,
+        _source: Option<hermes_ipfs::PeerId>,
+        context: TopicMessageContext,
+    ) -> anyhow::Result<()> {
+        let Some(_tree) = context.tree() else {
+            return Err(anyhow::anyhow!(
+                "Context for payload::New handler must contain an SMT."
+            ));
+        };
+
+        let msg: MsgSyn = MsgSyn::from(self);
+        tracing::info!(root = %msg.root.to_hex(), count = %msg.count, "Received SYN message");
+        Ok(())
     }
 }
 
