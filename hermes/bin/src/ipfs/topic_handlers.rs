@@ -4,7 +4,10 @@
 
 use std::{pin::Pin, sync::Arc};
 
-use hermes_ipfs::doc_sync::payload::{self};
+use hermes_ipfs::doc_sync::{
+    payload::{self},
+    syn_payload,
+};
 
 use super::HERMES_IPFS;
 use crate::{
@@ -131,6 +134,16 @@ pub(super) async fn topic_message_handler(
     }
 }
 
+async fn try_handlers(
+    message: &hermes_ipfs::rust_ipfs::GossipsubMessage,
+    topic: &str,
+    context: &TopicMessageContext,
+) -> Option<anyhow::Result<()>> {
+    handle_doc_sync_topic::<payload::New>(message, topic, context.clone())
+        .await
+        .or(handle_doc_sync_topic::<syn_payload::MsgSyn>(message, topic, context.clone()).await)
+}
+
 /// Handler for Doc Sync `PubSub` messages.
 #[allow(
     clippy::needless_pass_by_value,
@@ -148,7 +161,7 @@ pub(super) async fn doc_sync_topic_message_handler(
         );
     }
 
-    let result = handle_doc_sync_topic::<payload::New>(&message, &topic, context).await;
+    let result = try_handlers(&message, &topic, &context).await;
     if let Some(Err(err)) = result {
         tracing::error!("Failed to handle IPFS message: {}", err);
     }

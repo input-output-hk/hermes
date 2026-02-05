@@ -36,6 +36,7 @@ pub(crate) enum DocReconciliation {
 /// The context for document reconciliation process, if it is needed.
 pub(crate) struct DocReconciliationData {
     /// Root of our SMT.
+    #[allow(dead_code)]
     our_root: Blake3256,
     /// Document count in our SMT.
     our_count: u64,
@@ -60,7 +61,7 @@ pub(super) async fn start_reconciliation(
     tracing::info!(%channel, "subscribed to .dif");
 
     let syn_payload = make_syn_payload(doc_reconciliation_data, peer).await;
-    tracing::info!("SYN payload created");
+    tracing::info!(root = %syn_payload.root.to_hex(), count = %syn_payload.count, "SYN payload created");
 
     if let Err(err) = send_syn_payload(&syn_payload, app_name, channel).await {
         unsubscribe_from_dif(app_name, channel).await?;
