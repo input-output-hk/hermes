@@ -5,7 +5,7 @@ and follow updates (new blocks and rollbacks) from a Cardano network (e.g. mainn
 
 Currently, the all communication with a Cardano node (remote or local) is done using the
 [Node-to-Node protocol](https://docs.cardano.org/explore-cardano/cardano-network/about-the-cardano-network).
-A [Mithril snapshot](https://github.com/input-output-hk/mithril) can be configured to be used both when reading blocks
+A [Mithril snapshot](https://github.com/IntersectMBO/mithril) can be configured to be used both when reading blocks
 and following chain updates.
 
 The [Pallas](https://github.com/txpipe/pallas) crate is used under the hood to provide
